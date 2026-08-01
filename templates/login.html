@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Defence Space Administration - Login</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="login-container">
+      <!-- Header Branding Section -->
+      <div class="branding-header">
+        <img
+          src="{{ url_for('static', filename='images/dsa2.png') }}"
+          alt="DSA Logo"
+          class="logo"
+        />
+        <div class="divider-line"></div>
+        <div class="branding-text">
+          <span class="brand-title-red">Defence</span>
+          <span class="brand-title-blue">Space Administration</span>
+        </div>
+      </div>
+
+      <h3 class="welcome-heading">Welcome</h3>
+
+      <!-- Form Elements -->
+      <form id="loginForm">
+        <div class="input-group">
+          <label for="email">Official Email</label>
+          <input
+            type="email"
+            id="email"
+            placeholder="name@dsa.mil.ng"
+            required
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="input-group">
+          <label for="password">Password</label>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              id="password"
+              placeholder="••••••••••••"
+              required
+            />
+            <span class="toggle-password-eye">👁</span>
+          </div>
+        </div>
+
+        <p id="errorMessage" class="error-text"></p>
+
+        <button type="submit" id="signinBtn">Signin</button>
+      </form>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
+</html>

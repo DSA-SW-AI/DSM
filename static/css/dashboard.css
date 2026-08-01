@@ -1,0 +1,331 @@
+/* static/css/dashboard.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+body {
+    background-color: #F4F7FC;
+    min-height: 100vh;
+}
+
+.dashboard-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar Dark Indigo Navigation Styling Frame */
+.sidebar {
+    width: 280px;
+    background-color: #15305B;
+    color: #FFFFFF;
+    padding: 20px;
+    flex-shrink: 0;
+}
+
+.sidebar-logo {
+    height: 65px;
+    width: auto;
+    object-fit: contain;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-brand h2 {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.sidebar-brand p {
+    font-size: 11px;
+    color: #A0AEC0;
+}
+
+/* Ensure the sidebar covers full vertical space and stacks content correctly */
+.sidebar {
+    width: 280px;
+    background-color: #15305B;
+    /* Dark Navy Theme */
+    color: #FFFFFF;
+    padding: 20px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    /* Takes full window height context */
+    position: sticky;
+    top: 0;
+}
+
+/* Allow the links container to grow and scroll independently if options overflow */
+.sidebar-menu {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+/* Style the bottom container separator line */
+.sidebar-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 15px;
+    margin-top: auto;
+    /* Pushes to the exact absolute floor of flexbox parent */
+}
+
+/* The signature solid red logout layout action rules */
+.logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #D30B0B;
+    /* Solid military red tone */
+    color: #FFFFFF;
+    text-decoration: none;
+    padding: 12px 15px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* Darker crimson overlay when user targets hover action states */
+.logout-btn:hover {
+    background-color: #A30808;
+    color: #FFFFFF;
+}
+
+.logout-btn:active {
+    transform: scale(0.98);
+    /* Tactile compression when clicked */
+}
+
+
+.menu-section-label {
+    font-size: 11px;
+    color: #4A5568;
+    margin: 25px 0 10px 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.menu-item {
+    display: block;
+    color: #CBD5E0;
+    text-decoration: none;
+    padding: 12px 15px;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.menu-item:hover,
+.menu-item.active {
+    background-color: #1A365D;
+    color: #FFFFFF;
+}
+
+/* Main Dashboard Workspace Screen View */
+.main-content {
+    flex-grow: 1;
+    padding: 25px 35px;
+    overflow-y: auto;
+}
+
+.top-navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+/* Welcome Deep Royal Blue Card Heading Strip Banner */
+.welcome-banner {
+    background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+/* Data Content Statistics Grid Formatting Framework */
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.metric-card {
+    background: #FFFFFF;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+    border-top: 4px solid #3B82F6;
+}
+
+.metric-card.border-orange {
+    border-top-color: #F59E0B;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.card-header h3 {
+    font-size: 13px;
+    color: #718096;
+}
+
+.total-count {
+    font-size: 24px;
+    font-weight: bold;
+    color: #1A202C;
+}
+
+.sub-metrics {
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid #E2E8F0;
+    padding-top: 12px;
+}
+
+.sub-metrics div {
+    text-align: center;
+    width: 33%;
+}
+
+.sub-metrics span {
+    font-weight: 600;
+    color: #2D3748;
+    font-size: 14px;
+}
+
+.sub-metrics p {
+    font-size: 11px;
+    color: #A0AEC0;
+}
+
+.clickable-card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    user-select: none;
+}
+
+/* Visual anchor responses when a user hovers over a dashboard card */
+.clickable-card:hover {
+    transform: translateY(-4px);
+    /* Gently lifts the card up */
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+    /* Deepens the depth contrast */
+    border-color: #1E3A8A;
+    /* Highlight border adjustment */
+}
+
+/* Subtle shrink compression style state when physically pressed down */
+.clickable-card:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+}
+
+/* ================= PROFESSIONAL USER BADGE COMPONENT ================= */
+
+.user-profile-badge {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background-color: #FFFFFF;
+    /* High contrast background mask panel */
+    padding: 8px 16px;
+    border-radius: 50px;
+    /* Smooth pill-shaped enclosure */
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    /* Soft executive shadow profile */
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.user-profile-badge:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Crisp corporate avatar circle profile placeholder symbol */
+.user-avatar-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1E3A8A 0%, #0F172A 100%);
+    /* Deep Royal Indigo Gradient */
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.5px;
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2);
+}
+
+.user-meta-stack {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.3;
+}
+
+.user-fullname-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0F172A;
+    /* Slate black executive ink tone */
+    margin: 0;
+    letter-spacing: -0.2px;
+}
+
+.user-role-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+/* Compact stylized metadata chip container */
+.role-badge-pill {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    background-color: #F1F5F9;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.role-divider-dot {
+    font-size: 10px;
+    color: #94A3B8;
+}
+
+.directorate-text-code {
+    font-size: 11px;
+    font-weight: 700;
+    color: #E50000;
+    /* Signature military red indicator accent */
+    letter-spacing: 0.5px;
+}

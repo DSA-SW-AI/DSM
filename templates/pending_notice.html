@@ -1,0 +1,113 @@
+<!-- templates/pending_notice.html -->
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSA Paperless - Verification Pending</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+
+<body style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    ">
+  <div style="
+        background: #ffffff;
+        width: 100%;
+        max-width: 500px;
+        padding: 45px;
+        border-radius: 12px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.05);
+        text-align: center;
+      ">
+    <!-- Large animated holding yellow clock symbol asset -->
+    <div style="
+          width: 70px;
+          height: 70px;
+          background-color: #fef3c7;
+          color: #d97706;
+          font-size: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 25px auto;
+          border: 2px solid #d97706;
+        ">
+      🕒
+    </div>
+
+    <h2 style="
+          font-size: 22px;
+          color: #1a202c;
+          font-weight: 600;
+          margin-bottom: 12px;
+        ">
+      {% if user.status == 'Rejected' %}
+      Onboarding Rejected
+      {% else %}
+      Onboarding Review Pending
+      {% endif %}
+    </h2>
+
+    <p style="
+          font-size: 14px;
+          color: #4a5568;
+          line-height: 1.6;
+          margin-bottom: 25px;
+        ">
+      Hello <strong>{{ user.name }}</strong>,<br /><br />
+
+      {% if user.status == 'Rejected' %}
+      Your onboarding registration has been <span style="color: #e50000; font-weight: 700">rejected</span>.
+      Your file has been routed back to the <span style="color: #e50000; font-weight: 700">DOA Registry Control
+        Sector</span>
+      and you are currently awaiting reassignment or further instructions.
+      {% else %}
+      Your multi-step onboarding registration records have been securely
+      logged into the system. Your file is currently routing through the
+      <span style="color: #e50000; font-weight: 700">Directorate of {{ user.directorate | upper }}</span>
+      for official approval.
+      {% endif %}
+    </p>
+
+    <div style="
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
+          padding: 12px;
+          border-radius: 6px;
+          font-size: 13px;
+          color: #64748b;
+          margin-bottom: 30px;
+        ">
+      Current Status: <strong>
+        {% if user.status == 'Rejected' %}
+        Awaiting Registry Reassignment
+        {% else %}
+        Awaiting Director Sign-off
+        {% endif %}
+      </strong>
+    </div>
+
+    <button onclick="window.location.href = '/logout'" style="
+          width: 100%;
+          padding: 13px;
+          background-color: #e50000;
+          color: #ffffff;
+          border: none;
+          border-radius: 6px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+        ">
+      🚪 Exit System Context
+    </button>
+  </div>
+</body>
+
+</html>

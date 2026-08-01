@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSA Paperless - Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+</head>
+
+<body>
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>{{ user.directorate }}</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
+
+        <div class="menu-section-label">REGISTRY</div>
+        {% if "documents" in permissions.sidebar %}
+        <a href="/documents-view" class="menu-item">📁 Documents</a>
+        {% endif %} {% if "incoming" in permissions.sidebar %}
+        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+        {% endif %} {% if "outgoing" in permissions.sidebar %}
+        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+        {% endif %}
+
+        <div class="menu-section-label">HR MANAGEMENT</div>
+        {% if "civilian_personnel" in permissions.sidebar %}
+        <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+        {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+        <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+        {% endif %} {% if "leave_pass" in permissions.sidebar %}
+        <a href="/leave-view" class="menu-item">📅 Leave & Pass</a>
+        {% endif %}
+      </nav>
+      <!-- Permanently Locked Footer Segment -->
+      <div class="sidebar-footer">
+        <a href="{{ url_for('logout') }}" class="logout-btn">
+          🚪 Logout
+        </a>
+      </div>
+    </aside>
+
+    <!-- ================= MAIN DASHBOARD CONTENT CONTAINER ================= -->
+    <main class="main-content">
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 DSA PAPERLESS &gt; <span>Dashboard</span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Welcome Banner Card Layout -->
+      <section class="welcome-banner">
+        <div class="welcome-text">
+          <h1>Welcome {{ user.title }},</h1>
+          <p>{{ user.directorate }} · {{ user.office }}</p>
+        </div>
+        <div class="live-clock">🕒 {{ current_time }}</div>
+      </section>
+
+      {% if user.training_request_active %}
+      <div class="alert-box"
+        style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #e2a114; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ffeeba;">
+        <div>
+          <strong style="display: block; margin-bottom: 4px; font-size: 16px;">⚠️ Additional Document Requested</strong>
+          Registry control has requested that you submit an additional document/training record.
+        </div>
+        <button type="button" onclick="document.getElementById('extraDocModal').style.display='flex'"
+          style="background-color: #e2a114; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+          Submit Document
+        </button>
+      </div>
+      {% endif %}
+
+      <!-- Grid Modules Layout Wrapper Block -->
+      <section class="modules-grid">
+        <!-- Documents Analytics Block Segment -->
+        {% if "documents" in permissions.modules %}
+        <div class="metric-card clickable-card" data-target="/documents-view">
+          <div class="card-header">
+            <h3>DOCUMENTS</h3>
+            <span class="total-count">1,297</span>
+          </div>
+          <div class="sub-metrics">
+            <div>
+              <span>234</span>
+              <p>Draft</p>
+            </div>
+            <div>
+              <span>105</span>
+              <p>Pending</p>
+            </div>
+            <div>
+              <span>954</span>
+              <p>Approved</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Personnel Data Analysis Module -->
+        {% if "personnel_civilian" in permissions.modules %}
+        <div class="metric-card border-orange clickable-card" data-target="/personnel-view">
+          <div class="card-header">
+            <h3>PERSONNEL & CIVILIAN</h3>
+            <span class="total-count">1,297</span>
+          </div>
+          <div class="sub-metrics">
+            <div>
+              <span>234</span>
+              <p>Military</p>
+            </div>
+            <div>
+              <span>105</span>
+              <p>Civilian</p>
+            </div>
+            <div>
+              <span>954</span>
+              <p>NYSC</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- Quick Action Interactive Section Blocks -->
+      <section class="bottom-split-row">
+        <!-- ================= FIXED LIVE TIMELINE ACTIVITY FEED ================= -->
+        <div class="activity-feed" style="
+              background: #ffffff;
+              padding: 25px;
+              border-radius: 12px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.01);
+              text-align: left;
+            ">
+          <h3 style="
+                font-size: 15px;
+                color: #1a202c;
+                font-weight: 600;
+                border-bottom: 2px solid #f1f5f9;
+                padding-bottom: 12px;
+                margin-bottom: 15px;
+              ">
+            Registry Activity Feed
+          </h3>
+
+          <div class="feed-timeline-container" style="
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+                max-height: 320px;
+                overflow-y: auto;
+                padding-right: 5px;
+              ">
+            {% if feed %} {% for log in feed %}
+            <div class="feed-item" style="
+                  display: flex;
+                  gap: 12px;
+                  align-items: flex-start;
+                  padding-bottom: 12px;
+                  border-bottom: 1px dashed #edf2f7;
+                ">
+              <div class="feed-badge" style="
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background-color: #e50000;
+                    margin-top: 6px;
+                    flex-shrink: 0;
+                  "></div>
+              <div style="flex-grow: 1">
+                <p style="
+                      font-size: 13px;
+                      color: #2d3748;
+                      margin: 0;
+                      line-height: 1.4;
+                    ">
+                  <strong>{{ log.name }}</strong> ({{
+                  log.email.split('@')[0].replace('_', '/').upper() }}) -
+                  <span style="color: #4a5568">{{ log.action }}</span>
+                </p>
+                <span style="
+                      font-size: 11px;
+                      color: #a0aec0;
+                      display: block;
+                      margin-top: 3px;
+                    ">🕒 {{ log.timestamp }}</span>
+              </div>
+            </div>
+            {% endfor %} {% else %}
+            <p style="
+                  text-align: center;
+                  color: #a0aec0;
+                  font-size: 13px;
+                  padding: 40px 0;
+                  font-style: italic;
+                ">
+              No active registration event footprints logged within this
+              track.
+            </p>
+            {% endif %}
+          </div>
+        </div>
+        <!-- ===================================================================== -->
+
+        <div class="quick-actions-panel">
+          <h3>Quick Actions</h3>
+          <div class="action-buttons-grid">
+            {% if "incoming_register" in permissions.actions %}
+            <button class="action-btn">📥 Incoming Register</button>
+            {% endif %} {% if "outgoing_register" in permissions.actions %}
+            <button class="action-btn">📤 Outgoing Register</button>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ================= EXTRA DOCUMENT SUBMISSION MODAL ================= -->
+  <div id="extraDocModal" class="modal-overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; justify-content: center; align-items: center;">
+    <div class="modal-container"
+      style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px;">
+        <h2 style="margin: 0; font-size: 18px;">Submit Additional Document</h2>
+        <span onclick="document.getElementById('extraDocModal').style.display='none'"
+          style="cursor: pointer; font-size: 24px; font-weight: bold; color: #a0aec0;">&times;</span>
+      </div>
+      <form action="/append-training-record" method="POST" enctype="multipart/form-data">
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Name of
+            Certificate/Document <span style="color: #e50000">*</span></label>
+          <input type="text" name="trainingName" required
+            style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;"
+            placeholder="e.g. Master's Degree">
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Period of
+            Training/Acquisition <span style="color: #e50000">*</span></label>
+          <input type="text" name="trainingPeriod" required
+            style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;"
+            placeholder="e.g. Sep 2020 - July 2022">
+        </div>
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Upload Certificate <span
+              style="color: #e50000">*</span></label>
+          <input type="file" name="trainingFile" accept=".pdf,image/*" required
+            style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
+        </div>
+        <button type="submit"
+          style="width: 100%; padding: 12px; background-color: #38A169; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px;">Submit
+          Record</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= INLINE ROUTING JAVASCRIPT ENGINE ================= -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Click listeners for dynamic card routing
+      const cards = document.querySelectorAll(".clickable-card");
+      cards.forEach((card) => {
+        card.addEventListener("click", () => {
+          const targetUrl = card.getAttribute("data-target");
+          if (targetUrl) {
+            window.location.href = targetUrl;
+          }
+        });
+      });
+    });
+  </script>
+</body>
+
+</html>

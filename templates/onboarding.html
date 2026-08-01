@@ -1,0 +1,1022 @@
+<!-- templates/onboarding.html -->
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSA Paperless - Onboarding</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding.css') }}" />
+</head>
+
+<body>
+  <div class="dashboard-wrapper">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>{{ user.directorate | upper }}</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="#" class="menu-item active">🔲 Dashboard</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="{{ url_for('logout') }}" class="logout-btn">🚪 Logout </a>
+      </div>
+    </aside>
+
+    <!-- Main View Area -->
+    <main class="main-content">
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 DSA PAPERLESS &gt; <span class="active-crumb">Dashboard</span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ================= STEP 0: MAIN ROAMAP INDEX VIEW ================= -->
+      <div id="stepView_0" class="onboarding-view-wrapper">
+        <div class="onboarding-controls-bar">
+          <span class="orange-status-badge">Onboarding</span>
+        </div>
+        <div class="onboarding-portal-card">
+          <h2>New Staff/Personnel Onboarding Portal</h2>
+          <p class="subtitle-text">
+            Complete the following steps to fully onboard this staff.
+          </p>
+          <div class="steps-vertical-list">
+            <div class="step-row-item cursor-pointer" onclick="goToStep(1)">
+              <div class="step-status-icon number-icon" id="chk_1">1</div>
+              <div class="step-meta-info">
+                <h3>Civilian Staff Registration Form</h3>
+                <p>Fill the employee information form</p>
+              </div>
+            </div>
+            {% if user.category not in ['it', 'nysc'] %}
+            <div class="step-row-item cursor-pointer" onclick="goToStep(2)">
+              <div class="step-status-icon number-icon" id="chk_2">2</div>
+              <div class="step-meta-info">
+                <h3>Additional Information</h3>
+                <p>Fill this form to provide additional information</p>
+              </div>
+            </div>
+            {% endif %}
+            <div class="step-row-item cursor-pointer" onclick="goToStep(3)">
+              <div class="step-status-icon number-icon" id="chk_3">3</div>
+              <div class="step-meta-info">
+                <h3>ID Card</h3>
+                <p>Generate and print ID card</p>
+              </div>
+            </div>
+            <div class="step-row-item cursor-pointer" onclick="goToStep(4)">
+              <div class="step-status-icon number-icon" id="chk_4">4</div>
+              <div class="step-meta-info">
+                <h3>DSA Personnel Emolument Record</h3>
+                <p>Provide your salary account details</p>
+              </div>
+            </div>
+            {% if user.category not in ['it', 'nysc'] %}
+            <div class="step-row-item cursor-pointer" onclick="goToStep(5)">
+              <div class="step-status-icon number-icon" id="chk_5">5</div>
+              <div class="step-meta-info">
+                <h3>DSA Civilian Staff Registration Form</h3>
+                <p>Fill the official record sheet</p>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= STEP 1: EMPLOYEE INFORMATION FORM & CERTIFICATE MATRIX ================= -->
+      <div id="stepView_1" class="onboarding-view-wrapper" style="display: none">
+        <!-- Top Action Nav Bar -->
+        <div class="onboarding-controls-bar">
+          <button type="button" class="round-back-btn" onclick="goToStep(0)">
+            ←
+          </button>
+          <button type="button" class="save-changes-btn" onclick="submitStepForm(1)">
+            Submit and Next
+          </button>
+        </div>
+
+        {% if user.training_request_active %}
+        <div class="alert-box"
+          style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #e2a114; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ffeeba;">
+          <div>
+            <strong style="display: block; margin-bottom: 4px; font-size: 16px;">⚠️ Additional Document
+              Requested</strong>
+            Registry control has requested that you submit an additional document/training record.
+          </div>
+          <button type="button" onclick="document.getElementById('extraDocModal').style.display='flex'"
+            style="background-color: #e2a114; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+            Submit Document
+          </button>
+        </div>
+        {% endif %}
+
+        <!-- Main Card Body Container Frame -->
+        <div class="form-container-card">
+          <h2 class="form-title-header">Employee Information Form</h2>
+          <p class="form-subtitle">
+            Fill the form below to provide basic account details and verify
+            academic credentials.
+          </p>
+
+          <form id="form_step_1" onsubmit="event.preventDefault()">
+            <input type="hidden" id="userFileNo" value="{{ user.file_no }}" />
+            <input type="hidden" id="userCategory" value="{{ user.category }}" />
+            <!-- Section A: Profile Data Text Fields -->
+            <div class="form-row-grid">
+              <div class="field-group">
+                <label>DSA File No. <span class="required">*</span></label>
+                <input type="text" id="dsaFileNo" required value="{{ user.file_no }}" readonly />
+              </div>
+              <div class="field-group">
+                <label>Title <span class="required">*</span></label>
+                <input type="text" id="staffTitle" placeholder="e.g. Officer" required />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid">
+              <div class="field-group">
+                <label>Surname <span class="required">*</span></label>
+                <input type="text" id="surname" placeholder="e.g. Alabi" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>Middle Name</label>
+                <input type="text" id="middleName" placeholder="e.g. Chinedu" autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>First Name <span class="required">*</span></label>
+                <input type="text" id="firstName" placeholder="e.g. Musa" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid">
+              <div class="field-group">
+                <label>Appointment <span class="required">*</span></label>
+                <input type="text" id="appointment" placeholder="e.g. CLERK 1" required />
+              </div>
+              <div class="field-group">
+                <label>Official Email
+                  <span class="required">(Auto-Generated)</span></label>
+                <input type="email" id="offEmail" placeholder="surname.middlename@dsa.mil.ng" required readonly style="
+                      background-color: #e2e8f0;
+                      font-weight: 600;
+                      color: #4a5568;
+                    " />
+              </div>
+            </div>
+
+            <div class="form-row-grid">
+              <div class="field-group">
+                <label>Phone Number <span class="required">*</span></label>
+                <input type="tel" id="phoneNo" placeholder="e.g. 08031234567" required />
+              </div>
+              <div class="field-group">
+                <label>Mobile/Other</label>
+                <input type="tel" id="mobOther" placeholder="Optional" />
+              </div>
+            </div>
+
+            <!-- Section B: Biometrics File Attachments Area -->
+            <h3 class="inner-section-heading" style="
+                  font-size: 16px;
+                  color: #e50000;
+                  margin: 30px 0 15px 0;
+                  font-weight: 600;
+                  text-align: left;
+                ">
+              Identity Biometrics
+            </h3>
+            <div class="form-row-grid">
+              <div class="field-group">
+                <label>Passport Picture <span class="required">*</span></label>
+                <input type="file" id="uploadPassport" accept="image/*" required />
+              </div>
+              <div class="field-group">
+                <label>Signature Specimen <span class="required">*</span></label>
+                <input type="file" id="uploadSignature" accept="image/*" required />
+              </div>
+            </div>
+
+            <h3 class="inner-section-heading" style="
+                  font-size: 16px;
+                  color: #e50000;
+                  margin: 35px 0 15px 0;
+                  font-weight: 600;
+                  text-align: left;
+                ">
+              Official Academic & Identity Credentials
+            </h3>
+
+            {% if user.category in ['it', 'nysc'] %}
+            <div class="form-row-grid">
+              {% if user.category == 'it' %}
+              <div class="field-group">
+                <label>SIWES Letter <span class="required">*</span></label>
+                <input type="file" id="doc_siwes" accept=".pdf, image/*" required />
+              </div>
+              {% elif user.category == 'nysc' %}
+              <div class="field-group">
+                <label>NYSC Posting Letter <span class="required">*</span></label>
+                <input type="file" id="doc_nysc_posting" accept=".pdf, image/*" required />
+              </div>
+              {% endif %}
+              <div class="field-group">
+                <label>Digital ID Scan <span class="required">*</span></label>
+                <input type="file" id="doc_digital_id" accept=".pdf, image/*" required />
+              </div>
+            </div>
+            {% else %}
+            <table class="personnel-table" style="
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-top: 15px;
+                  text-align: left;
+                ">
+              <thead>
+                <tr style="background-color: #f8fafc">
+                  <th style="padding: 12px; border-bottom: 2px solid #edf2f7">
+                    Document Nomenclature
+                  </th>
+                  <th style="padding: 12px; border-bottom: 2px solid #edf2f7" width="120px">
+                    Mandatory
+                  </th>
+                  <th style="padding: 12px; border-bottom: 2px solid #edf2f7" width="140px">
+                    Do you have it?
+                  </th>
+                  <th style="padding: 12px; border-bottom: 2px solid #edf2f7" width="280px">
+                    Action File Picker
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- 1. First Degree -->
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0" class="text-bold">
+                    First Degree (B.Sc, HND, ND, or NCE)
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <span style="color: #e50000; font-weight: 700">YES</span>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select style="width: 100%; padding: 6px" disabled>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_first_degree" accept=".pdf" required />
+                  </td>
+                </tr>
+                <!-- 2. SSCE -->
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0" class="text-bold">
+                    Senior Secondary School Certificate (WAEC, NECO, NABTEB)
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <span style="color: #e50000; font-weight: 700">YES</span>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select style="width: 100%; padding: 6px" disabled>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_ssce" accept=".pdf" required />
+                  </td>
+                </tr>
+                <!-- 3. Primary Certificate -->
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0" class="text-bold">
+                    First School Leaving (Primary) Certificate
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <span style="color: #e50000; font-weight: 700">YES</span>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select style="width: 100%; padding: 6px" disabled>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_primary" accept=".pdf" required />
+                  </td>
+                </tr>
+                <!-- 4. NYSC -->
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0" class="text-bold">
+                    NYSC Discharge or Exemption Certificate
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <span style="color: #e50000; font-weight: 700">YES</span>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select style="width: 100%; padding: 6px" disabled>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_nysc" accept=".pdf" required />
+                  </td>
+                </tr>
+                <!-- 5. Birth Cert -->
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0" class="text-bold">
+                    Birth Certificate or Declaration of Age
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <span style="color: #e50000; font-weight: 700">YES</span>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select style="width: 100%; padding: 6px" disabled>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_birth" accept=".pdf" required />
+                  </td>
+                </tr>
+                <!-- 6. LGA Origin -->
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0" class="text-bold">
+                    Local Government Area (LGA) Certificate of Origin
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <span style="color: #e50000; font-weight: 700">YES</span>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select style="width: 100%; padding: 6px" disabled>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_lga" accept=".pdf" required />
+                  </td>
+                </tr>
+                <!-- 7. Digital ID -->
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0" class="text-bold">
+                    Digital Identity: National Identification Number (NIN) or
+                    International Passport
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <span style="color: #e50000; font-weight: 700">YES</span>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select style="width: 100%; padding: 6px" disabled>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_digital_id" accept=".pdf" required />
+                  </td>
+                </tr>
+                <!-- 8. OPTIONAL: Masters -->
+                <tr>
+                  <td style="
+                        padding: 12px;
+                        border-bottom: 1px solid #e2e8f0;
+                        color: #64748b;
+                      " class="text-bold">
+                    Master's Degree (Optional)
+                  </td>
+                  <td style="
+                        padding: 12px;
+                        border-bottom: 1px solid #e2e8f0;
+                        color: #64748b;
+                      ">
+                    NO
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select id="has_masters" onchange="toggleOptionalUpload(this, 'doc_masters')"
+                      style="width: 100%; padding: 6px; cursor: pointer">
+                      <option value="no" selected>NO</option>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_masters" accept=".pdf" disabled style="opacity: 0.4" />
+                  </td>
+                </tr>
+                <!-- 9. OPTIONAL: PhD -->
+                <tr>
+                  <td style="
+                        padding: 12px;
+                        border-bottom: 1px solid #e2e8f0;
+                        color: #64748b;
+                      " class="text-bold">
+                    Ph.D. Degree (Optional)
+                  </td>
+                  <td style="
+                        padding: 12px;
+                        border-bottom: 1px solid #e2e8f0;
+                        color: #64748b;
+                      ">
+                    NO
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <select id="has_phd" onchange="toggleOptionalUpload(this, 'doc_phd')"
+                      style="width: 100%; padding: 6px; cursor: pointer">
+                      <option value="no" selected>NO</option>
+                      <option value="yes">YES</option>
+                    </select>
+                  </td>
+                  <td style="padding: 12px; border-bottom: 1px solid #e2e8f0">
+                    <input type="file" id="doc_phd" accept=".pdf" disabled style="opacity: 0.4" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ================= STEP 2: ADDITIONAL INFORMATION FORM (RE-ALIGNED) ================= -->
+      <div id="stepView_2" class="onboarding-view-wrapper" style="display: none">
+        <div class="onboarding-controls-bar">
+          <!-- Force explicit button behaviors to bypass native browser form traps -->
+          <button type="button" class="round-back-btn" onclick="goToStep(1)">
+            ←
+          </button>
+          <button type="button" class="save-changes-btn" onclick="submitStepForm(2)">
+            Submit and Next
+          </button>
+        </div>
+
+        <div class="form-container-card">
+          <h2 class="form-title-header">Additional Information Form</h2>
+          <p class="form-subtitle">
+            Provide your detailed residential address and emergency next of
+            kin records.
+          </p>
+
+          <!-- FIXED: Explicit ID matching with preventDefault block to stop silent failures -->
+          <form id="form_step_2" onsubmit="event.preventDefault()">
+            <!-- 1. Full Address Text Area Row -->
+            <div class="field-group" style="
+                  display: flex;
+                  flex-direction: column;
+                  margin-bottom: 20px;
+                  text-align: left;
+                ">
+              <label style="
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #2d3748;
+                    margin-bottom: 8px;
+                  ">Home Address
+                <span class="required" style="color: #e50000">*</span></label>
+              <textarea id="homeAddress" rows="3" required
+                placeholder="e.g. Plot 452, National Defence Intranet Quarter Lines, Abuja" style="
+                    width: 100%;
+                    padding: 12px 16px;
+                    background-color: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    outline: none;
+                  "></textarea>
+            </div>
+
+            <!-- 2. Personal Status Grid Row -->
+            <div class="form-row-grid" style="text-align: left">
+              <div class="field-group">
+                <label>Marital Status <span class="required">*</span></label>
+                <select id="maritalStatus" required>
+                  <option value="" disabled selected hidden>
+                    Select Status
+                  </option>
+                  <option value="SINGLE">SINGLE</option>
+                  <option value="MARRIED">MARRIED</option>
+                  <option value="DIVORCED">DIVORCED</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>Religion <span class="required">*</span></label>
+                <input type="text" id="religion" placeholder="e.g. CHRISTIANITY / ISLAM" required autocomplete="off" />
+              </div>
+            </div>
+
+            <!-- 3. Next of Kin (NOK) Section Header -->
+            <h3 class="inner-section-heading" style="
+                  font-size: 16px;
+                  color: #e50000;
+                  margin: 30px 0 15px 0;
+                  font-weight: 600;
+                  text-align: left;
+                ">
+              Emergency Contacts (NOK)
+            </h3>
+
+            <!-- 4. Emergency Contacts Grid Row -->
+            <div class="form-row-grid" style="text-align: left">
+              <div class="field-group">
+                <label>NOK Name <span class="required">*</span></label>
+                <input type="text" id="nokName" placeholder="e.g. Sarah Alabi" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>Relationship <span class="required">*</span></label>
+                <input type="text" id="nokRelation" placeholder="e.g. SPOUSE / SISTER / BROTHER" required
+                  autocomplete="off" />
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ================= STEP 3: ID CARD INFORMATION GENERATOR ================= -->
+      <div id="stepView_3" class="onboarding-view-wrapper" style="display: none">
+        <div class="onboarding-controls-bar">
+          <button type="button" class="round-back-btn" onclick="goToStep(2)">
+            ←
+          </button>
+          <button type="button" class="save-changes-btn" onclick="submitStepForm(3)">
+            Submit and Next
+          </button>
+        </div>
+
+        <div class="form-container-card text-center">
+          <h2 class="form-title-header">ID Card Information</h2>
+
+          <!-- FIXED: Explicit form enclosure to satisfy the JavaScript boundary validator -->
+          <form id="form_step_3" onsubmit="event.preventDefault()">
+            <div class="id-card-preview-layout" style="
+                  max-width: 400px;
+                  margin: 30px auto;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 12px;
+                  padding: 25px;
+                  display: flex;
+                  gap: 20px;
+                  align-items: center;
+                  text-align: left;
+                  background-color: #fafafa;
+                ">
+              <div class="id-avatar-box" style="
+                    width: 90px;
+                    height: 110px;
+                    background-color: #e2e8f0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 32px;
+                    border-radius: 6px;
+                    flex-shrink: 0;
+                  ">
+                👤
+              </div>
+              <div class="id-details-display">
+                <h3 id="idCardNameDisplay" style="
+                      font-size: 16px;
+                      color: #1a202c;
+                      margin-bottom: 6px;
+                      font-weight: bold;
+                    ">
+                  ---
+                </h3>
+                <p style="margin: 3px 0; font-size: 13px; color: #4a5568">
+                  <strong>Directorate:</strong> {{ user.directorate | upper }}
+                </p>
+                <p style="margin: 3px 0; font-size: 13px; color: #4a5568">
+                  <strong>File Number:</strong> {{ user.file_no }}
+                </p>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ================= STEP 4: SALARY ACCOUNT DETAILS FORM ================= -->
+      <div id="stepView_4" class="onboarding-view-wrapper" style="display: none">
+        <div class="onboarding-controls-bar">
+          <button type="button" class="round-back-btn" onclick="goToStep(3)">
+            ←
+          </button>
+          <button type="button" class="save-changes-btn" onclick="submitStepForm(4)">
+            {% if user.category in ['it', 'nysc'] %}
+            Submit Onboarding
+            {% else %}
+            Submit and Next
+            {% endif %}
+          </button>
+        </div>
+
+        <div class="form-container-card">
+          <h2 class="form-title-header">Salary Account Details Form</h2>
+          <p class="form-subtitle text-center" style="
+                color: red;
+                text-align: center;
+                font-weight: bold;
+                margin-bottom: 20px;
+              ">
+            FORMS MUST BE COMPLETED IN UPPER CASE
+          </p>
+
+          <form id="form_step_4" onsubmit="event.preventDefault()">
+            <div class="form-row-grid">
+              <div class="field-group">
+                <label>Bank Name <span class="required">*</span></label>
+                <input type="text" id="bankName" required />
+              </div>
+              <div class="field-group">
+                <label>Branch Name <span class="required">*</span></label>
+                <input type="text" id="branchName" required />
+              </div>
+            </div>
+
+            <div class="form-row-grid">
+              <div class="field-group">
+                <label>Account Name <span class="required">*</span></label>
+                <input type="text" id="accName" required />
+              </div>
+              <div class="field-group">
+                <label>Account Number <span class="required">*</span></label>
+                <input type="text" id="accNumber" required maxlength="10" />
+              </div>
+            </div>
+
+            <div class="form-row-grid">
+              <div class="field-group">
+                <label>Sort Code <span class="required">*</span></label>
+                <input type="text" id="sortCode" required />
+              </div>
+              <div class="field-group">
+                <label>Date</label>
+                <input type="date" id="salaryDate" />
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ================= STEP 5: DSA CIVILIAN STAFF REGISTRATION FORM ================= -->
+      <div id="stepView_5" class="onboarding-view-wrapper" style="display: none">
+        <div class="onboarding-controls-bar">
+          <button type="button" class="round-back-btn" onclick="goToStep(4)">
+            ←
+          </button>
+          <button type="button" class="save-changes-btn" onclick="submitStepForm(5)">
+            Submit Onboarding
+          </button>
+        </div>
+
+        <div class="form-container-card">
+          <h2 class="form-title-header">DSA Civilian Staff Registration Form</h2>
+          <p class="form-subtitle">
+            Provide your official details in compliance with the Official Secrets Act.
+          </p>
+
+          <form id="form_step_5" onsubmit="event.preventDefault()">
+            <!-- SECTION A: Personal Information -->
+            <h3 class="inner-section-heading"
+              style="font-size: 16px; color: #e50000; margin: 20px 0 15px 0; font-weight: 600; text-align: left;">
+              Section A: Personal Details
+            </h3>
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>Date of Birth <span class="required">*</span></label>
+                <input type="date" id="dob" required />
+              </div>
+              <div class="field-group">
+                <label>Sex <span class="required">*</span></label>
+                <select id="sex" required>
+                  <option value="" disabled selected hidden>Select Sex</option>
+                  <option value="MALE">MALE</option>
+                  <option value="FEMALE">FEMALE</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>Place of Birth <span class="required">*</span></label>
+                <input type="text" id="placeOfBirth" placeholder="e.g. Kaduna" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>Blood Group <span class="required">*</span></label>
+                <select id="bloodGroup" required>
+                  <option value="" disabled selected hidden>Select Blood Group</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>Name of Spouse</label>
+                <input type="text" id="nameOfSpouse" placeholder="Spouse name (if married)" autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>Number of Children</label>
+                <input type="number" id="numChildren" placeholder="0" min="0" />
+              </div>
+            </div>
+
+            <div class="form-row-grid" style="text-align: left">
+              <div class="field-group">
+                <label>Spoken Languages <span class="required">*</span></label>
+                <input type="text" id="spokenLang" placeholder="e.g. English, Hausa, Yoruba" required
+                  autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>Written Languages <span class="required">*</span></label>
+                <input type="text" id="writtenLang" placeholder="e.g. English, Hausa" required autocomplete="off" />
+              </div>
+            </div>
+
+            <!-- SECTION B: Employment & Service Profile -->
+            <h3 class="inner-section-heading"
+              style="font-size: 16px; color: #e50000; margin: 30px 0 15px 0; font-weight: 600; text-align: left;">
+              Section B: Employment & Service Profile
+            </h3>
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>Status of Engagement <span class="required">*</span></label>
+                <select id="engagementStatus" required>
+                  <option value="" disabled selected hidden>Select Status</option>
+                  <option value="PERMANENT">PERMANENT</option>
+                  <option value="CONTRACT">CONTRACT</option>
+                  <option value="TEMPORARY">TEMPORARY</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>Date Employed <span class="required">*</span></label>
+                <input type="date" id="dateEmployed" required />
+              </div>
+              <div class="field-group">
+                <label>Seniority in Present Rank <span class="required">*</span></label>
+                <input type="text" id="seniorityRank" placeholder="e.g. 2 Years" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>Date Assumption of Duty <span class="required">*</span></label>
+                <input type="date" id="dateAssumption" required />
+              </div>
+              <div class="field-group">
+                <label>Former Unit</label>
+                <input type="text" id="formerUnit" placeholder="e.g. N/A or Admin Dept" autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>Present Unit <span class="required">*</span></label>
+                <input type="text" id="presentUnit" placeholder="e.g. Cyber Security Dept" required
+                  autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid" style="text-align: left">
+              <div class="field-group">
+                <label>Years of Service <span class="required">*</span></label>
+                <input type="number" id="yearsOfService" placeholder="0" min="0" required />
+              </div>
+              <div class="field-group">
+                <label>National ID / NIN Number <span class="required">*</span></label>
+                <input type="text" id="idCardNumber" placeholder="11-digit NIN or ID Card No" required
+                  autocomplete="off" />
+              </div>
+            </div>
+
+            <!-- SECTION C: Emergency Contacts & Associates -->
+            <h3 class="inner-section-heading"
+              style="font-size: 16px; color: #e50000; margin: 30px 0 15px 0; font-weight: 600; text-align: left;">
+              Section C: Additional Contacts & Close Associates
+            </h3>
+
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">
+                Second Next of Kin (2nd NOK)</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>2nd NOK Name <span class="required">*</span></label>
+                  <input type="text" id="nok2Name" placeholder="Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>Relationship <span class="required">*</span></label>
+                  <input type="text" id="nok2Relation" placeholder="Relationship" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>GSM & Email <span class="required">*</span></label>
+                  <input type="text" id="nok2GsmEmail" placeholder="Phone & Email Address" required
+                    autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">Close
+                Associate 1</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>Name <span class="required">*</span></label>
+                  <input type="text" id="assoc1Name" placeholder="Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>Address <span class="required">*</span></label>
+                  <input type="text" id="assoc1Address" placeholder="Home Address" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>GSM & Email <span class="required">*</span></label>
+                  <input type="text" id="assoc1GsmEmail" placeholder="Phone / Email" required autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">Close
+                Associate 2</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>Name <span class="required">*</span></label>
+                  <input type="text" id="assoc2Name" placeholder="Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>Address <span class="required">*</span></label>
+                  <input type="text" id="assoc2Address" placeholder="Home Address" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>GSM & Email <span class="required">*</span></label>
+                  <input type="text" id="assoc2GsmEmail" placeholder="Phone / Email" required autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">Close
+                Associate 3</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>Name <span class="required">*</span></label>
+                  <input type="text" id="assoc3Name" placeholder="Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>Address <span class="required">*</span></label>
+                  <input type="text" id="assoc3Address" placeholder="Home Address" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>GSM & Email <span class="required">*</span></label>
+                  <input type="text" id="assoc3GsmEmail" placeholder="Phone / Email" required autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION D: Courses & Career Details -->
+            <h3 class="inner-section-heading"
+              style="font-size: 16px; color: #e50000; margin: 30px 0 15px 0; font-weight: 600; text-align: left;">
+              Section D: Courses & Career Details
+            </h3>
+
+            <div class="field-group"
+              style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Courses
+                Attended</label>
+              <textarea id="coursesAttended" rows="3" placeholder="e.g. 
+1. Cyber Defense Operations - National Intelligence Academy (2024)
+2. Advanced Network Engineering - Galaxy Backbone (2025)"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <div class="field-group"
+              style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Last 3 Places of
+                Employment</label>
+              <textarea id="lastPlacesEmployment" rows="3" placeholder="e.g.
+1. IT Analyst - Galaxy Backbone (2023-2025)
+2. Network Technician - NITDA (2021-2023)"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <div class="field-group"
+              style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Promotion History
+                with Dates</label>
+              <textarea id="promotionHistory" rows="3" placeholder="e.g. 
+1. Senior IT Officer (July 2025)
+2. IT Officer (Jan 2023)"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ================= SUCCESS POPUP MODAL DIALOG CONTAINER ================= -->
+      <div id="successModal" class="success-overlay-mask" style="display: none">
+        <div class="success-alert-box" style="
+              background: white;
+              padding: 40px;
+              border-radius: 16px;
+              text-align: center;
+              max-width: 420px;
+              margin: 100px auto;
+              box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            ">
+          <div class="animated-green-circle" style="
+                width: 60px;
+                height: 60px;
+                background-color: #e6f4ea;
+                color: #137333;
+                font-size: 28px;
+                font-weight: bold;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 20px auto;
+                border: 2px solid #137333;
+              ">
+            ✓
+          </div>
+          <h3 style="margin-bottom: 15px; font-size: 18px; color: #1a202c">
+            Information Successfully Submitted
+          </h3>
+          <button type="button" class="popup-ok-btn" onclick="dismissSuccessAndRoute()" style="
+                background-color: #e50000;
+                color: white;
+                border: none;
+                width: 100%;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+              ">
+            Ok
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <!-- ================= EXTRA DOCUMENT SUBMISSION MODAL ================= -->
+  <div id="extraDocModal" class="modal-overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; justify-content: center; align-items: center;">
+    <div class="modal-container"
+      style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px;">
+        <h2 style="margin: 0; font-size: 18px;">Submit Additional Document</h2>
+        <span onclick="document.getElementById('extraDocModal').style.display='none'"
+          style="cursor: pointer; font-size: 24px; font-weight: bold; color: #a0aec0;">&times;</span>
+      </div>
+      <form action="/append-training-record" method="POST" enctype="multipart/form-data">
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Name of
+            Certificate/Document <span style="color: #e50000">*</span></label>
+          <input type="text" name="trainingName" required
+            style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;"
+            placeholder="e.g. Master's Degree">
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Period of
+            Training/Acquisition <span style="color: #e50000">*</span></label>
+          <input type="text" name="trainingPeriod" required
+            style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;"
+            placeholder="e.g. Sep 2020 - July 2022">
+        </div>
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Upload Certificate <span
+              style="color: #e50000">*</span></label>
+          <input type="file" name="trainingFile" accept=".pdf,image/*" required
+            style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
+        </div>
+        <button type="submit"
+          style="width: 100%; padding: 12px; background-color: #38A169; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px;">Submit
+          Record</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+</body>
+
+</html>

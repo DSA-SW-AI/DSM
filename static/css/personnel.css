@@ -1,0 +1,323 @@
+/* static/css/personnel.css */
+
+.active-crumb {
+    color: #4A5568 !important;
+    font-weight: 600;
+}
+
+.table-controls-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+/* Category Filters Grid Layout Tab Pillars */
+.category-tabs {
+    display: flex;
+    background: #E2E8F0;
+    padding: 4px;
+    border-radius: 8px;
+    gap: 4px;
+}
+
+.tab-btn {
+    border: none;
+    background: transparent;
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4A5568;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: #E2A114; /* Your signature golden-mustard active color marker */
+    color: #FFFFFF;
+    font-weight: 600;
+}
+
+.add-staff-btn {
+    background-color: #E50000; /* Rich layout alert solid red */
+    color: white;
+    border: none;
+    padding: 10px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Data Sheet Table Blueprint Rules Configuration */
+.table-container {
+    background: #FFFFFF;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.01);
+}
+
+.personnel-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.personnel-table th {
+    padding: 16px 12px;
+    font-size: 14px;
+    color: #1A202C;
+    font-weight: 600;
+    border-bottom: 2px solid #EDF2F7;
+}
+
+.personnel-table td {
+    padding: 16px 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #E2E8F0;
+    vertical-align: middle;
+}
+
+.text-bold {
+    font-weight: 600;
+    color: #2D3748;
+}
+
+.text-fade {
+    color: #A0AEC0;
+}
+
+.action-cell {
+    cursor: pointer;
+    color: #718096;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* Status Badges Matching Design Colors */
+.status-tag {
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    display: inline-block;
+    text-align: center;
+}
+
+.tag-approved {
+    background-color: #C6F6D5;
+    color: #22543D;
+}
+
+.tag-rejected {
+    background-color: #FED7D7;
+    color: #742A2A;
+}
+
+.tag-reassigned, .tag-re-assigned-directorate {
+    background-color: #FEEBC8;
+    color: #7B341E;
+    max-width: 150px;
+    line-height: 1.2;
+}
+
+/* Pagination Row Styling Layout */
+.table-pagination-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 10px;
+}
+
+.entries-info {
+    font-size: 13px;
+    color: #A0AEC0;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 5px;
+}
+
+.page-num-btn, .page-nav-btn {
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #4A5568;
+}
+
+.page-num-btn.active {
+    background: #E50000;
+    color: white;
+    border-color: #E50000;
+}
+
+/* ================= POP-UP MODAL FRAMEWORK STYLING ================= */
+
+/* Translucent dark grey screen tint masking overlay canvas */
+.modal-overlay {
+    display: none; /* Keeps container hidden until toggled active */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4); /* Faded mask contrast blend layer */
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+/* White Floating Centered Dialog Box Blueprint Layout */
+.modal-container {
+    background-color: #FFFFFF;
+    width: 100%;
+    max-width: 580px; /* Exact sizing match grid width from mock view */
+    padding: 35px 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    position: relative;
+    animation: fadeInModal 0.25s ease-out;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Clear Window Dismissal Exit Element Layout Style */
+.close-modal-x {
+    position: absolute;
+    right: 25px;
+    top: 20px;
+    font-size: 28px;
+    color: #A0AEC0;
+    cursor: pointer;
+    transition: color 0.15s;
+    user-select: none;
+}
+
+.close-modal-x:hover {
+    color: #4A5568;
+}
+
+.modal-container h2 {
+    text-align: center;
+    font-size: 22px;
+    color: #1A202C;
+    font-weight: 600;
+    margin-bottom: 25px;
+    letter-spacing: -0.3px;
+}
+
+/* Individual Form Fields Formatting Stack Setup */
+.modal-form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 18px;
+}
+
+.modal-form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2D3748;
+    margin-bottom: 8px;
+}
+
+.required-star {
+    color: #E50000;
+    margin-left: 2px;
+}
+
+/* Soft light-grey field background panels architecture layout rules */
+.modal-form-group input,
+.modal-form-group select {
+    width: 100%;
+    padding: 13px 16px;
+    background-color: #F8FAFC; /* Clean off-white panel matching your shared screenshot box structure */
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #333333;
+    outline: none;
+    transition: all 0.2s;
+}
+
+/* Add custom stylized caret placeholder wrapper styling properties inside dropdown selects */
+.modal-form-group select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://w3.org' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-size: 14px;
+    cursor: pointer;
+}
+
+.modal-form-group input:focus,
+.modal-form-group select:focus {
+    background-color: #FFFFFF;
+    border-color: #CBD5E1;
+    box-shadow: 0 0 0 3px rgba(226, 232, 240, 0.4);
+}
+
+/* Custom placeholder visibility accent coloration override rules */
+.modal-form-group input::placeholder {
+    color: #CBD5E1;
+}
+
+/* Dynamic Solid Red Command Execution Button Formatting Layout Profile */
+.modal-submit-btn {
+    width: 100%;
+    background-color: #E50000; /* Solid Red Branding theme anchor mapping */
+    color: #FFFFFF;
+    border: none;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.15s ease;
+}
+
+.modal-submit-btn:hover {
+    background-color: #CC0000;
+}
+
+
+
+.action-cell { position: relative; cursor: pointer; }
+
+.dropdown-action-menu {
+    position: absolute; right: 15px; top: 35px;
+    background: #FFFFFF; border: 1px solid #E2E8F0;
+    border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 1000; display: flex; flex-direction: column;
+    min-width: 150px; overflow: hidden;
+}
+
+.dropdown-action-menu button {
+    background: none; border: none; padding: 10px 14px;
+    font-size: 13px; text-align: left; cursor: pointer;
+    color: #4A5568; width: 100%; font-weight: 500;
+}
+.dropdown-action-menu button:hover { background-color: #F8FAFC; color: #000000; }
+.dropdown-action-menu .btn-approve:hover { background-color: #E6F4EA; color: #137333; }
+.dropdown-action-menu .btn-reject:hover { background-color: #FCE8E6; color: #C5221F; }
+
+/* Royal blue status badge flag for pending rows */
+.tag-awaiting-approval { background-color: #E0F2FE; color: #0369A1; font-weight: bold; }
+
+.download-chip-link {
+    display: inline-flex; align-items: center;
+    background-color: #F1F5F9; color: #1E3A8A;
+    text-decoration: none; padding: 8px 14px;
+    border-radius: 6px; font-size: 12px; font-weight: 600;
+    border: 1px solid #CBD5E1;
+}
+.download-chip-link:hover { background-color: #E2E8F0; }

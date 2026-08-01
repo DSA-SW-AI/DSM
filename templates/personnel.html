@@ -1,0 +1,728 @@
+<!-- templates/personnel.html -->
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSA Paperless - Civilian & Personnel</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+</head>
+
+<body>
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>{{ user.directorate }}</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+
+        <div class="menu-section-label">REGISTRY</div>
+        {% if "documents" in permissions.sidebar %}
+        <a href="/documents-view" class="menu-item">📁 Documents</a>
+        {% endif %} {% if "incoming" in permissions.sidebar %}
+        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+        {% endif %} {% if "outgoing" in permissions.sidebar %}
+        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %}
+
+        <div class="menu-section-label">HR MANAGEMENT</div>
+        {% if "civilian_personnel" in permissions.sidebar %}
+        <a href="/personnel-view" class="menu-item active">👥 Civilian & Personnel</a>
+        {% endif %} {% if "leave_pass" in permissions.sidebar %}
+        <a href="/leave-view" class="menu-item">📅 Leave & Pass</a>
+        {% endif %}
+      </nav>
+      <div class="sidebar-footer">
+        <a href="{{ url_for('logout') }}" class="logout-btn">🚪 Logout System</a>
+      </div>
+    </aside>
+
+    <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
+    <main class="main-content">
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 DSA PAPERLESS &gt;
+          <span class="active-crumb">Civilian & Personnel</span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Table Controls Row Header Section -->
+      <div class="table-controls-bar">
+        <!-- Sub Category Filter Pills Grid Toggle Buttons -->
+        <div class="category-tabs">
+          <button class="tab-btn active" data-category="civilian">
+            Civilian
+          </button>
+          <button class="tab-btn" data-category="military">Military</button>
+          <button class="tab-btn" data-category="nysc">NYSC</button>
+          <button class="tab-btn" data-category="it">IT</button>
+        </div>
+
+        <!-- Inside templates/personnel.html - Update your button line exactly to this: -->
+        {% if user.role == 'registry' and user.directorate|lower == 'doa' %}
+        <button class="add-staff-btn" onclick="openStaffModal(event)">
+          ➕ Add New Staff
+        </button>
+        {% endif %}
+      </div>
+
+      <!-- Main Data Table Container Wrapper Layout Grid Component -->
+      <div class="table-container">
+        <table class="personnel-table">
+          <thead>
+            <tr>
+              <th width="40px"><input type="checkbox" id="selectAll" /></th>
+              <th>Service Number</th>
+              <th>Name</th>
+              <th>Grade Level</th>
+              <th>Appointment</th>
+              <th>Directorate</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="personnelTableBody">
+            {% if personnel %} {% for staff in personnel %}
+            <tr>
+              <td><input type="checkbox" class="row-checkbox" /></td>
+              <td class="text-bold">
+                {{ staff.email.split('@')[0].replace('_', '/').upper() }}
+              </td>
+              <td class="text-fade">{{ staff.name }}</td>
+              <td>
+                {{ staff.onboarding_data.step_1.staffTitle if
+                staff.onboarding_data else 'Grade 08' }}
+              </td>
+              <td>
+                {{ staff.onboarding_data.step_1.appointment if
+                staff.onboarding_data else 'ENG OFFR 1' }}
+              </td>
+              <td class="text-bold">{{ staff.directorate | upper }}</td>
+              <td>
+                <!-- Assign custom CSS flags to dynamic status strings -->
+                {% set cur_status = staff.get('status', 'Pending Onboarding')
+                %}
+                <span class="status-tag tag-{{ cur_status | lower | replace(' ', '-') }}">
+                  {{ cur_status }}
+                </span>
+              </td>
+              <!-- Inside templates/personnel.html -> Find and replace your entire action cell block with this: -->
+              <td class="action-cell" onclick="toggleActionMenu(event, '{{ staff.email }}')">
+                •••
+                <div id="menu_{{ staff.email | replace('@','_') | replace('.','_') }}" class="dropdown-action-menu"
+                  style="display: none">
+                  <!-- View details option track -->
+                  <button type="button" onclick="viewStaffProfileDetails('{{ staff.email }}')">
+                    👁 View Details
+                  </button>
+
+                  <button type="button" onclick="triggerAdditionalDocumentRequest('{{ staff.email }}')"
+                    style="color: #e2a114; font-weight: bold">
+                    ➕ Request Additional Document
+                  </button>
+
+                  <!-- ================= CLEAN RE-ASSIGNMENT OPTIONS PANEL ================= -->
+                  {% set cur_status = staff.get('status', 'Pending
+                  Onboarding') | lower | trim %} {% if user.role == 'registry'
+                  and cur_status == 'rejected' %}
+                  <button type="button" class="reassign-btn" data-email="{{ staff.email }}" data-name="{{ staff.name }}"
+                    data-id="{{ staff.email.split('@') | first | replace('_', '/') | upper }}"
+                    data-title="{{ staff.onboarding_data.step_1.staffTitle if staff.onboarding_data else 'Civilian' }}">
+                    🔄 Re-assign New Directorate
+                  </button>
+
+                  {% endif %} {% if user.role == 'director' and cur_status ==
+                  'awaiting approval' %}
+                  <button type="button" class="btn-approve"
+                    onclick="processApprovalAction('{{ staff.email }}', 'Approved')">
+                    ✓ Approve Staff
+                  </button>
+                  <button type="button" class="btn-reject"
+                    onclick="processApprovalAction('{{ staff.email }}', 'Rejected')">
+                    ✗ Reject Staff
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %} {% else %}
+            <tr>
+              <td colspan="8" style="text-align: center; color: #a0aec0">
+                No personnel profile matches found inside this directorate
+                tracking zone.
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+
+        <!-- Pagination Footer Bar Layout Grid Setup -->
+        <div class="table-pagination-footer">
+          <div class="entries-info">Showing 1 to 15 of 50 entries</div>
+          <div class="pagination-controls">
+            <button class="page-nav-btn">&lt;&lt;</button>
+            <button class="page-num-btn active">1</button>
+            <button class="page-num-btn">2</button>
+            <button class="page-nav-btn">&gt;&gt;</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ================= CREATE STAFF LOGIN MODAL POP-UP (FIXED CLOSURES) ================= -->
+  <div id="addStaffModal" class="modal-overlay">
+    <div class="modal-container">
+      <!-- Close Button Component -->
+      <span class="close-modal-x" id="closeModalBtn">&times;</span>
+
+      <h2>Create Staff Login</h2>
+
+      <form id="createStaffForm">
+        <!-- 1. Category Field Select Dropdown Container -->
+        <div class="modal-form-group">
+          <label>Category <span class="required-star">*</span></label>
+          <div class="select-wrapper">
+            <select id="staffCategory" required>
+              <option value="" disabled selected hidden>Civilian</option>
+              <option value="civilian">Civilian</option>
+              <option value="military">Military</option>
+              <option value="nysc">NYSC</option>
+              <option value="it">IT</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 2. Directorate Select Dropdown Box -->
+        <div class="modal-form-group">
+          <label>Directorate <span class="required-star">*</span></label>
+          <div class="select-wrapper">
+            <select id="staffDirectorate" required>
+              <option value="" disabled selected hidden>
+                Select Directorate
+              </option>
+              <option value="doa">Directorate of Administration (DOA)</option>
+              <option value="dcs">Directorate of Cyber Security (DCS)</option>
+              <option value="dnpt">
+                Directorate of Navigation & Positioning (DNPT)
+              </option>
+              <option value="dfa">Directorate of Finance (DFA)</option>
+              <option value="dfa">
+                Directorate of Launch Services and Space Operation(DLSO)
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 3. Service Number Text Form Input Area -->
+        <div class="modal-form-group">
+          <label>Service Number <span class="required-star">*</span></label>
+          <input type="text" id="staffServiceNumber" placeholder="DSA/CIV/0034" required autocomplete="off" />
+        </div>
+
+        <!-- 4. Alternate Email Input Text Row -->
+        <div class="modal-form-group">
+          <label>Alternate Email <span class="required-star">*</span></label>
+          <input type="email" id="staffAltEmail" placeholder="emekajohn@gmail.com" required autocomplete="off" />
+        </div>
+
+        <!-- 5. Password Box Target Frame Segment -->
+        <div class="modal-form-group">
+          <label>Generated Password <span class="required-star">*</span></label>
+          <input type="text" id="staffPassword" placeholder="@@Qwerty123???" required />
+        </div>
+
+        <!-- Red Interactive Command Execution Panel Trigger Button -->
+        <button type="submit" class="modal-submit-btn" id="generatePasswordBtn">
+          Generate Login Password
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= INSPECT STAFF LOGIN PROFILE MODAL ================= -->
+  <div id="viewProfileModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 760px; overflow-y: auto; max-height: 85vh">
+      <span class="close-modal-x" onclick="closeViewProfileModal()">&times;</span>
+      <h2 style="
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            text-align: left;
+          ">
+        Staff Credential & Profile Inspection
+      </h2>
+
+      <div style="display: flex; gap: 30px; margin-bottom: 25px; align-items: flex-start; text-align: left;">
+        <div id="inspectAvatarBox"
+          style="width: 140px; height: 170px; background-color: #f8fafc; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 45px; border: 1px solid #e2e8f0; flex-shrink: 0;">
+          👤
+        </div>
+        <div id="dynamicMetadataGrid" style="flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        </div>
+      </div>
+
+      <h3 style="
+            font-size: 14px;
+            color: #e50000;
+            border-bottom: 1px solid #edf2f7;
+            padding-bottom: 6px;
+            margin-bottom: 15px;
+            text-align: left;
+          ">
+        Uploaded Credentials & Signature Verification
+      </h3>
+      <div style="display: flex; gap: 15px; justify-content: flex-start" id="attachmentsDownloadContainer">
+        <!-- Rendered links inject automatically via javascript FileReader hooks -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RE-ASSIGN DIRECTORATE MODAL POP-UP ================= -->
+  <div id="reassignModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 520px; padding: 35px">
+      <span class="close-modal-x" onclick="closeReassignModal()">&times;</span>
+
+      <h2 style="
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 25px;
+            text-align: center;
+          ">
+        Re-assign Directorate
+      </h2>
+
+      <form id="reassignDirectorateForm" onsubmit="submitReassignment(event)">
+        <input type="hidden" id="reassignUserEmail" />
+
+        <div class="modal-form-group">
+          <label>Staff Name <span class="required-star">*</span></label>
+          <input type="text" id="reassignStaffName" readonly style="background-color: #f8fafc; color: #64748b" />
+        </div>
+
+        <div class="modal-form-group">
+          <label>Service Number <span class="required-star">*</span></label>
+          <input type="text" id="reassignServiceNo" readonly style="background-color: #f8fafc; color: #64748b" />
+        </div>
+
+        <div class="modal-form-group">
+          <label>Category <span class="required-star">*</span></label>
+          <input type="text" id="reassignCategory" readonly style="background-color: #f8fafc; color: #64748b" />
+        </div>
+
+        <div class="modal-form-group">
+          <label>Directorate <span class="required-star">*</span></label>
+          <div class="select-wrapper">
+            <select id="newSelectedDirectorate" required>
+              <option value="" disabled selected hidden>
+                Select Directorate
+              </option>
+              <option value="doa">Directorate of Administration (DOA)</option>
+              <option value="dcs">Directorate of Cyber Security (DCS)</option>
+              <option value="dnpt">
+                Directorate of Navigation & Positioning (DNPT)
+              </option>
+              <option value="dfa">Directorate of Finance (DFA)</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="modal-submit-btn" style="
+              background-color: #e50000;
+              font-weight: bold;
+              margin-top: 15px;
+            ">
+          Assign New Directorate
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= UNIVERSAL MODAL INTERACTION CONTROLLER ================= -->
+  <script>
+    // 1. GLOBAL TRIGGER: Forces the modal to open instantly regardless of loading order
+    function openStaffModal(event) {
+      if (event) event.preventDefault();
+      const modal = document.getElementById("addStaffModal");
+      if (modal) {
+        modal.style.display = "flex";
+        console.log("Modal state successfully forced to: flex");
+      } else {
+        console.error(
+          "Critical: 'addStaffModal' overlay target container missing in DOM tree.",
+        );
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const modal = document.getElementById("addStaffModal");
+      const closeBtn = document.getElementById("closeModalBtn");
+      const generateBtn = document.getElementById("generatePasswordBtn");
+      const passwordInput = document.getElementById("staffPassword");
+      const createStaffForm = document.getElementById("createStaffForm");
+
+      console.log("DSA Paperless Core Engine Mounted Successfully.");
+
+      // 2. CLOSE MODAL ACTION CONTROL
+      if (closeBtn && modal && createStaffForm) {
+        closeBtn.addEventListener("click", () => {
+          modal.style.display = "none";
+          createStaffForm.reset();
+        });
+      }
+
+      // 3. BACKGROUND MASK CLICK DISMISSAL
+      window.addEventListener("click", (e) => {
+        if (modal && e.target === modal) {
+          modal.style.display = "none";
+          if (createStaffForm) createStaffForm.reset();
+        }
+      });
+
+      // 4. RANDOM PASSWORD GENERATION ENGINE
+      if (generateBtn && passwordInput) {
+        generateBtn.addEventListener("click", (e) => {
+          if (
+            passwordInput.value === "" ||
+            passwordInput.value === passwordInput.placeholder
+          ) {
+            e.preventDefault();
+
+            const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const lowercase = "abcdefghijklmnopqrstuvwxyz";
+            const numbers = "0123456789";
+
+            const randChar = (set) =>
+              set.charAt(Math.floor(Math.random() * set.length));
+
+            let pass = "@@";
+            pass += randChar(uppercase);
+            pass +=
+              randChar(lowercase) +
+              randChar(lowercase) +
+              randChar(lowercase) +
+              randChar(lowercase) +
+              randChar(lowercase);
+            pass += randChar(numbers) + randChar(numbers) + randChar(numbers);
+            pass += "???";
+
+            passwordInput.value = pass;
+            passwordInput.style.borderColor = "#E2A114";
+            passwordInput.style.fontWeight = "bold";
+            generateBtn.textContent = "Submit and Create Login Record";
+          }
+        });
+      }
+
+      // 5. ASYNCHRONOUS FORM DISPATCH TO FLASK
+      if (createStaffForm) {
+        createStaffForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          if (
+            passwordInput.value === "" ||
+            passwordInput.value === passwordInput.placeholder
+          ) {
+            alert(
+              "Please click the Generate button to create a password first.",
+            );
+            return;
+          }
+
+          const payload = {
+            category: document.getElementById("staffCategory").value,
+            directorate: document.getElementById("staffDirectorate").value,
+            service_number: document
+              .getElementById("staffServiceNumber")
+              .value.trim(),
+            alternate_email: document
+              .getElementById("staffAltEmail")
+              .value.trim(),
+            password: passwordInput.value,
+          };
+
+          try {
+            const response = await fetch("/add-staff", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+              alert("Success: " + result.message);
+              modal.style.display = "none";
+              createStaffForm.reset();
+              generateBtn.textContent = "Generate Login Password";
+              window.location.reload();
+            } else {
+              alert("Registration Error: " + result.message);
+            }
+          } catch (error) {
+            alert("An error occurred during database communications.");
+          }
+        });
+      }
+    });
+
+    let activeOpenMenu = null;
+
+    function toggleActionMenu(event, email) {
+      if (event) event.stopPropagation();
+      const cleanId = "menu_" + email.replace(/@/g, "_").replace(/\./g, "_");
+      const targetMenu = document.getElementById(cleanId);
+
+      if (activeOpenMenu && activeOpenMenu !== targetMenu) {
+        activeOpenMenu.style.display = "none";
+      }
+
+      if (targetMenu) {
+        if (targetMenu.style.display === "none") {
+          targetMenu.style.display = "flex";
+          activeOpenMenu = targetMenu;
+        } else {
+          targetMenu.style.display = "none";
+          activeOpenMenu = null;
+        }
+      }
+    }
+
+    // Dismiss active menus when clicking outside row bounds
+    window.addEventListener("click", () => {
+      if (activeOpenMenu) {
+        activeOpenMenu.style.display = "none";
+        activeOpenMenu = null;
+      }
+    });
+
+    async function viewStaffProfileDetails(email) {
+      try {
+        const response = await fetch(`/get-personnel-profile?email=${email}`);
+        if (!response.ok) {
+          alert("Could not pull specified account records profile details.");
+          return;
+        }
+
+        const data = await response.json();
+        const ob = data.onboarding_data || {};
+
+        const formatLabel = (str) => {
+          let label = str.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).replace(/_/g, ' ');
+          return label.trim() || 'Unknown Field';
+        };
+
+        const gridBox = document.getElementById("dynamicMetadataGrid");
+        gridBox.innerHTML = "";
+
+        let allPayloads = [
+          { source: data, include: ['email', 'directorate', 'status'] },
+          { source: ob.step_1 || {}, exclude: ['uploadPassport', 'uploadSignature', 'uploadCredentials'] },
+          { source: ob.step_2 || {}, exclude: [] },
+          { source: ob.step_4 || {}, exclude: [] },
+          { source: ob.step_5 || {}, exclude: [] } // Dynamically grabs everything the user filled in Step 5
+        ];
+
+        allPayloads.forEach(payloadGroup => {
+          if (!payloadGroup.source) return;
+          for (let [key, value] of Object.entries(payloadGroup.source)) {
+            // If there's an explicit include list, only include those. Otherwise, respect exclude list.
+            if (payloadGroup.include && !payloadGroup.include.includes(key)) continue;
+            if (payloadGroup.exclude && payloadGroup.exclude.includes(key)) continue;
+
+            // Skip objects/arrays in top level
+            if (typeof value === 'object' || value === null) continue;
+            // Skip file routes that might not be caught, just in case
+            if (String(value).startsWith('/static/') || key.startsWith('doc_')) continue;
+
+            gridBox.innerHTML += `
+                  <div>
+                    <strong>${formatLabel(key)}:</strong>
+                    <p style="margin-top: 4px; color: #4a5568; font-size: 14px;">${value || '---'}</p>
+                  </div>
+                `;
+          }
+        });
+
+        const avatarBox = document.getElementById("inspectAvatarBox");
+        if (ob.step_1?.uploadPassport) {
+          avatarBox.innerHTML = `<img src="${ob.step_1.uploadPassport}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;" />`;
+        } else {
+          avatarBox.innerHTML = "👤";
+        }
+
+        const docBox = document.getElementById("attachmentsDownloadContainer");
+        docBox.innerHTML = "";
+
+        // Standard Signatures/Academic Documents
+        if (ob.step_1?.uploadSignature) docBox.innerHTML += `<a href="${ob.step_1.uploadSignature}" target="_blank" class="download-chip-link" style="margin-bottom:10px;">✍️ Signature Specimen</a>`;
+        if (ob.step_1?.uploadCredentials) docBox.innerHTML += `<a href="${ob.step_1.uploadCredentials}" target="_blank" class="download-chip-link" style="margin-bottom:10px;">📄 Academic Credentials</a>`;
+
+        // Check if step 1 or step 5 raw files exist (like compulsory JNR files or optional ones)
+        [ob.step_1, ob.step_5].forEach(stepObj => {
+          if (stepObj) {
+            for (let [k, v] of Object.entries(stepObj)) {
+              if (String(v).startsWith('/static/') && k.startsWith('doc_')) {
+                docBox.innerHTML += `<a href="${v}" target="_blank" class="download-chip-link" style="margin-bottom:10px;">📄 ${formatLabel(k).replace('Doc ', '')}</a>`;
+              }
+            }
+          }
+        });
+
+        // Loop through any additionally requested documents appended to the profile
+        if (data.additional_trainings_ledger && Array.isArray(data.additional_trainings_ledger)) {
+          data.additional_trainings_ledger.forEach((doc, idx) => {
+            docBox.innerHTML += `<a href="${doc.file_url}" target="_blank" class="download-chip-link" style="margin-bottom:10px; border-color: #38A169; color: #38A169;">📁 ${doc.course_title} (${doc.timeline_period})</a>`;
+          });
+        }
+
+        document.getElementById("viewProfileModal").style.display = "flex";
+      } catch (err) {
+        alert("An error occurred during transaction communications loops.");
+      }
+    }
+
+    function closeViewProfileModal() {
+      document.getElementById("viewProfileModal").style.display = "none";
+    }
+
+    async function processApprovalAction(email, nextStatus) {
+      if (
+        !confirm(
+          `Are you certain you want to mark this personnel profile state parameters as: ${nextStatus}?`,
+        )
+      )
+        return;
+
+      try {
+        const response = await fetch("/process-personnel-approval", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, status: nextStatus }),
+        });
+
+        if (response.ok) {
+          alert(
+            `Personnel profile state successfully committed: ${nextStatus}`,
+          );
+          window.location.reload();
+        } else {
+          alert(
+            "Approval modification command rejected by server rules context.",
+          );
+        }
+      } catch (err) {
+        alert("Network communication fail.");
+      }
+    }
+
+    document.querySelectorAll(".reassign-btn").forEach((button) => {
+      button.addEventListener("click", function (event) {
+        event.stopPropagation();
+
+        const email = this.dataset.email;
+        const name = this.dataset.name;
+        const id = this.dataset.id;
+        const title = this.dataset.title;
+
+        openReassignModal(email, name, id, title);
+      });
+    });
+
+    async function triggerAdditionalDocumentRequest(email) {
+      if (!confirm(`Are you sure you want to request an additional document from this user (${email})?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch("/request-additional-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          alert("Successfully flagged user for an additional document request.");
+          window.location.reload();
+        } else {
+          alert(`Failed to request document: ${data.message || 'Server error'}`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Network error occurred while requesting extra document.");
+      }
+    }
+
+    function openReassignModal(email, name, id, title) {
+      document.getElementById('reassignUserEmail').value = email;
+      document.getElementById('reassignStaffName').value = name;
+      document.getElementById('reassignServiceNo').value = id;
+      document.getElementById('reassignCategory').value = 'Civilian';
+      document.getElementById('reassignModal').style.display = 'flex';
+    }
+
+    function closeReassignModal() {
+      document.getElementById('reassignModal').style.display = 'none';
+    }
+
+    async function submitReassignment(event) {
+      event.preventDefault();
+
+      const email = document.getElementById('reassignUserEmail').value;
+      const newDir = document.getElementById('newSelectedDirectorate').value;
+
+      if (!newDir) {
+        alert("Please select a new directorate.");
+        return;
+      }
+
+      try {
+        const response = await fetch('/execute-directorate-reassignment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, directorate: newDir })
+        });
+
+        if (response.ok) {
+          alert("Directorate properly reassigned. User is now pending onboarding.");
+          window.location.reload();
+        } else {
+          alert("Failed to reassign directorate.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Network error processing reassignment.");
+      }
+    }
+  </script>
+</body>
+
+</html>

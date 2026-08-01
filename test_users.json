@@ -1,0 +1,93 @@
+[
+  {
+    "email": "director.doa@dsa.mil.ng",
+    "name": "Air Cdre A.A. Ibrahim",
+    "role": "director",
+    "directorate": "doa",
+    "title": "Director of Administration",
+    "password_hash": "scrypt:32768:8:1$v6tYgepu1vtabnLO$bc035d21264788313b27f729cc69fb41114349bffb97f135ad16a6c8c708197a401e580a53e69690f4edb34f827a3e9f28d75eb2280cc06cb84e35f6b001c2bc",
+    "status": "Approved",
+    "is_onboarded": true,
+    "is_active": true
+  },
+  {
+    "email": "director.dcs@dsa.mil.ng",
+    "name": "Col. I.O. Ojo",
+    "role": "director",
+    "directorate": "dcs",
+    "title": "Director of Cyber Security",
+    "password_hash": "scrypt:32768:8:1$v6tYgepu1vtabnLO$bc035d21264788313b27f729cc69fb41114349bffb97f135ad16a6c8c708197a401e580a53e69690f4edb34f827a3e9f28d75eb2280cc06cb84e35f6b001c2bc",
+    "status": "Approved",
+    "is_onboarded": true,
+    "is_active": true
+  },
+  {
+    "email": "registry.clerk@dsa.mil.ng",
+    "name": "MWO A.O. Oluwaseun",
+    "role": "registry",
+    "directorate": "doa",
+    "title": "Chief Registry Clerk",
+    "password_hash": "scrypt:32768:8:1$v6tYgepu1vtabnLO$bc035d21264788313b27f729cc69fb41114349bffb97f135ad16a6c8c708197a401e580a53e69690f4edb34f827a3e9f28d75eb2280cc06cb84e35f6b001c2bc",
+    "status": "Approved",
+    "is_onboarded": true,
+    "is_active": true
+  },
+  {
+    "email": "personnel.mgr@dsa.mil.ng",
+    "name": "Cdr. S.A. Amao",
+    "role": "personnel",
+    "directorate": "doa",
+    "title": "HR Personnel Manager",
+    "password_hash": "scrypt:32768:8:1$v6tYgepu1vtabnLO$bc035d21264788313b27f729cc69fb41114349bffb97f135ad16a6c8c708197a401e580a53e69690f4edb34f827a3e9f28d75eb2280cc06cb84e35f6b001c2bc",
+    "status": "Approved",
+    "is_onboarded": true,
+    "is_active": true
+  },
+  {
+    "email": "dsa_civ_0245@dsa.mil.ng",
+    "name": "Joseph Septimus",
+    "role": "civilian",
+    "directorate": "doa",
+    "title": "Engineer Officer II",
+    "password_hash": "scrypt:32768:8:1$v6tYgepu1vtabnLO$bc035d21264788313b27f729cc69fb41114349bffb97f135ad16a6c8c708197a401e580a53e69690f4edb34f827a3e9f28d75eb2280cc06cb84e35f6b001c2bc",
+    "status": "Awaiting Approval",
+    "is_onboarded": false,
+    "is_active": true,
+    "onboarding_data": {
+      "step_1": {
+        "staffTitle": "MR.",
+        "surname": "SEPTIMUS",
+        "middleName": "JAMES",
+        "firstName": "JOSEPH",
+        "appointment": "ENG OFFR II",
+        "offEmail": "septimus.james@dsa.mil.ng",
+        "phoneNo": "08031112223"
+      },
+      "step_2": {
+        "homeAddress": "OFFICIAL DSA BARRACKS LINES, ABUJA",
+        "maritalStatus": "SINGLE",
+        "religion": "CHRISTIANITY",
+        "nokName": "SARAH SEPTIMUS",
+        "nokRelation": "SISTER"
+      },
+      "step_4": {
+        "bankName": "CENTRAL BANK",
+        "branchName": "GARKI ABUJA",
+        "accName": "JOSEPH SEPTIMUS",
+        "accNumber": "3011122233",
+        "sortCode": "011223344"
+      }
+    }
+  },
+  {
+    "email": "dsa_civ_0999@dsa.mil.ng",
+    "name": "DSA/CIV/0999",
+    "role": "civilian",
+    "directorate": "dcs",
+    "title": "New Recruit",
+    "password_hash": "scrypt:32768:8:1$v6tYgepu1vtabnLO$bc035d21264788313b27f729cc69fb41114349bffb97f135ad16a6c8c708197a401e580a53e69690f4edb34f827a3e9f28d75eb2280cc06cb84e35f6b001c2bc",
+    "status": "In Progress",
+    "is_onboarded": false,
+    "is_active": true
+  }
+]

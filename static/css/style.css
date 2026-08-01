@@ -1,0 +1,155 @@
+/* static/css/style.css */
+
+/* Reset browser margins and apply soft background tint */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #1A365D;
+}
+
+/* White Login Card Component Container */
+.login-container {
+    background: #FFFFFF;
+    width: 100%;
+    max-width: 440px;
+    padding: 40px 35px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+/* Flexbox setup for logo and text alignment */
+.branding-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 35px;
+    gap: 15px;
+}
+
+.logo {
+    height: 65px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* Exact vertical separator layout divider rule */
+.divider-line {
+    width: 2px;
+    height: 45px;
+    background-color: #111111;
+}
+
+.branding-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.brand-title-red {
+    color: #D30B0B;
+    font-size: 19px;
+    font-weight: 700;
+}
+
+.brand-title-blue {
+    color: #1B365D;
+    font-size: 19px;
+    font-weight: 700;
+}
+
+/* Page context heading configuration */
+.welcome-heading {
+    text-align: center;
+    color: #E26D5C; /* Faded orange-red welcoming text tint */
+    font-size: 20px;
+    font-weight: 400;
+    margin-bottom: 30px;
+}
+
+/* Input layout forms styling structure */
+.input-group {
+    margin-bottom: 22px;
+    display: flex;
+    flex-direction: column;
+}
+
+.input-group label {
+    font-size: 13px;
+    color: #666666;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #333333;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+/* Change input border highlight during focus state actions */
+.input-group input:focus {
+    border-color: #94A3B8;
+}
+
+/* Password positioning wrapper holding password toggle eye */
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.toggle-password-eye {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #888888;
+    font-size: 14px;
+    user-select: none;
+}
+
+/* Error presentation placeholder styles */
+.error-text {
+    color: #D30B0B;
+    font-size: 13px;
+    margin-top: -10px;
+    margin-bottom: 15px;
+    display: none;
+    font-weight: 500;
+}
+
+/* Vibrant Red Submission Button Interaction Blueprint */
+#signinBtn {
+    width: 100%;
+    padding: 13px;
+    background-color: #E50000; /* Rich solid red branding color */
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#signinBtn:hover {
+    background-color: #CC0000;
+}
+
+#signinBtn:active {
+    background-color: #B30000;
+}
