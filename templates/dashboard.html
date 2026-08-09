@@ -5,8 +5,688 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DSA Paperless - Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
-</head>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <style>
+    :root {
+      --navy: #0b2d6b;
+      --navy-2: #12315f;
+      --blue: #1565d8;
+      --blue-600: #1f6fe0;
+      --ink: #12315f;
+      --text: #334155;
+      --muted: #8a94a6;
+      --line: #eaeef4;
+      --page: #f4f6fa;
+      --card: #ffffff;
+      --green: #2fb457;
+      --amber: #f0a91d;
+      --red: #e03b2f;
+      --sky: #3fc8f5;
+      --salmon: #f98f80;
+      --brown: #8a4b0a;
+      --radius: 14px;
+      --shadow: 0 1px 2px rgba(16, 38, 73, .04), 0 8px 24px rgba(16, 38, 73, .06);
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      margin: 0
+    }
+
+    body {
+      background: var(--page);
+      color: var(--text);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 18px 18px 48px
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow)
+    }
+
+    /* ---------- Hero ---------- */
+    .hero {
+      background: linear-gradient(105deg, #0b2f7a 0%, #14459d 45%, #1668d6 100%);
+      border-radius: var(--radius);
+      color: #fff;
+      padding: 26px 30px 0;
+      box-shadow: 0 10px 30px rgba(11, 45, 107, .25);
+    }
+
+    .hero-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: flex-start;
+      justify-content: space-between
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 34px;
+      letter-spacing: -.5px;
+      font-weight: 700
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: #cfe0ff;
+      font-weight: 600
+    }
+
+    .clock {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #e6efff;
+      padding-top: 6px
+    }
+
+    .hero-stats {
+      margin-top: 22px;
+      border-top: 1px solid rgba(255, 255, 255, .28);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 18px 0 24px;
+    }
+
+    .hstat {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .hstat .ic {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      flex: none;
+      background: rgba(255, 255, 255, .14);
+      border: 1px solid rgba(255, 255, 255, .22);
+      display: grid;
+      place-items: center;
+    }
+
+    .hstat b {
+      display: block;
+      font-size: 19px;
+      line-height: 1.1
+    }
+
+    .hstat span {
+      font-size: 13px;
+      color: #bcd4ff;
+      font-weight: 600
+    }
+
+    /* ---------- Metric cards ---------- */
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 16px
+    }
+
+    .metric {
+      padding: 16px 16px 12px
+    }
+
+    .metric-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px
+    }
+
+    .metric h3 {
+      margin: 0;
+      font-size: 11px;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: #5b6b86;
+      font-weight: 700
+    }
+
+    .metric .big {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 8px 0 2px;
+      letter-spacing: -.5px
+    }
+
+    .metric .sub {
+      font-size: 11px;
+      color: var(--muted)
+    }
+
+    .badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      flex: none
+    }
+
+    .b-navy {
+      background: #123a86
+    }
+
+    .b-red {
+      background: #d8291c
+    }
+
+    .b-green {
+      background: #38c364
+    }
+
+    .b-sky {
+      background: #4ec9f2
+    }
+
+    .b-pale {
+      background: #c9dbf7
+    }
+
+    .b-amber {
+      background: #f5a623
+    }
+
+    .b-salmon {
+      background: #f98f80
+    }
+
+    .b-brown {
+      background: #8a4b0a
+    }
+
+    .badge svg {
+      stroke: #fff
+    }
+
+    .b-pale svg {
+      stroke: #7ba4e0
+    }
+
+    .metric-foot {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      text-align: center
+    }
+
+    .metric-foot b {
+      display: block;
+      font-size: 13px;
+      color: var(--ink)
+    }
+
+    .metric-foot span {
+      font-size: 10.5px;
+      color: var(--muted)
+    }
+
+    /* ---------- Feed + quick actions ---------- */
+    .cols {
+      display: grid;
+      grid-template-columns: 1.85fr 1fr;
+      gap: 16px;
+      margin-top: 16px
+    }
+
+    .sec-title {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -.3px
+    }
+
+    .sec-sub {
+      margin: 4px 0 0;
+      font-size: 11px;
+      color: var(--muted)
+    }
+
+    .pad {
+      padding: 20px 22px 22px
+    }
+
+    .feed {
+      list-style: none;
+      margin: 16px 0 0;
+      padding: 0
+    }
+
+    .feed li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 0
+    }
+
+    .dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      flex: none;
+      display: grid;
+      place-items: center
+    }
+
+    .dot svg {
+      stroke: #fff;
+      width: 14px;
+      height: 14px
+    }
+
+    .feed .txt {
+      flex: 1;
+      min-width: 0
+    }
+
+    .feed .txt b {
+      display: block;
+      font-size: 13.5px;
+      color: var(--ink);
+      font-weight: 700
+    }
+
+    .feed .txt span {
+      font-size: 11px;
+      color: #93a0b5
+    }
+
+    .feed time {
+      font-size: 11.5px;
+      color: #93a0b5;
+      white-space: nowrap
+    }
+
+    .qa {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 10px;
+      margin-top: 20px
+    }
+
+    .qa a {
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 2px;
+      border-radius: 10px
+    }
+
+    .qa a:hover {
+      background: #f6f9ff
+    }
+
+    .qa .ic {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      background: #123a86;
+      display: grid;
+      place-items: center
+    }
+
+    .qa .ic svg {
+      stroke: #fff;
+      width: 15px;
+      height: 15px
+    }
+
+    .qa span {
+      font-size: 12.5px;
+      color: var(--ink);
+      font-weight: 600;
+      text-align: center
+    }
+
+    /* ---------- Table ---------- */
+    .table-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start
+    }
+
+    .btn {
+      background: #1565d8;
+      color: #fff;
+      border: 0;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px
+    }
+
+    th {
+      font-size: 12.5px;
+      color: #4b5b76;
+      font-weight: 700;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: center
+    }
+
+    th:first-child,
+    td:first-child {
+      width: 44px
+    }
+
+    td {
+      padding: 16px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      font-size: 12.5px;
+      color: #5b6b86
+    }
+
+    td.ref {
+      font-weight: 600;
+      color: #3a4a66
+    }
+
+    td.subj {
+      text-align: left;
+      color: #1565d8;
+      font-weight: 700
+    }
+
+    input[type=checkbox] {
+      width: 17px;
+      height: 17px;
+      border-radius: 4px;
+      accent-color: #1565d8
+    }
+
+    .pill {
+      display: inline-block;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #fff
+    }
+
+    .p-green {
+      background: #5ed17f
+    }
+
+    .p-amber {
+      background: #eda820
+    }
+
+    .p-blue {
+      background: #2b9be0
+    }
+
+    .p-red {
+      background: #f79287
+    }
+
+    .kebab {
+      color: #a9b3c3;
+      font-weight: 700;
+      letter-spacing: 1px
+    }
+
+    /* ---------- Charts ---------- */
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px
+    }
+
+    .bars {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 8px;
+      margin-top: 22px
+    }
+
+    .yaxis {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: #98a3b5;
+      text-align: right;
+      height: 200px
+    }
+
+    .plot {
+      position: relative;
+      height: 200px;
+      border-left: 1px solid var(--line);
+      border-bottom: 1px solid var(--line)
+    }
+
+    .plot .gl {
+      position: absolute;
+      left: 0;
+      right: 0;
+      border-top: 1px dashed #eef2f7
+    }
+
+    .cols-bars {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;
+      padding: 0 6px
+    }
+
+    .bcol {
+      width: 12%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100%;
+      position: relative
+    }
+
+    .bcol.hl {
+      background: #eceff3
+    }
+
+    .bar {
+      width: 26px;
+      background: #12315f;
+      border-radius: 2px 2px 0 0
+    }
+
+    .xaxis {
+      display: flex;
+      justify-content: space-around;
+      padding: 6px 6px 0;
+      font-size: 10.5px;
+      color: #98a3b5
+    }
+
+    .legend {
+      display: flex;
+      gap: 18px;
+      justify-content: center;
+      margin-top: 10px;
+      font-size: 10.5px;
+      color: #7b8698
+    }
+
+    .legend i {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 2px;
+      margin-right: 6px;
+      vertical-align: -1px
+    }
+
+    .tip {
+      position: absolute;
+      left: 52%;
+      bottom: 38%;
+      background: #fff;
+      border: 1px solid #e3e8f0;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #3a4a66;
+      box-shadow: 0 6px 18px rgba(16, 38, 73, .12);
+      white-space: nowrap
+    }
+
+    .tip b {
+      display: block;
+      color: var(--ink);
+      margin-bottom: 4px
+    }
+
+    .tip .in {
+      color: var(--red)
+    }
+
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      margin-top: 26px;
+      justify-content: center;
+      flex-wrap: wrap
+    }
+
+    .donut {
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: conic-gradient(#ef7c1a 0 33.6deg,
+          #f5a623 33.6deg 70deg,
+          #5ed17f 70deg 145deg,
+          #8dd94f 145deg 205deg,
+          #2fb457 205deg 275deg,
+          #ef7c1a 275deg 360deg);
+      display: grid;
+      place-items: center;
+      position: relative
+    }
+
+    .donut::after {
+      content: "";
+      position: absolute;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: #fdf3ee
+    }
+
+    .donut b {
+      position: relative;
+      z-index: 1;
+      font-size: 22px;
+      color: var(--ink);
+      font-weight: 700
+    }
+
+    .keys {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 26px;
+      font-size: 12px
+    }
+
+    .keys div {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start
+    }
+
+    .keys i {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex: none
+    }
+
+    .keys b {
+      display: block;
+      color: var(--ink);
+      font-size: 12.5px
+    }
+
+    .keys span {
+      color: #6b7789
+    }
+
+    @media (max-width:1000px) {
+      .grid-4 {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .hero-stats {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .cols,
+      .charts {
+        grid-template-columns: 1fr
+      }
+    }
+
+    @media (max-width:620px) {
+      .grid-4 {
+        grid-template-columns: 1fr
+      }
+
+      .hero h1 {
+        font-size: 26px
+      }
+
+      .table-scroll {
+        overflow-x: auto
+      }
+    }
+  </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
 
 <body>
   <div class="dashboard-wrapper">
@@ -40,7 +720,7 @@
         {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
         <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
         {% endif %} {% if "leave_pass" in permissions.sidebar %}
-        <a href="/leave-view" class="menu-item">📅 Leave & Pass</a>
+        <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
         {% endif %}
       </nav>
       <!-- Permanently Locked Footer Segment -->
@@ -56,7 +736,7 @@
       <!-- Top Navbar Section -->
       <header class="top-navbar">
         <div class="breadcrumb">
-          📋 DSA PAPERLESS &gt; <span>Dashboard</span>
+          📋 DSA PAPERLESS &gt; <span class="active-crumb"> Dashboard</span>
         </div>
         <div class="user-profile-badge">
           <!-- Clean circle initials token frame -->
@@ -76,31 +756,179 @@
       </header>
 
       <!-- Main Welcome Banner Card Layout -->
-      <section class="welcome-banner">
+      <!-- <section class="welcome-banner">
         <div class="welcome-text">
           <h1>Welcome {{ user.title }},</h1>
           <p>{{ user.directorate }} · {{ user.office }}</p>
         </div>
         <div class="live-clock">🕒 {{ current_time }}</div>
+      </section> -->
+
+      <!-- HERO -->
+      <header class="hero" style="margin: 30px;">
+        <div class="hero-top" style="padding-bottom: 25px; ">
+          <div>
+            
+            <h1>Welcome {% if user.category == 'civilian' and user.is_approval_role == True %} {{user.role | replace('_', ' ') | title}} 
+              {% elif user.category == 'civilian' %} {{user.name}} 
+              {% elif user.category == 'military' and user.is_approval_role == True %} {{user.appt | replace('_', ' ') | upper}}
+              {% elif user.category == 'military'%} {{user.appt | replace('_', ' ') | upper}}
+              {% else %} {{user.appt | replace('_', ' ') | upper }} {% endif %},
+            </h1>
+          </div>
+          <div class="clock">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6efff" stroke-width="2">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            <div class="live-clock">🕒 {{ current_time }}</div>
+          </div>
+        </div>
+        
+        <!-- <div class="hero-stats">
+          <div class="hstat">
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+                <rect x="5" y="4" width="14" height="17" rx="2" />
+                <path d="M9 3h6v3H9z" />
+                <path d="M9 11h6M9 15h4" />
+              </svg></span>
+            <div><b>47</b><span>Pending Task</span></div>
+          </div>
+          <div class="hstat">
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+                <path d="M4 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+              </svg></span>
+            <div><b>23</b><span>Documents Today</span></div>
+          </div>
+          <div class="hstat">
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+                <rect x="4" y="5" width="16" height="16" rx="2" />
+                <path d="M8 3v4M16 3v4M4 10h16" />
+              </svg></span>
+            <div><b>47</b><span>Personnel on Leave</span></div>
+          </div>
+          <div class="hstat">
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+                <rect x="4" y="5" width="16" height="16" rx="2" />
+                <path d="M8 3v4M16 3v4M4 10h16" />
+              </svg></span>
+            <div><b>23</b><span>Civilian on Leave</span></div>
+          </div>
+        </div> -->
+      </header> 
+
+
+      <!-- METRICS ROW 1 -->
+      <section class="grid-4" style="margin: 25px;">
+        <article class="card metric">
+          <div class="metric-head">
+            <div>
+              <h3>Documents</h3>
+              <div class="big">1297</div>
+              <div class="sub">Total Documents</div>
+            </div>
+            <span class="badge b-navy"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <rect x="5" y="4" width="14" height="17" rx="2" />
+                <path d="M9 3h6v3H9zM9 11h6M9 15h4" />
+              </svg></span>
+          </div>
+          <div class="metric-foot">
+            <div><b>234</b><span>Draft</span></div>
+            <div><b>105</b><span>Pending</span></div>
+            <div><b>954</b><span>Approved</span></div>
+          </div>
+        </article>
+        <article class="card metric">
+          <div class="metric-head">
+            <div>
+              <h3>Leave &amp; Pass</h3>
+              <div class="big">0</div>
+              <div class="sub">Total Approved/Issued</div>
+            </div>
+            <span class="badge b-red"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <rect x="5" y="4" width="14" height="17" rx="2" />
+                <path d="M9 3h6v3H9zM9 11h6M9 15h4" />
+              </svg></span>
+          </div>
+          <div class="metric-foot">
+            <div><b>234</b><span>Pending</span></div>
+            <div><b>105</b><span>Approved</span></div>
+            <div><b>954</b><span>Rejected</span></div>
+          </div>
+        </article>
+        <article class="card metric">
+          <div class="metric-head">
+            <div>
+              <h3>Promotions</h3>
+              <div class="big">1297</div>
+              <div class="sub">Total Record</div>
+            </div>
+            <span class="badge b-green"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <rect x="5" y="4" width="14" height="17" rx="2" />
+                <path d="M9 3h6v3H9zM9 11h6M9 15h4" />
+              </svg></span>
+          </div>
+          <div class="metric-foot">
+            <div><b>234</b><span>Pending</span></div>
+            <div><b>105</b><span>Approved</span></div>
+            <div><b>954</b><span>Review</span></div>
+          </div>
+        </article>
+        <article class="card metric">
+          <div class="metric-head">
+            <div>
+              <h3>PER</h3>
+              <div class="big">0</div>
+              <div class="sub">Total Submitted</div>
+            </div>
+            <span class="badge b-sky"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <rect x="5" y="4" width="14" height="17" rx="2" />
+                <path d="M9 3h6v3H9zM9 11h6M9 15h4" />
+              </svg></span>
+          </div>
+          <div class="metric-foot">
+            <div><b>0</b><span>Pending</span></div>
+            <div><b>0</b><span>Approved</span></div>
+            <div><b>0</b><span>Rejected</span></div>
+          </div>
+        </article>
       </section>
 
-      {% if user.training_request_active %}
+      {% if reliever_requests %}
+      {% for req in reliever_requests %}
       <div class="alert-box"
-        style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #e2a114; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ffeeba;">
+        style="background-color: #e6fffa; color: #234e52; padding: 15px; border-radius: 8px; margin: 25px; border-left: 4px solid #319795; display: flex; justify-content: space-between; align-items: center; border: 1px solid #b2f5ea; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
         <div>
-          <strong style="display: block; margin-bottom: 4px; font-size: 16px;">⚠️ Additional Document Requested</strong>
-          Registry control has requested that you submit an additional document/training record.
+          <strong style="display: block; margin-bottom: 4px; font-size: 16px; color: #2c7a7b;">📋 Reliever
+            Request</strong>
+          <span style="font-size: 14px;">
+            <strong>{{ req.applicantName }}</strong> ({{ req.applicantId }}) has requested you to stand as a reliever
+            for their leave application.
+          </span>
         </div>
-        <button type="button" onclick="document.getElementById('extraDocModal').style.display='flex'"
-          style="background-color: #e2a114; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
-          Submit Document
-        </button>
+        <div style="display: flex; gap: 10px;">
+          <form action="/api/reliever-request/action/{{ req._id }}/accept" method="POST" style="margin: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+            <button type="submit"
+              style="background-color: #319795; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">
+              Accept
+            </button>
+          </form>
+          <form action="/api/reliever-request/action/{{ req._id }}/decline" method="POST" style="margin: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+            <button type="submit"
+              style="background-color: #e53e3e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">
+              Decline
+            </button>
+          </form>
+        </div>
       </div>
+      {% endfor %}
       {% endif %}
 
       <!-- Grid Modules Layout Wrapper Block -->
-      <section class="modules-grid">
-        <!-- Documents Analytics Block Segment -->
+      <!-- <section class="modules-grid">
+        Documents Analytics Block Segment
         {% if "documents" in permissions.modules %}
         <div class="metric-card clickable-card" data-target="/documents-view">
           <div class="card-header">
@@ -124,7 +952,7 @@
         </div>
         {% endif %}
 
-        <!-- Personnel Data Analysis Module -->
+        Personnel Data Analysis Module
         {% if "personnel_civilian" in permissions.modules %}
         <div class="metric-card border-orange clickable-card" data-target="/personnel-view">
           <div class="card-header">
@@ -147,99 +975,74 @@
           </div>
         </div>
         {% endif %}
-      </section>
+      </section> -->
 
-      <!-- Quick Action Interactive Section Blocks -->
-      <section class="bottom-split-row">
-        <!-- ================= FIXED LIVE TIMELINE ACTIVITY FEED ================= -->
-        <div class="activity-feed" style="
-              background: #ffffff;
-              padding: 25px;
-              border-radius: 12px;
-              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.01);
-              text-align: left;
-            ">
-          <h3 style="
-                font-size: 15px;
-                color: #1a202c;
-                font-weight: 600;
-                border-bottom: 2px solid #f1f5f9;
-                padding-bottom: 12px;
-                margin-bottom: 15px;
-              ">
-            Registry Activity Feed
-          </h3>
+      <!-- Submitted Applications Table Section -->
+      {% if not user.is_approval_role %}
+      <section class="submitted-applications-section"
+        style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.01); margin: 25px; text-align: left;">
+        <h3
+          style="font-size: 16px; color: #1a202c; font-weight: 600; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-top: 0;">
+          📋 Your Submitted Applications
+        </h3>
 
-          <div class="feed-timeline-container" style="
-                display: flex;
-                flex-direction: column;
-                gap: 14px;
-                max-height: 320px;
-                overflow-y: auto;
-                padding-right: 5px;
-              ">
-            {% if feed %} {% for log in feed %}
-            <div class="feed-item" style="
-                  display: flex;
-                  gap: 12px;
-                  align-items: flex-start;
-                  padding-bottom: 12px;
-                  border-bottom: 1px dashed #edf2f7;
-                ">
-              <div class="feed-badge" style="
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    background-color: #e50000;
-                    margin-top: 6px;
-                    flex-shrink: 0;
-                  "></div>
-              <div style="flex-grow: 1">
-                <p style="
-                      font-size: 13px;
-                      color: #2d3748;
-                      margin: 0;
-                      line-height: 1.4;
-                    ">
-                  <strong>{{ log.name }}</strong> ({{
-                  log.email.split('@')[0].replace('_', '/').upper() }}) -
-                  <span style="color: #4a5568">{{ log.action }}</span>
-                </p>
-                <span style="
-                      font-size: 11px;
-                      color: #a0aec0;
-                      display: block;
-                      margin-top: 3px;
-                    ">🕒 {{ log.timestamp }}</span>
-              </div>
-            </div>
-            {% endfor %} {% else %}
-            <p style="
-                  text-align: center;
-                  color: #a0aec0;
-                  font-size: 13px;
-                  padding: 40px 0;
-                  font-style: italic;
-                ">
-              No active registration event footprints logged within this
-              track.
-            </p>
-            {% endif %}
-          </div>
+        {% if submitted_applications %}
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+            <thead>
+              <tr
+                style="border-bottom: 2px solid #edf2f7; color: #718096; font-weight: 700; text-transform: uppercase; font-size: 11px;">
+                <th style="padding: 12px 16px;">Reference ID</th>
+                <th style="padding: 12px 16px;">Leave Type</th>
+                <th style="padding: 12px 16px;">Period</th>
+                <th style="padding: 12px 16px;">Days</th>
+                <th style="padding: 12px 16px;">Status</th>
+                <th style="padding: 12px 16px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for app in submitted_applications %}
+              <tr style="border-bottom: 1px solid #edf2f7; transition: background-color 0.2s;">
+                <td style="padding: 16px; font-weight: 600; color: #2d3748; font-family: monospace; font-size: 14px;">{{
+                  app.referenceId }}</td>
+                <td style="padding: 16px; color: #4a5568;">{{ app.leave_type | title }}</td>
+                <td style="padding: 16px; color: #4a5568;">
+                  {{ app.startDate.strftime('%d %b %Y') }} - {{ app.endDate.strftime('%d %b %Y') }}
+                </td>
+                <td style="padding: 16px; color: #4a5568; font-weight: 600;">{{ app.numberOfDays }} days</td>
+                <td style="padding: 16px;">
+                  <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 50px; font-size: 12px; font-weight: 600; text-transform: uppercase;
+                                  {% if app.status == 'pending' %} background: #fff3cd; color: #856404;
+                                  {% elif app.status == 'approved' %} background: #d1e7dd; color: #0f5132;
+                                  {% elif app.status == 'rejected' %} background: #f8d7da; color: #721c24;
+                                  {% elif app.status == 'issued' %} background: #cfe2ff; color: #084298; {% endif %}">
+                    {{ app.status }}
+                  </span>
+                </td>
+                <td style="padding: 16px; text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                  <a href="{{ url_for('dashboard', track_id=app.referenceId) }}"
+                    style="background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px rgba(52, 152, 219, 0.1); transition: all 0.2s;">
+                    🔍 Track Status
+                  </a>
+                  {% if app.status == 'issued' %}
+                  <a href="{{ url_for('approver_dashboard.view_receipt', app_id=app._id|string) }}"
+                    style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px rgba(46, 204, 113, 0.1); transition: all 0.2s;" target="_blank">
+                    📄 View Receipt
+                  </a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        <!-- ===================================================================== -->
-
-        <div class="quick-actions-panel">
-          <h3>Quick Actions</h3>
-          <div class="action-buttons-grid">
-            {% if "incoming_register" in permissions.actions %}
-            <button class="action-btn">📥 Incoming Register</button>
-            {% endif %} {% if "outgoing_register" in permissions.actions %}
-            <button class="action-btn">📤 Outgoing Register</button>
-            {% endif %}
-          </div>
+        {% else %}
+        <div style="text-align: center; padding: 40px 0; color: #a0aec0; font-style: italic;">
+          You have not submitted any leave or pass applications yet.
         </div>
+        {% endif %}
       </section>
+      {% endif %}
     </main>
   </div>
 
@@ -297,6 +1100,207 @@
       });
     });
   </script>
+
+  <!-- Application Tracking Results Modal Overlay -->
+  {% if show_result_modal %}
+  <div id="resultModal" class="modal-overlay"
+    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1050; backdrop-filter: blur(5px); animation: fadeIn 0.3s ease;">
+    <div class="modal-box"
+      style="background: white; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transform: scale(1.02); animation: modalScale 0.3s ease;">
+
+      <!-- Modal Header -->
+      <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-4">
+        <div>
+          <h3 style="font-weight: 700; color: #2c3e50; margin: 0 0 5px 0; font-size: 24px; text-align: left;">
+            Application Status</h3>
+          <div
+            style="background: #f8f9fa; padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 15px; display: inline-block; border: 1px solid #e2e8f0; color: #4a5568;">
+            <i class="ri-hashtag"></i> {{ reference_id }}
+          </div>
+        </div>
+        <div class="status-badge status-{{ application.status }}" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 50px; font-weight: 600; text-transform: uppercase; font-size: 14px; letter-spacing: 0.5px;
+                   {% if application.status == 'pending' %} background: #fff3cd; color: #856404;
+                   {% elif application.status == 'approved' %} background: #d1e7dd; color: #0f5132;
+                   {% elif application.status == 'rejected' %} background: #f8d7da; color: #721c24;
+                   {% elif application.status == 'issued' %} background: #cfe2ff; color: #084298; {% endif %}">
+          {% if application.status == "pending" %}
+          <i class="ri-time-line"></i> Pending
+          {% elif application.status == "approved" %}
+          <i class="ri-check-line"></i> Approved
+          {% elif application.status == "rejected" %}
+          <i class="ri-close-line"></i> Rejected
+          {% elif application.status == "issued" %}
+          <i class="ri-check-double-line"></i> Issued
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Application Info Grid -->
+      <div
+        style="background: #f8f9fa; border-radius: 16px; padding: 20px; margin-bottom: 25px; border: 1px solid #e2e8f0; text-align: left;">
+        <div class="row g-3">
+          <div class="col-md-4 col-6">
+            <div
+              style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">
+              Applicant</div>
+            <div style="font-weight: 600; color: #2d3748;">{{ application.applicantName }}</div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div
+              style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">
+              Service Number</div>
+            <div style="font-weight: 600; color: #2d3748;">{{ application.applicantId }}</div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div
+              style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">
+              Leave Type</div>
+            <div style="font-weight: 600; color: #2d3748;">{{ application.leave_type|title }}</div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div
+              style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">
+              Directorate</div>
+            <div style="font-weight: 600; color: #2d3748;">{{ application.directorate }}</div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div
+              style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">
+              Period</div>
+            <div style="font-weight: 600; color: #2d3748;">
+              {{ application.startDate.strftime('%d %b %Y') }} - {{ application.endDate.strftime('%d %b %Y') }}
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div
+              style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">
+              Days</div>
+            <div style="font-weight: 600; color: #2d3748;">{{ application.numberOfDays }} days</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Section -->
+      <div style="margin-bottom: 30px; text-align: left;">
+        <div
+          style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #4a5568;">
+          <span>Progress: {{ completed_steps }} of {{ total_steps }} steps</span>
+          <span>
+            {% if total_steps > 0 %}
+            {{ ((completed_steps / total_steps) * 100)|round|int }}%
+            {% else %}
+            0%
+            {% endif %}
+          </span>
+        </div>
+        <div style="height: 10px; border-radius: 5px; background: #e2e8f0; overflow: hidden;">
+          <div
+            style="height: 100%; background: linear-gradient(90deg, #3182ce, #38a169); border-radius: 5px; width: {% if total_steps > 0 %}{{ (completed_steps / total_steps) * 100 }}{% else %}0{% endif %}%;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline Section -->
+      <div style="margin-bottom: 30px; text-align: left;">
+        <h4 style="font-size: 16px; font-weight: 700; color: #2d3748; margin-bottom: 20px;"><i
+            class="ri-history-line me-2"></i> Application Timeline</h4>
+        <div style="position: relative; padding-left: 20px; margin-left: 10px; border-left: 2px solid #e2e8f0;">
+          {% for step in timeline %}
+          <div style="position: relative; margin-bottom: 25px;">
+            <!-- Dot Indicator -->
+            <div style="position: absolute; left: -31px; top: 2px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; z-index: 10;
+                           {% if step.status == 'completed' %} background-color: #38a169;
+                           {% elif step.status == 'rejected' %} background-color: #e53e3e;
+                           {% else %} background-color: #dd6b20; {% endif %}">
+            </div>
+            <div
+              style="background: #f7fafc; padding: 15px; border-radius: 12px; border: 1px solid #edf2f7; margin-left: 10px;">
+              <div style="font-weight: 700; color: #2d3748; font-size: 14px; margin-bottom: 4px;">
+                <i class="{{ step.icon }} me-1"></i> {{ step.title }}
+              </div>
+              <div style="font-size: 12px; color: #718096; margin-bottom: 8px;">
+                {{ step.date.strftime('%d %b %Y, %I:%M %p') if step.date else 'N/A' }}
+              </div>
+              <div style="font-size: 13px; color: #4a5568; line-height: 1.4;">
+                {{ step.description }}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div
+        style="display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 20px; flex-wrap: wrap;">
+        <button onclick="window.print()"
+          style="background: #f7fafc; color: #4a5568; border: 1px solid #cbd5e0; border-radius: 10px; padding: 10px 20px; font-weight: 600; font-size: 14px;">
+          <i class="ri-printer-line me-1"></i> Print Status
+        </button>
+
+        {% if application.status == "issued" %}
+        {# Check for SO1-DOA receipt (civilian) #}
+        {% set so1_receipt_step = application.approvalChain|selectattr("role", "equalto", "so1_doa")|first %}
+        {# Check for Central Registry receipt (military/director) #}
+        {% set central_receipt_step = application.approvalChain|selectattr("role", "equalto", "central_registry")|first
+        %}
+
+        {% if (so1_receipt_step and so1_receipt_step.receipt) or (central_receipt_step and central_receipt_step.receipt)
+        %}
+        <a href="{{ url_for('approver_dashboard.download_receipt', app_id=application._id|string) }}"
+          style="background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border-radius: 10px; padding: 10px 20px; font-weight: 600; text-decoration: none; font-size: 14px;">
+          <i class="ri-download-line me-1"></i> Download Receipt
+        </a>
+        <a href="{{ url_for('approver_dashboard.view_receipt', app_id=application._id|string) }}"
+          style="background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border-radius: 10px; padding: 10px 20px; font-weight: 600; text-decoration: none; font-size: 14px;">
+          <i class="ri-eye-line me-1"></i> View Receipt
+        </a>
+        {% endif %}
+        {% endif %}
+
+        <button type="button"
+          style="background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border-radius: 10px; padding: 10px 20px; font-weight: 600; font-size: 14px; border: none; cursor: pointer;"
+          onclick="closeResultModal()">
+          <i class="ri-close-line me-1"></i> Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+  <style>
+    .modal-overlay {
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes modalScale {
+      from {
+        transform: scale(0.95);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1.02);
+        opacity: 1;
+      }
+    }
+  </style>
+  <script>
+    function closeResultModal() {
+      document.getElementById('resultModal').style.display = 'none';
+      window.location.href = "{{ url_for('dashboard') }}";
+    }
+  </script>
+  {% endif %}
 </body>
 
 </html>

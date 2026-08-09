@@ -33,7 +33,8 @@ document.getElementById('signinBtn').addEventListener('click', async (e) => {
         const response = await fetch('/login', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.getElementById('csrf_token').value
             },
             body: JSON.stringify({ 
                 email: emailInput, 

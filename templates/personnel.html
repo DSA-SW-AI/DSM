@@ -8,6 +8,8 @@
   <title>DSA Paperless - Civilian & Personnel</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -23,7 +25,7 @@
       </div>
       <nav class="sidebar-menu">
         <div class="menu-section-label">OVERVIEW</div>
-        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+        <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
 
         <div class="menu-section-label">REGISTRY</div>
         {% if "documents" in permissions.sidebar %}
@@ -32,27 +34,35 @@
         <a href="/incoming-view" class="menu-item">📥 Incoming</a>
         {% endif %} {% if "outgoing" in permissions.sidebar %}
         <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
         {% endif %}
 
         <div class="menu-section-label">HR MANAGEMENT</div>
         {% if "civilian_personnel" in permissions.sidebar %}
-        <a href="/personnel-view" class="menu-item active">👥 Civilian & Personnel</a>
+        <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+        {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+        <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
         {% endif %} {% if "leave_pass" in permissions.sidebar %}
-        <a href="/leave-view" class="menu-item">📅 Leave & Pass</a>
+        <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
         {% endif %}
       </nav>
+      <!-- Permanently Locked Footer Segment -->
       <div class="sidebar-footer">
-        <a href="{{ url_for('logout') }}" class="logout-btn">🚪 Logout System</a>
+        <a href="{{ url_for('logout') }}" class="logout-btn">
+          🚪 Logout
+        </a>
       </div>
     </aside>
 
     <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
     <main class="main-content">
+      <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
       <!-- Top Navbar Section -->
       <header class="top-navbar">
         <div class="breadcrumb">
           📋 DSA PAPERLESS &gt;
-          <span class="active-crumb">Civilian & Personnel</span>
+          <span class="active-crumb"> Civilian & Personnel</span>
         </div>
         <div class="user-profile-badge">
           <!-- Clean circle initials token frame -->
@@ -73,7 +83,7 @@
       </header>
 
       <!-- Table Controls Row Header Section -->
-      <div class="table-controls-bar">
+      <div class="table-controls-bar" style="margin: 25px;">
         <!-- Sub Category Filter Pills Grid Toggle Buttons -->
         <div class="category-tabs">
           <button class="tab-btn active" data-category="civilian">
@@ -93,7 +103,7 @@
       </div>
 
       <!-- Main Data Table Container Wrapper Layout Grid Component -->
-      <div class="table-container">
+      <div class="table-container" style="margin: 25px;">
         <table class="personnel-table">
           <thead>
             <tr>
@@ -112,16 +122,16 @@
             <tr>
               <td><input type="checkbox" class="row-checkbox" /></td>
               <td class="text-bold">
-                {{ staff.email.split('@')[0].replace('_', '/').upper() }}
+                {{ staff.service_number }}
               </td>
-              <td class="text-fade">{{ staff.name }}</td>
+              <td class="text">{{ staff.name }}</td>
               <td>
-                {{ staff.onboarding_data.step_1.staffTitle if
-                staff.onboarding_data else 'Grade 08' }}
+                {{ staff.onboarding_data.step_1.rankOrGrade if
+                staff.onboarding_data else '-' }}
               </td>
               <td>
                 {{ staff.onboarding_data.step_1.appointment if
-                staff.onboarding_data else 'ENG OFFR 1' }}
+                staff.onboarding_data else '-' }}
               </td>
               <td class="text-bold">{{ staff.directorate | upper }}</td>
               <td>
@@ -210,7 +220,7 @@
           <label>Category <span class="required-star">*</span></label>
           <div class="select-wrapper">
             <select id="staffCategory" required>
-              <option value="" disabled selected hidden>Civilian</option>
+              <option value="" disabled selected hidden>Select Category</option>
               <option value="civilian">Civilian</option>
               <option value="military">Military</option>
               <option value="nysc">NYSC</option>
@@ -218,6 +228,39 @@
             </select>
           </div>
         </div>
+
+        <!-- 3. Service Number Text Form Input Area -->
+        <div class="modal-form-group">
+          <label>Service Number <span class="required-star">*</span></label>
+          <input type="text" id="staffServiceNumber" placeholder="DSA/CIV/0034" required autocomplete="off" />
+        </div>
+
+        <div class="get-flex"
+          style="display: flex; flex-direction: row; justify-content: space-between; width: 100%; gap: 15px;">
+          <div class="modal-form-group">
+            <label>Surname <span class="required-star">*</span></label>
+            <input type="text" id="surName" placeholder="e.g. Alabi" required autocomplete="off" />
+          </div>
+          <div class="modal-form-group">
+            <label>Middle Name <span class="required-star">*</span></label>
+            <input type="text" id="middleName" placeholder="e.g. Chinedu" autocomplete="off" />
+          </div>
+          <div class="modal-form-group">
+            <label>First Name <span class="required-star">*</span></label>
+            <input type="text" id="firstName" placeholder="e.g. Musa" required autocomplete="off" />
+          </div>
+
+        </div>
+        <div class="modal-form-group">
+          <label>Official Email
+            <span class="required">(Auto-Generated)</span></label>
+          <input type="email" id="offEmail" placeholder="surname.middlename@dsa.mil.ng" required readonly style="
+                      background-color: #e2e8f0;
+                      font-weight: 600;
+                      color: #4a5568;
+                    " />
+        </div>
+
 
         <!-- 2. Directorate Select Dropdown Box -->
         <div class="modal-form-group">
@@ -228,22 +271,17 @@
                 Select Directorate
               </option>
               <option value="doa">Directorate of Administration (DOA)</option>
-              <option value="dcs">Directorate of Cyber Security (DCS)</option>
-              <option value="dnpt">
-                Directorate of Navigation & Positioning (DNPT)
-              </option>
+              <option value="dcs">Directorate of Communications Satellite (DCS)</option>
+              <option value="dnpt"> Directorate of Navigation & Positioning (DNPT)</option>
               <option value="dfa">Directorate of Finance (DFA)</option>
-              <option value="dfa">
-                Directorate of Launch Services and Space Operation(DLSO)
-              </option>
+              <option value="dlso"> Directorate of Launch Services and Space Operation (DLSO)</option>
+              <option value="deo"> Directorate of Earth Observation (DEO)</option>
+              <option value="dcyber"> Directorate of Cyber Security (DCYBER)</option>
+              <option value="dppr"> Directorate of Policy Planning and Research (DPPR)</option>
+              <option value="dlog"> Directorate of Logistics (DLOG)</option>
+              <option value="delspace"> Delspace</option>
             </select>
           </div>
-        </div>
-
-        <!-- 3. Service Number Text Form Input Area -->
-        <div class="modal-form-group">
-          <label>Service Number <span class="required-star">*</span></label>
-          <input type="text" id="staffServiceNumber" placeholder="DSA/CIV/0034" required autocomplete="off" />
         </div>
 
         <!-- 4. Alternate Email Input Text Row -->
@@ -458,6 +496,10 @@
 
           const payload = {
             category: document.getElementById("staffCategory").value,
+            surname: document.getElementById("surName").value.trim(),
+            middlename: document.getElementById("middleName").value.trim(),
+            firstname: document.getElementById("firstName").value.trim(),
+            official_email: document.getElementById("offEmail").value.trim(),
             directorate: document.getElementById("staffDirectorate").value,
             service_number: document
               .getElementById("staffServiceNumber")
@@ -471,7 +513,10 @@
           try {
             const response = await fetch("/add-staff", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": document.getElementById("csrf_token").value
+              },
               body: JSON.stringify(payload),
             });
 
@@ -624,7 +669,10 @@
       try {
         const response = await fetch("/process-personnel-approval", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": document.getElementById("csrf_token").value
+          },
           body: JSON.stringify({ email: email, status: nextStatus }),
         });
 
@@ -664,7 +712,10 @@
       try {
         const response = await fetch("/request-additional-document", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": document.getElementById("csrf_token").value
+          },
           body: JSON.stringify({ email: email })
         });
 
@@ -707,7 +758,10 @@
       try {
         const response = await fetch('/execute-directorate-reassignment', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.getElementById('csrf_token').value
+          },
           body: JSON.stringify({ email: email, directorate: newDir })
         });
 
@@ -722,6 +776,49 @@
         alert("Network error processing reassignment.");
       }
     }
+
+
+
+
+
+
+
+    // GENERATE OFFICIAL EMAIL FUNCTION
+
+    function generateOfficialEmail() {
+      const surname = document.getElementById('surName')?.value.trim().toLowerCase() || '';
+      const middleName = document.getElementById('middleName')?.value.trim().toLowerCase() || '';
+      const firstName = document.getElementById('firstName')?.value.trim().toLowerCase() || '';
+      const offEmailInput = document.getElementById('offEmail');
+
+      if (offEmailInput) {
+        if (surname) {
+          let localPart = surname;
+          if (middleName) {
+            localPart += `.${middleName}`;
+          } else if (firstName) {
+            localPart += `.${firstName}`;
+          }
+          offEmailInput.value = `${localPart}@dsa.mil.ng`;
+        } else {
+          offEmailInput.value = '';
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+  const surNameInput = document.getElementById('surName');
+  const middleNameInput = document.getElementById('middleName');
+  const firstNameInput = document.getElementById('firstName');
+
+  // Attach event listeners
+  if (surNameInput) surNameInput.addEventListener('input', generateOfficialEmail);
+  if (middleNameInput) middleNameInput.addEventListener('input', generateOfficialEmail);
+  if (firstNameInput) firstNameInput.addEventListener('input', generateOfficialEmail);
+
+  // Generate email on initial form load (if fields already have values)
+  generateOfficialEmail();
+});
   </script>
 </body>
 

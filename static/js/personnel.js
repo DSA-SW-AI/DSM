@@ -149,3 +149,5 @@ async function triggerAdditionalDocumentRequest(email) {
         }
     } catch(err) { alert("Communication fail."); }
 }
+
+

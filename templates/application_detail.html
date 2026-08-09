@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Detail - DSA Leave/Pass</title>
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .application-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card-header {
+            background: linear-gradient(105deg, #0b2f7a 0%, #14459d 45%, #1668d6 100%);
+            padding: 30px;
+            color: white;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% {
+                transform: rotate(45deg) translateX(-100%);
+            }
+
+            100% {
+                transform: rotate(45deg) translateX(100%);
+            }
+        }
+
+        .header-logo {
+            background: white;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 1;
+        }
+
+        .header-logo img {
+            width: 80px;
+            height: auto;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .ref-badge {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 50px;
+            padding: 12px 25px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .ref-badge i {
+            font-size: 20px;
+        }
+
+        .ref-badge span {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 40px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .section:hover {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .section-title i {
+            font-size: 28px;
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        .section-title h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .detail-item {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .detail-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .detail-label i {
+            color: #667eea;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            word-break: break-word;
+        }
+
+        .detail-value.highlight {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            gap: 6px;
+        }
+
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-badge.issued {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e9ecef;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 60px;
+            margin-bottom: 30px;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 16px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #667eea;
+            z-index: 1;
+        }
+
+        .timeline-marker.completed {
+            background: #28a745;
+            border-color: #28a745;
+        }
+
+        .timeline-marker.rejected {
+            background: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .timeline-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .timeline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .timeline-role {
+            font-weight: 700;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .timeline-comment {
+            font-size: 14px;
+            color: #495057;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .attachments-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .attachment-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1 1 250px;
+            transition: all 0.3s ease;
+        }
+
+        .attachment-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .attachment-icon {
+            width: 40px;
+            height: 40px;
+            background: #e9ecef;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #667eea;
+            font-size: 20px;
+        }
+
+        .attachment-info {
+            flex: 1;
+        }
+
+        .attachment-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .attachment-size {
+            font-size: 11px;
+            color: #6c757d;
+        }
+
+        .attachment-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 20px;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .attachment-link:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .btn-secondary:hover {
+            background: #dee2e6;
+            transform: translateY(-2px);
+        }
+
+        .btn-download {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-download:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 20px;
+            }
+
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline::before {
+                left: 16px;
+            }
+
+            .timeline-item {
+                padding-left: 45px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .tacos-details {
+            background: #e8f4f8;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .tacos-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #17a2b8;
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body data-active-page="dashboard_leave_pass">
+    <div class="dashboard-wrapper">
+
+        <!-- ================= SIDEBAR COMPONENT ================= -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+                <div>
+                    <h2>Defence Space Administration</h2>
+                    <p>{{ user.directorate }}</p>
+                </div>
+            </div>
+            <nav class="sidebar-menu">
+                <div class="menu-section-label">OVERVIEW</div>
+                <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
+
+                <div class="menu-section-label">REGISTRY</div>
+                {% if "documents" in permissions.sidebar %}
+                <a href="/documents-view" class="menu-item">📁 Documents</a>
+                {% endif %} {% if "incoming" in permissions.sidebar %}
+                <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+                {% endif %} {% if "outgoing" in permissions.sidebar %}
+                <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+                {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+                <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+                {% endif %}
+
+                <div class="menu-section-label">HR MANAGEMENT</div>
+                {% if "civilian_personnel" in permissions.sidebar %}
+                <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+                {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+                <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+                {% endif %} {% if "leave_pass" in permissions.sidebar %}
+                <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+                {% endif %}
+            </nav>
+            <!-- Permanently Locked Footer Segment -->
+            <div class="sidebar-footer">
+                <a href="{{ url_for('logout') }}" class="logout-btn">
+                    🚪 Logout
+                </a>
+            </div>
+        </aside>
+
+
+        <!-- Main Content -->
+        <div class="main-content">
+
+            <!-- Top Navbar Section -->
+            <header class="top-navbar">
+                <div class="breadcrumb">
+                    📋 DSA PAPERLESS &gt; <span class="active-crumb"> View Application</span>
+                </div>
+                <div class="user-profile-badge">
+                    <!-- Clean circle initials token frame -->
+                    <div class="user-avatar-circle" id="navAvatarIcon">
+                        {{ user.name[:2] | upper if user.name else 'DS' }}
+                    </div>
+                    <!-- Multi-line text metadata stacking engine -->
+                    <div class="user-meta-stack">
+                        <h4 class="user-fullname-text">{{ user.name }}</h4>
+                        <div class="user-role-row">
+                            <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+                            <span class="role-divider-dot">•</span>
+                            <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="container">
+                <div class="application-card">
+                    <!-- Header with Logo -->
+                    <div class="card-header"
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div class="header-logo">
+                            <img src="{{ url_for('static', filename='images/dsa2.png') }}" alt="DSA Logo">
+                        </div>
+                        <h1 class="header-title">DEFENCE SPACE ADMINISTRATION</h1>
+                        <div class="header-subtitle">Leave/Pass Application Proforma • Civilian/Military</div>
+
+                        <!-- Reference ID Badge -->
+                        <div class="ref-badge">
+                            <i class="bi bi-upc-scan"></i>
+                            <span>{{ application.referenceId }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Main Content -->
+                    <div class="card-body">
+                        <!-- Applicant Information Section -->
+                        <div class="section">
+                            <div class="section-title">
+                                <i class="bi bi-person-badge"></i>
+                                <h2>Applicant Information</h2>
+                            </div>
+
+                            <div class="details-grid">
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-hash"></i> Service Number</div>
+                                    <div class="detail-value highlight">{{ application.applicantId }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-person"></i> Full Name</div>
+                                    <div class="detail-value">{{ application.applicantName }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-building"></i> Directorate</div>
+                                    <div class="detail-value">{{ application.directorate }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-building"></i> Appointment</div>
+                                    <div class="detail-value">{{ application.designation }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-calendar-plus"></i> Date Applied</div>
+                                    <div class="detail-value">
+                                        {{ application.createdAt or 'Not specified' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leave Details Section -->
+                        <div class="section">
+                            <div class="section-title">
+                                <i class="bi bi-calendar-check"></i>
+                                <h2>Leave Details</h2>
+                            </div>
+
+                            <div class="details-grid">
+                                {% if role == 'registry' or role == 'director' or role == 'deputy_director' or role ==
+                                'civilian_head' or role == 'officer' %}
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-tag"></i> Leave Type</div>
+                                    <div class="detail-value highlight">
+                                        {{ application.leave_type|capitalize }}
+                                        {% if application.leave_type == 'sick' and application.tacosDetails and
+                                        application.tacosDetails.hospitalized %}
+                                        <span class="tacos-badge">HOSPITALIZED</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-calendar"></i> Duration</div>
+                                    <div class="detail-value">{{ application.numberOfDays }} working days</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-calendar-range"></i> From - To</div>
+                                    <div class="detail-value">
+                                        {{ application.startDate or 'Not specified' }} →
+                                        {{ application.endDate or 'Not specified' }}
+                                    </div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-calendar-event"></i> Effective Date</div>
+                                    <div class="detail-value">
+                                        {{ application.effectiveDate or 'Not specified' }}
+                                    </div>
+                                </div>
+
+                                <div class="detail-item" style="grid-column: span 2;">
+                                    <div class="detail-label"><i class="bi bi-chat-text"></i> Reason</div>
+                                    <div class="detail-value">{{ application.reason }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-geo-alt"></i> Place of Travel</div>
+                                    <div class="detail-value">{{ application.placeIntended or 'Not specified' }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-house"></i> Contact Address</div>
+                                    <div class="detail-value">{{ application.contactAddress }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-telephone"></i> Telephone</div>
+                                    <div class="detail-value">{{ application.telephone or 'Not provided' }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-person-workspace"></i> Reliever</div>
+                                    <div class="detail-value">{{ application.name_of_reliever or 'None' }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-person-workspace"></i>Appointment of
+                                        Reliever</div>
+                                    <div class="detail-value">{{ application.appt_of_reliever or 'None' }}</div>
+                                </div>
+
+                                {% endif %}
+
+                                {% if role == 'cdsa' or role == 'central_registry' %}
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-tag"></i> Leave Type</div>
+                                    <div class="detail-value highlight">
+                                        {{ application.leave_type|capitalize }}
+                                        {% if application.leave_type == 'sick' and application.tacosDetails and
+                                        application.tacosDetails.hospitalized %}
+                                        <span class="tacos-badge">HOSPITALIZED</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-calendar"></i> Duration</div>
+                                    <div class="detail-value">{{ application.numberOfDays }} working days</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-calendar-range"></i> From - To</div>
+                                    <div class="detail-value">
+                                        {{ application.startDate or 'Not specified' }} →
+                                        {{ application.endDate or 'Not specified' }}
+                                    </div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-calendar-event"></i> Effective Date</div>
+                                    <div class="detail-value">
+                                        {{ application.effectiveDate or 'Not specified' }}
+                                    </div>
+                                </div>
+
+                                <div class="detail-item" style="grid-column: span 2;">
+                                    <div class="detail-label"><i class="bi bi-chat-text"></i> Reason</div>
+                                    <div class="detail-value">{{ application.reason }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-geo-alt"></i> Place of Travel</div>
+                                    <div class="detail-value">{{ application.placeIntended or 'Not specified' }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-house"></i> Contact Address</div>
+                                    <div class="detail-value">{{ application.contactAddress }}</div>
+                                </div>
+
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-telephone"></i> Telephone</div>
+                                    <div class="detail-value">{{ application.telephone or 'Not provided' }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-person-workspace"></i> Director Reliever's
+                                        Service Number</div>
+                                    <div class="detail-value">{{ application.director_reliever_service_number or 'None'
+                                        }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-person-workspace"></i> Director Reliever's
+                                        Name</div>
+                                    <div class="detail-value">{{ application.director_reliever_name or 'None' }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-person-workspace"></i> Director Reliever's
+                                        Rank</div>
+                                    <div class="detail-value">{{ application.director_reliever_rank or 'None' }}</div>
+                                </div>
+                                {% endif %}
+
+
+                            </div>
+
+                            <!-- TACOS Additional Details -->
+                            {% if application.tacosDetails %}
+                            <div class="tacos-details">
+                                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                                    {% if application.tacosDetails.hasMedicalCertificate %}
+                                    <span><i class="bi bi-file-medical"></i> Medical Certificate Provided</span>
+                                    {% endif %}
+                                    {% if application.tacosDetails.hospitalized %}
+                                    <span><i class="bi bi-hospital"></i> Hospitalization</span>
+                                    {% endif %}
+                                    {% if application.tacosDetails.firstHospitalization %}
+                                    <span><i class="bi bi-flag"></i> First Hospitalization</span>
+                                    {% endif %}
+                                    {% if application.tacosDetails.attachmentMonths %}
+                                    <span><i class="bi bi-clock-history"></i> Attachment: {{
+                                        application.tacosDetails.attachmentMonths }} months</span>
+                                    {% endif %}
+                                    {% if application.tacosDetails.calendarDays %}
+                                    <span><i class="bi bi-calendar"></i> Calendar Days: {{
+                                        application.tacosDetails.calendarDays
+                                        }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Attachments Section -->
+                        <div class="section">
+                            <div class="section-title">
+                                <i class="bi bi-paperclip"></i>
+                                <h2>Attachments ({{ application.attachments|length if application.attachments else 0 }})
+                                </h2>
+                            </div>
+
+                            {% if application.attachments and application.attachments|length > 0 %}
+                            <div class="attachments-list">
+                                {% for att in application.attachments %}
+                                <div class="attachment-item">
+                                    <div class="attachment-icon">
+                                        <i
+                                            class="bi bi-file-earmark-{{ att.contentType.split('/')[-1] if att.contentType else 'text' }}"></i>
+                                    </div>
+                                    <div class="attachment-info">
+                                        <div class="attachment-name">{{ att.filename }}</div>
+                                        <div class="attachment-size">{{ (att.size / 1024)|round(1) if att.size else 0 }}
+                                            KB
+                                        </div>
+                                    </div>
+                                    <a href="{{ url_for('approver_dashboard.serve_attachment', attachment_id=att.gridfs_id) }}"
+                                        class="attachment-link" target="_blank" title="View/Download">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p style="color: #6c757d; font-style: italic; text-align: center; padding: 20px;">
+                                <i class="bi bi-file-earmark-x"></i> No attachments uploaded
+                            </p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Action Buttons Section with Approve/Reject -->
+                        <!-- ==================== TAKE ACTION ==================== -->
+                        <div class="section" style="background: linear-gradient(to right, #f8f9fa, #ffffff);">
+                            <div class="section-title">
+                                <i class="bi bi-shield-check"></i>
+                                <h2>Take Action</h2>
+                            </div>
+
+                            <div style="text-align: center; padding: 20px;">
+
+                                {# ── Find user's step in chain ── #}
+                                {% set ns = namespace(user_step=None, user_index=-1) %}
+                                {% for step in application.approvalChain %}
+                                {% if step.get('approverId')|string == user.service_number|string %}
+                                {% set ns.user_step = step %}
+                                {% set ns.user_index = loop.index0 %}
+                                {% endif %}
+                                {% endfor %}
+                                {% set user_step = ns.user_step %}
+                                {% set user_index = ns.user_index %}
+
+                                {# ── Is it this approver's turn? (non-registry roles) ── #}
+                                {% set is_users_turn = false %}
+                                {% if user_step and user_step.status == "pending"
+                                and user_step.role not in ("registry", "so1_doa", "central_registry")
+                                and not user_step.get("is_final_approver") %}
+                                {% set ns2 = namespace(all_prev=true) %}
+                                {% for step in application.approvalChain %}
+                                {% if loop.index0 < user_index and step.status !="approved" %} {% set ns2.all_prev=false
+                                    %} {% endif %} {% endfor %} {% if ns2.all_prev %}{% set is_users_turn=true %}{%
+                                    endif %} {% endif %} {# ── Can registry acknowledge file? ── #} {% set
+                                    can_acknowledge=false %} {% if user_step and user_step.role=="registry" and not
+                                    user_step.get("acknowledged", false) and application.status in ("approved", "issued"
+                                    ) %} {% set can_acknowledge=true %} {% endif %} {# ── Can SO1-DOA / central_registry
+                                    / final_approver issue receipt? ── #} {% set can_issue_receipt=false %} {% if
+                                    user_step and (user_step.role in ("so1_doa", "central_registry" ) or
+                                    user_step.get("is_final_approver")==true) and application.status=="approved" and not
+                                    user_step.get("receipt") %} {% set can_issue_receipt=true %} {% endif %} {# ── CDSA
+                                    approve button ── #} {% if "cdsa" in user.roles and
+                                    application.role_bucket=="director" and application.status=="pending" %} {% set
+                                    ns3=namespace(cdsa_step=None) %} {% for step in application.approvalChain %} {% if
+                                    step.role=="cdsa" and step.approverId|string==user.service_number|string %} {% set
+                                    ns3.cdsa_step=step %} {% endif %} {% endfor %} {% if ns3.cdsa_step and
+                                    ns3.cdsa_step.status=="pending" %} <div
+                                    style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+                                    <button class="btn btn-approve"
+                                        style="background-color: #218838; color: white; border: 1px solid #4eff74;"
+                                        data-url="{{ url_for('approver_dashboard.cdsa_approve', app_id=application._id|string) }}"
+                                        onclick="openApproveModal(this)">
+                                        <i class="bi bi-check-circle"></i> Approve (CDSA)
+                                    </button>
+                            </div>
+                            {% endif %}
+
+                            {# ── Regular approvers (civilian_head, so2_officer, deputy_director, director) ── #}
+                            {% elif is_users_turn %}
+                            <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+                                <button class="btn btn-approve"
+                                    style="background-color: #218838; color: white; border: 1px solid #4eff74;"
+                                    data-url="{{ url_for('approver_dashboard.approve', app_id=application._id|string) }}"
+                                    onclick="openApproveModal(this)">
+                                    <i class="bi bi-check-circle"></i> Approve Leave/Pass Application
+                                </button>
+                                <button class="btn btn-reject"
+                                    style="background-color: #ffffff; color: #dc3545; border: 1px solid #dc3545;"
+                                    data-url="{{ url_for('approver_dashboard.reject', app_id=application._id|string) }}"
+                                    onclick="openRejectModal(this)">
+                                    <i class="bi bi-x-circle"></i> Reject Leave/Pass Application
+                                </button>
+                            </div>
+
+                            {# ── Directorate registry — acknowledge file ── #}
+                            {% elif can_acknowledge %}
+                            <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+                                <button class="btn btn-forward"
+                                    style="background-color: #218838; color: white; border: 1px solid #4eff74;"
+                                    onclick="openAcknowledgementModal('{{ application._id|string }}')">
+                                    <i class="bi bi-folder-check"></i> Acknowledge Leave/Pass Application — File
+                                    Received for Documentation
+                                </button>
+                            </div>
+
+                            {# ── SO1-DOA / Central Registry — issue receipt ── #}
+                            {% elif can_issue_receipt %}
+                            <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+                                <button class="btn btn-approve"
+                                    style="background-color: #218838; color: white; border: 1px solid #4eff74;"
+                                    onclick="openReceiptModal('{{ application._id|string }}')">
+                                    <i class="bi bi-receipt"></i> Approved & Issue Leave/Pass Receipt
+                                </button>
+                            </div>
+
+
+                            {# ── Download receipt when issued ── #}
+                            {% elif application.status == "issued" %}
+                            <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-top:20px;">
+                                <a href="{{ url_for('approver_dashboard.view_receipt', app_id=application._id|string) }}"
+                                    class="btn btn-info" target="_blank">
+                                    <i class="bi bi-eye"></i> View Receipt
+                                </a>
+                                <a href="{{ url_for('approver_dashboard.download_receipt', app_id=application._id|string) }}"
+                                    class="btn btn-download">
+                                    <i class="bi bi-download"></i> Download Receipt
+                                </a>
+                            </div>
+
+                            {# ── No action available ── #}
+                            {% else %}
+                            <div style="padding:20px;background:#f8f9fa;border-radius:10px;color:#6c757d;">
+                                <i class="bi bi-info-circle"
+                                    style="font-size:24px;display:block;margin-bottom:10px;"></i>
+                                <p>No actions available at this time.</p>
+                                {% if user_step %}
+                                {% if user_step.status != "pending" %}
+                                <small>You have already <strong>{{ user_step.status }}</strong> this
+                                    application.</small>
+                                {% else %}
+                                <small>Waiting for previous approvers to complete their steps.</small>
+                                {% endif %}
+                                {% else %}
+                                <small>You are not in the approval chain for this application.</small>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                        </div>
+                    </div>
+
+
+                    <!-- ==================== APPROVAL CHAIN TIMELINE ==================== -->
+                    <div class="section">
+                        <div class="section-title">
+                            <i class="bi bi-diagram-3"></i>
+                            <h2>Approval Chain Progress</h2>
+                        </div>
+
+                        <div class="timeline">
+                            {% for step in application.approvalChain %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker
+                                    {% if step.status == 'approved' or step.get('acknowledged') or step.get('receipt') %}completed
+                                    {% elif step.status == 'rejected' %}rejected
+                                    {% endif %}">
+                                </div>
+                                <div class="timeline-content">
+                                    <div class="timeline-header">
+                                        <div>
+                                            {# ── Human-readable role label ── #}
+                                            {% if step.role == "civilian_head" %}
+                                            <span class="timeline-role">Civilian Head</span>
+                                            {% elif step.role == "so2_officer" %}
+                                            <span class="timeline-role">Staff Officer</span>
+                                            {% elif step.role == "ad_officer" %}
+                                            <span class="timeline-role">AD Officer</span>
+                                            {% elif step.role == "deputy_director" %}
+                                            <span class="timeline-role">Deputy Director</span>
+                                            {% elif step.role == "director" %}
+                                            <span class="timeline-role">Director</span>
+                                            {% elif step.role == "cdsa" %}
+                                            <span class="timeline-role">CDSA</span>
+                                            {% elif step.role == "registry" %}
+                                            <span class="timeline-role">Registry ({{ step.registry_type|title if
+                                                step.registry_type else 'Directorate' }})</span>
+                                            {% elif step.role == "so1_doa" %}
+                                            <span class="timeline-role">DOA Director — Leave/Pass Receipt</span>
+                                            {% elif step.role == "central_registry" %}
+                                            <span class="timeline-role">Central Registry (CDSA) — Leave/Pass
+                                                Receipt</span>
+                                            {% else %}
+                                            <span class="timeline-role">{{ step.role|replace('_',' ')|title }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if step.timestamp %}
+                                        <span class="timeline-date">{{ step.timestamp }}</span>
+                                        {% endif %}
+                                    </div>
+
+                                    {# ── Status badge ── #}
+                                    <div style="margin-bottom:10px;">
+                                        {% if step.get('receipt') %}
+                                        <span class="status-badge issued">
+                                            <i class="bi bi-receipt"></i> RECEIPT ISSUED
+                                        </span>
+                                        {% elif step.get('acknowledged') %}
+                                        <span class="status-badge approved">
+                                            <i class="bi bi-folder-check"></i> FILE ACKNOWLEDGED
+                                        </span>
+                                        {% else %}
+                                        <span class="status-badge {{ step.status }}">
+                                            <i class="bi
+                                 {% if step.status == 'approved' %}bi-check-circle
+                                 {% elif step.status == 'rejected' %}bi-x-circle
+                                 {% else %}bi-clock{% endif %}">
+                                            </i>
+                                            {{ step.status|upper }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+
+                                    {# ── Receipt info ── #}
+                                    {% if step.get('receipt') and step.receipt.get('receiptNumber') %}
+                                    <div style="margin-top:10px;padding:10px;background:#e8f4f8;border-radius:8px;">
+                                        <i class="bi bi-receipt"></i>
+                                        <strong>Receipt:</strong> {{ step.receipt.receiptNumber }}
+                                        <br>
+                                        <small>Issued: {{ step.receipt.issuedDate if step.receipt.issuedDate else ''
+                                            }}</small>
+                                    </div>
+                                    {% endif %}
+
+                                    {# ── Comments ── #}
+                                    {% if step.comments %}
+                                    <div class="timeline-comment">
+                                        <i class="bi bi-chat-quote" style="color:#667eea;margin-right:8px;"></i>
+                                        "{{ step.comments }}"
+                                    </div>
+                                    {% endif %}
+
+                                    {# ── Approver info ── #}
+                                    {% if step.approverName %}
+                                    <div style="font-size:12px;color:#6c757d;margin-top:10px;">
+                                        <i class="bi bi-person-check"></i>
+                                        {{ step.approverName }} ({{ step.approverRank or '' }})
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+
+                    <!-- Original action buttons (keep as is) -->
+                    <div class="action-buttons">
+                        <a href="{{ url_for('approver_dashboard.dashboard_leave_pass') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+
+
+    <!-- Action Success Modal -->
+    <div id="actionSuccessModal" class="modal-overlay"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 20000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+        <div class="success-card"
+            style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 500px; width: 100%; text-align: center; position: relative; box-sizing: border-box; transform: scale(0.9); transition: transform 0.3s ease;">
+
+            <div id="actionSuccessIcon" class="success-icon"
+                style="font-size: 60px; color: #28a745; margin-bottom: 15px;">
+                <i class="ri-checkbox-circle-fill"></i>
+            </div>
+
+            <h1 id="actionSuccessTitle"
+                style="color: #2c3e50; margin-bottom: 15px; font-size: 24px; font-weight: 700; line-height: 1.2;">Action
+                Completed!</h1>
+
+            <p id="actionSuccessMessage" style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 25px;">
+                The application has been successfully updated.
+            </p>
+
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <!-- <button onclick="window.location.href='{{ url_for('approver_dashboard.dashboard_leave_pass') }}'" class="btn btn-primary" style="padding: 10px 24px; font-size: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-weight: 600;">
+                    Go to Dashboard
+                </button> -->
+                <a href="{{ url_for('approver_dashboard.dashboard_leave_pass') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Go to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Confirmation Modal -->
+    <div id="rejectModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+
+            <h3>Reject Application</h3><br>
+            <p class="subtitle">Confirm your Rejection for this Leave/Pass request</p><br><br>
+
+            <form id="rejectForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="comments">Comments (required for rejection)</label>
+                    <input type="text" autocomplete="off" required id="comments" name="comments" placeholder="">
+                </div>
+                <div class="form-group">
+                    <label for="Comments">Name/Signature</label>
+                    <input type="text" autocomplete="off" value="{{ user.name }}" id="signature_name"
+                        name="signature_name" placeholder="">
+                </div>
+                <div class="form-group">
+                    <label for="Comments">Role</label>
+                    <input type="text" autocomplete="off" value="{{ user.role or '' }}" id="rank" name="rank"
+                        placeholder="">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeRejectModal()">Cancel</button>
+                    <button type="submit" class="continues-btn">Confirm Rejection</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+
+    <!-- Approval Confirmation Modal -->
+    <div id="approveModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+
+            <h3>Approve Application</h3><br>
+            <p class="subtitle">Confirm your approval for this leave/pass request</p><br><br>
+
+            <form id="approveForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="comments">Comments</label>
+                    <input type="text" autocomplete="off" id="comments" name="comments" placeholder="">
+                </div>
+                <div class="form-group">
+                    <label for="Comments">Name/Signature</label>
+                    <input type="text" autocomplete="off" value="{{ user.name }}" id="signature_name"
+                        name="signature_name" placeholder="">
+                </div>
+                <div class="form-group">
+                    <label for="Comments">Role</label>
+                    <input type="text" autocomplete="off" value="{{ user.role or '' }}" id="rank" name="rank"
+                        placeholder="">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeApproveModal()">Cancel</button>
+                    <button type="submit" class="continuess-btn">Confirm Approval</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+
+    <!-- Acknowledgement Modal (for Chief Clerk / Registry) -->
+    <div id="acknowledgementModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <form method="POST" id="acknowledgementForm" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div style="text-align: center;">
+                    <i class="bi bi-folder-check"
+                        style="font-size: 48px; color: #28a745; margin-bottom: 15px; display: inline-block;"></i>
+                    <h3>Acknowledge File Received</h3>
+                    <p class="subtitle">Confirm documentation of approved leave/pass application</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <label for="acknowledgement_comments"
+                        style="display: block; margin-bottom: 8px; font-weight: 500;">Comments (Optional):</label>
+                    <textarea id="acknowledgement_comments" name="comments" rows="3"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; resize: vertical;"
+                        placeholder="Add any remarks about file documentation..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeAcknowledgementModal()">Cancel</button>
+                    <button type="submit" class="continuess-btn">
+                        <i class="bi bi-check-circle"></i> Confirm Documentation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Issue Receipt Modal (for SO1-DOA / Central Registry) -->
+    <div id="receiptModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <form method="POST" id="receiptForm" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div style="text-align: center;">
+                    <i class="bi bi-receipt"
+                        style="font-size: 48px; color: #007bff; margin-bottom: 15px; display: inline-block;"></i>
+                    <h3>Issue Leave/Pass Receipt</h3>
+                    <p class="subtitle">Generate official receipt for approved application</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <label for="receipt_comments" style="display: block; margin-bottom: 8px; font-weight: 500;">Comments
+                        (Optional):</label>
+                    <textarea id="receipt_comments" name="comments" rows="3"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; resize: vertical;"
+                        placeholder="Add any remarks about receipt issuance..."></textarea>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 15px 0;">
+                    <small style="color: #6c757d;">
+                        <i class="bi bi-info-circle"></i>
+                        This will generate a unique receipt number and mark the application as fully processed.
+                    </small>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeReceiptModal()">Cancel</button>
+                    <button type="submit" class="btn btn-approve" style="background: #28a745; color: white;">
+                        <i class="bi bi-receipt"></i> Issue Receipt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+
+
+
+    <!-- Bootstrap JS (required for modals, popovers, etc.) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
+        </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.js"></script>
+
+
+    <script>
+        // REJECT CONFIRMATION MODAL JS
+        let rejectUrl = null;
+
+        function openRejectModal(element) {
+            rejectUrl = element.getAttribute("data-url");
+            console.log("Reject URL set to:", rejectUrl);
+
+            const form = document.getElementById("rejectForm");      // ← now exists
+            if (form) {
+                form.action = rejectUrl;
+                form.method = "POST";
+                document.getElementById("rejectModal").style.display = "flex";
+            } else {
+                console.error("Reject form not found!");
+            }
+        }
+
+
+        function closeRejectModal() {
+            const modal = document.getElementById("rejectModal");
+            if (modal) {
+                modal.style.display = "none";
+            }
+
+            const form = document.getElementById("rejectForm");
+            if (form) {
+                form.action = "";
+                form.reset(); // Clear form fields
+            }
+        }
+
+        // Add this: Handle form submission
+        document.addEventListener('DOMContentLoaded', function () {
+            const rejectForm = document.getElementById("rejectForm");
+            if (rejectForm) {
+                rejectForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    const comments = document.getElementById("comments").value.trim();
+                    console.log("Comments value:", comments);
+
+                    if (!comments) {
+                        alert("Please enter comments for rejection");
+                        return false;
+                    }
+
+                    console.log("Submitting to:", this.action);
+                    console.log("Form data:", new FormData(this));
+
+                    // Actually submit the form
+                    this.submit();
+                });
+            }
+        });
+
+
+        // APPROVE CONFIRMATION MODAL JS
+        let approveUrl = null;
+
+        function openApproveModal(element) {
+            approveUrl = element.getAttribute("data-url");
+            const form = document.getElementById("approveForm");  // ← use correct ID
+            if (form) {
+                form.action = approveUrl;
+                document.getElementById("approveModal").style.display = "flex";
+            } else {
+                console.error("Approve form not found!");
+            }
+        }
+
+        function closeApproveModal() {
+            const modal = document.getElementById("approveModal");
+            if (modal) {
+                modal.style.display = "none";
+            }
+
+            const form = document.getElementById("approveForm");
+            if (form) {
+                form.action = "";
+                form.reset(); // Clear form fields
+            }
+        }
+
+
+
+        // FORWARD MODAL (Chief Clerk only)
+        let forwardUrl = null;
+
+        function openForwardModal(element) {
+            forwardUrl = element.getAttribute("data-url");
+            const form = document.getElementById("forwardForm");
+            if (form) {
+                form.action = forwardUrl;
+                document.getElementById("forwardModal").style.display = "flex";
+            } else {
+                console.error("Forward form not found!");
+            }
+        }
+
+        // Open Acknowledgement Modal
+        function openAcknowledgementModal(appId) {
+            const modal = document.getElementById('acknowledgementModal');
+            const form = document.getElementById('acknowledgementForm');
+
+            // Set the form action URL
+            form.action = "{{ url_for('approver_dashboard.acknowledge', app_id='') }}" + appId;
+
+            // Clear previous comments
+            document.getElementById('acknowledgement_comments').value = '';
+
+            // Show modal
+            modal.style.display = 'flex';
+
+            // Prevent body scrolling
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close Acknowledgement Modal
+        function closeAcknowledgementModal() {
+            const modal = document.getElementById('acknowledgementModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Open Receipt Modal
+        function openReceiptModal(appId) {
+            const modal = document.getElementById('receiptModal');
+            const form = document.getElementById('receiptForm');
+
+            // Set the form action URL
+            form.action = "{{ url_for('approver_dashboard.issue_receipt', app_id='') }}" + appId;
+
+            // Clear previous comments
+            document.getElementById('receipt_comments').value = '';
+
+            // Show modal
+            modal.style.display = 'flex';
+
+            // Prevent body scrolling
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close Receipt Modal
+        function closeReceiptModal() {
+            const modal = document.getElementById('receiptModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const approveModal = document.getElementById("approveModal");
+            const rejectModal = document.getElementById("rejectModal");
+            const ackModal = document.getElementById('acknowledgementModal');
+            const receiptModal = document.getElementById('receiptModal');
+
+            if (event.target === approveModal) {
+                closeApproveModal();
+            }
+            if (event.target === rejectModal) {
+                closeRejectModal();
+            }
+            if (event.target === ackModal) {
+                closeAcknowledgementModal();
+            }
+            if (event.target === receiptModal) {
+                closeReceiptModal();
+            }
+        }
+
+        // Optional: Submit form with Enter key
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeAcknowledgementModal();
+                closeReceiptModal();
+            }
+        });
+
+
+
+        // FINAL APPROVE (SO1-DOA)
+        let finalApproveUrl = null;
+
+        function openFinalApproveModal(element) {
+            finalApproveUrl = element.getAttribute("data-url");
+            const form = document.getElementById("finalApproveForm");
+            if (form) {
+                form.action = finalApproveUrl;
+                document.getElementById("finalApproveModal").style.display = "flex";
+            }
+        }
+
+        function closeFinalApproveModal() {
+            document.getElementById("finalApproveModal").style.display = "none";
+            const form = document.getElementById("finalApproveForm");
+            if (form) form.action = "";
+        }
+
+        function confirmFinalApprove() {
+            const form = document.getElementById("finalApproveForm");
+            if (form && form.action) {
+                form.submit();
+            }
+        }
+
+        // FINAL REJECT (SO1-DOA)
+        let finalRejectUrl = null;
+
+        function openFinalRejectModal(element) {
+            finalRejectUrl = element.getAttribute("data-url");
+            const form = document.getElementById("finalRejectForm");
+            if (form) {
+                form.action = finalRejectUrl;
+                document.getElementById("finalRejectModal").style.display = "flex";
+            }
+        }
+
+        function closeFinalRejectModal() {
+            document.getElementById("finalRejectModal").style.display = "none";
+            const form = document.getElementById("finalRejectForm");
+            if (form) form.action = "";
+        }
+
+        function confirmFinalReject() {
+            const form = document.getElementById("finalRejectForm");
+            if (form && form.action) {
+                form.submit();
+            }
+        }
+
+        // Utility to show Action Success Modal
+        function showActionSuccessModal(title, message, isRejection = false) {
+            const modal = document.getElementById("actionSuccessModal");
+            const iconContainer = document.getElementById("actionSuccessIcon");
+            const titleEl = document.getElementById("actionSuccessTitle");
+            const messageEl = document.getElementById("actionSuccessMessage");
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            if (isRejection) {
+                iconContainer.innerHTML = '<i class="ri-close-circle-fill" style="color: #dc3545; font-size: 70px;"></i>';
+            } else {
+                iconContainer.innerHTML = '<i class="ri-checkbox-circle-fill" style="color: #28a745; font-size: 70px;"></i>';
+            }
+
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.children[0].style.transform = 'scale(1)';
+            }, 50);
+
+            // Redirect automatically to dashboard after 2.5 seconds
+            setTimeout(() => {
+                window.location.href = "{{ url_for('approver_dashboard.dashboard_leave_pass') }}";
+            }, 2500);
+        }
+
+        // Generic AJAX Form Submitter for Approvals/Rejections
+        function handleModalFormSubmit(formId, successTitle, successMsg, isRejection = false, closeFnName = null) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const targetUrl = this.action || window.location.href;
+
+                // Close original action modal first
+                if (closeFnName && typeof window[closeFnName] === 'function') {
+                    window[closeFnName]();
+                } else {
+                    // fallbacks
+                    if (formId === 'approveForm') closeApproveModal();
+                    if (formId === 'rejectForm') closeRejectModal();
+                    if (formId === 'acknowledgementForm') closeAcknowledgementModal();
+                    if (formId === 'receiptForm') closeReceiptModal();
+                }
+
+                const formData = new FormData(this);
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalHtml = submitBtn ? submitBtn.innerHTML : 'Confirm';
+
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
+                }
+
+                fetch(targetUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                    .then(response => {
+                        if (response.redirected) {
+                            window.location.href = response.url;
+                            return;
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data && data.success) {
+                            showActionSuccessModal(successTitle, data.message || successMsg, isRejection);
+                        } else {
+                            alert(data && data.message ? data.message : 'An error occurred. Please try again.');
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalHtml;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Action error:', error);
+                        alert('A network error occurred. Please try again.');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalHtml;
+                        }
+                    });
+            });
+        }
+
+        // Attach listeners when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            handleModalFormSubmit('approveForm', 'Approval Successful!', 'The request has been approved successfully.', false, 'closeApproveModal');
+            handleModalFormSubmit('rejectForm', 'Application Rejected', 'The request has been rejected.', true, 'closeRejectModal');
+            handleModalFormSubmit('acknowledgementForm', 'File Acknowledged!', 'The file has been documented in the registry.', false, 'closeAcknowledgementModal');
+            handleModalFormSubmit('receiptForm', 'Receipt Issued!', 'Leave/pass receipt has been generated successfully.', false, 'closeReceiptModal');
+        });
+
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSA Pass and Leave</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pass_leaves.css')}}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+
+<body>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        <script>
+            setTimeout(function () {
+                const flashBox = document.querySelector(".flash-messages");
+                if (flashBox) {
+                    flashBox.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+                    flashBox.style.opacity = "0";
+                    flashBox.style.transform = "translate(-50%, -20px)";
+                    setTimeout(() => flashBox.remove(), 500);
+                }
+            }, 4000);
+        </script>
+        {% endif %}
+        {% endwith %}
+
+
+    <div class="background-welcome">
+        <div class="container-welcome">
+            <div class="welcome-card">
+                <div class="welcome-logo">
+                    <img src="{{ url_for('static', filename='images/dsa-logo.png') }}" width="150px" alt="dsa Logo">
+                </div>
+                <form action="{{ url_for('verify_service_number_routes.service_number_verification') }}" method="POST">
+                    
+                    <div class="form-group">
+                        <h4>DSA LEAVE AND PASS AUTOMATED SYSTEM</h4><br><br>
+                        <label for="service_number">Enter your Service Number (Military or Civilian)</label>
+                        <input type="text" autocomplete="off" id="service_number" name="service_number" placeholder="Service Number" required autofocus>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="continue-btn">Apply for Leave/Pass</button>
+                    </div>
+                </form>
+            </div>
+            <footer class="welcome-footer">
+                <p>© 2025 DCS Software Team</p>
+            </footer>
+        </div>
+
+    </div>
+</body>
+
+</html>

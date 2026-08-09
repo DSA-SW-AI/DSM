@@ -1,0 +1,1674 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSA Paperless - Leave & Pass </title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    /* Table Tabs */
+    .table-tabs {
+      display: flex;
+      gap: 10px;
+      border-bottom: 2px solid #e9ecef;
+      margin-bottom: 20px;
+      padding-bottom: 0;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #6c757d;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn i {
+      font-size: 18px;
+    }
+
+    .tab-btn:hover {
+      color: #495057;
+      background: #f8f9fa;
+    }
+
+    .tab-btn.active {
+      color: #28a745;
+      border-bottom-color: #28a745;
+    }
+
+    .status-pill.approved {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+  </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+
+
+<body>
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>{{ user.directorate }}</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
+
+        <div class="menu-section-label">REGISTRY</div>
+        {% if "documents" in permissions.sidebar %}
+        <a href="/documents-view" class="menu-item">📁 Documents</a>
+        {% endif %} {% if "incoming" in permissions.sidebar %}
+        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+        {% endif %} {% if "outgoing" in permissions.sidebar %}
+        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+        {% endif %}
+
+        <div class="menu-section-label">HR MANAGEMENT</div>
+        {% if "civilian_personnel" in permissions.sidebar %}
+        <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+        {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+        <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+        {% endif %} {% if "leave_pass" in permissions.sidebar %}
+        <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+        {% endif %}
+      </nav>
+      <!-- Permanently Locked Footer Segment -->
+      <div class="sidebar-footer">
+        <a href="{{ url_for('logout') }}" class="logout-btn">
+          🚪 Logout
+        </a>
+      </div>
+    </aside>
+
+
+    <!-- ================= MAIN DASHBOARD CONTENT CONTAINER ================= -->
+    <main class="main-content">
+
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 DSA PAPERLESS &gt; <span class="active-crumb"> Leave and Pass Applications</span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+
+      <!-- Grid Modules Layout Wrapper Block -->
+      <section class="modules-grid">
+
+        <div class="reg_doc_container">
+          <div class="reg_doc_header">
+            <h1>Leave and Pass Applications</h1>
+            <div class="reg_doc_actions" style="display: flex; flex-direction: row; gap: 10px; flex-wrap: wrap;">
+           
+              {% if not is_approval_role %}
+              <a href="{{ url_for('application_track.track_application') }}" class="add-document-btn">+
+                Track Application</a>
+              <a href="{{ url_for('verify_service_number_routes.application_form_check') }}" class="add-document-btn">+
+                Apply for Leave/Pass</a>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Search Input -->
+          <form class="reg_doc_search-section" action="" method="get">
+            <div class="reg_doc_search-container">
+              <input type="text" name="q" class="search-input" value="{{ search_query or '' }}"
+                placeholder="Search leave applications..." />
+            </div>
+
+            <button class="add-document-btn" type="submit">Search</button>
+          </form>
+        </div>
+
+      </section>
+
+      <!-- Documents Table -->
+      {% if is_approval_role %}
+      <div class="documents-table-container">
+        <div class="table-container">
+
+          <!-- Tab Navigation for different views -->
+          <div class="table-tabs"
+            style="display: flex; gap: 10px; border-bottom: 2px solid #e9ecef; margin-bottom: 20px;">
+            <button class="tab-btn active" onclick="switchTableTab('pending')" id="pending-tab-btn">
+              <i class="ri-time-line"></i> Pending (<span id="pending-count">{{ pending_count }}</span>)
+            </button>
+            <button class="tab-btn" onclick="switchTableTab('approved')" id="approved-tab-btn">
+              <i class="ri-checkbox-circle-line"></i> Issued/Approved (<span id="approved-count">{{ approved_count
+                }}</span>)
+            </button>
+            <button class="tab-btn" onclick="switchTableTab('rejected')" id="rejected-tab-btn">
+              <i class="ri-close-circle-line"></i> Rejected (<span id="rejected-count">{{ rejected_count }}</span>)
+            </button>
+          </div>
+
+          <!-- Pending Applications Table -->
+          <div id="pending-table" class="table-content active">
+            <div class="table-header">
+              <i class="ri-time-line"></i> Pending Applications
+            </div>
+
+            <div class="filter-table mb-3 d-flex align-items-center flex-wrap">
+              <div style="padding: 10px;" class="filter-group me-2 mb-2">
+                <label for="pending-filter" class="me-2 fw-bold">Quick Filter:</label>
+                <select id="pending-filter" class="form-select form-select-sm" style="width: auto; min-width: 180px;">
+                  <option value="">All Pending</option>
+                  <option value="annual">📅 Annual Leave</option>
+                  <option value="casual">🎯 Casual Leave</option>
+                  <option value="sick">🤒 Sick Leave</option>
+                  <option value="compassionate">💝 Compassionate Leave</option>
+                  <option value="paternity">👨‍👦 Paternity Leave</option>
+                  <option value="maternity">👩‍👧 Maternity Leave</option>
+                  <option value="disembarkation">✈️ Disembarkation Leave</option>
+                </select>
+              </div>
+              <button style="margin-top: 1.7rem;" class="btn btn-sm btn-outline-secondary ms-2 mb-2"
+                onclick="resetPendingFilter()">
+                <i class="ri-refresh-line"></i> Reset
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              {% set pending_apps = applications|selectattr('status', 'in', ['pending', 'awaiting_reliever',
+              'declined_by_reliever'])|list %}
+              {% if pending_apps %}
+              <table class="documents-table" id="pending-table-body">
+                <thead>
+                  <tr>
+                    <th>Ref</th>
+                    <th>Applicant</th>
+                    <th>Service No.</th>
+                    <th>Leave Type</th>
+                    <th>Status</th>
+                    <th>Dates</th>
+                    <th>Number of Days</th>
+                    <th>Reason</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+
+                  {% for app in pending_apps %}
+                  <tr data-leave-type="{{ app.leave_type }}" onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')" style="cursor: pointer;">
+                    <td>{{ app.referenceId|string|truncate(12, True, '...') }}</td>
+                    <td>{{ app.applicantName }}</td>
+                    <td>{{ app.applicantId }}</td>
+                    <td>{{ app.leave_type|capitalize }}</td>
+                    <td>
+                      <div class="status-container">
+                        {% if app.status == "awaiting_reliever" %}
+                        <div class="status-pill pending" style="background: #e2e8f0; color: #4a5568;">
+                          <div class="status-dot" style="background-color: #718096;"></div>
+                          <span>Awaiting Reliever</span>
+                        </div>
+                        {% elif app.status == "declined_by_reliever" %}
+                        <div class="status-pill rejected" style="background: #fed7d7; color: #9b2c2c;">
+                          <div class="status-dot" style="background-color: #e53e3e;"></div>
+                          <span>Reliever Declined</span>
+                        </div>
+                        {% else %}
+                        <div class="status-pill pending">
+                          <div class="status-dot"></div>
+                          <span>Pending</span>
+                        </div>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') }} – {{ app.endDate.strftime('%d %b %Y') }}</td>
+                    <td>{{ app.numberOfDays }}</td>
+                    <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
+                    <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago
+                      != 1 else '' }} ago</td>
+                    <td class="action-cell">
+                      <div class="action-menu">
+                        <button class="menu-btn" onclick="toggleLeaveMenu(event, this, '{{ app._id }}')">
+                          <i class="ri-more-2-line"></i>
+                        </button>
+                        <div id="floatingMenu-{{ app._id }}" class="floating-menu">
+                          <a href="javascript:void(0);" class="btn btn-sm btn-outline-info"
+                            onclick="openApproverPreviousModal('{{ app.applicantId }}', '{{ app.applicantName|escape }}')">
+                            <i class="fas fa-history me-1"></i> Previous Leaves
+                          </a>
+                          <a href="{{ url_for('approver_dashboard.view_application', app_id=app._id|string, ref=active_page) }}"
+                            class="btn btn-view">View Application
+                          </a>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  </a>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <div class="no-data">
+                <p>No pending applications assigned to you at the moment.</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Approved/Issued Applications Table -->
+          <div id="approved-table" class="table-content" style="display: none;">
+            <div class="table-header">
+              <i class="ri-checkbox-circle-line"></i> Issued/Approved Applications
+            </div>
+
+            <div class="filter-table mb-3 d-flex align-items-center flex-wrap">
+              <div style="padding: 10px;" class="filter-group me-2 mb-2">
+                <label for="approved-filter" class="me-2 fw-bold">Quick Filter:</label>
+                <select id="approved-filter" class="form-select form-select-sm" style="width: auto; min-width: 180px;">
+                  <option value="">All Approved</option>
+                  <option value="annual">📅 Annual Leave</option>
+                  <option value="casual">🎯 Casual Leave</option>
+                  <option value="sick">🤒 Sick Leave</option>
+                  <option value="compassionate">💝 Compassionate Leave</option>
+                  <option value="paternity">👨‍👦 Paternity Leave</option>
+                  <option value="maternity">👩‍👧 Maternity Leave</option>
+                  <option value="disembarkation">✈️ Disembarkation Leave</option>
+                </select>
+              </div>
+              <button style="margin-top: 1.7rem;" class="btn btn-sm btn-outline-secondary ms-2 mb-2"
+                onclick="resetApprovedFilter()">
+                <i class="ri-refresh-line"></i> Reset
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              {% set approved_apps = applications|selectattr('status', 'in', ['issued', 'approved'])|list %}
+              {% if approved_apps %}
+              <table class="documents-table" id="approved-table-body">
+                <thead>
+                  <tr>
+                    <th>Ref</th>
+                    <th>Applicant</th>
+                    <th>Service No.</th>
+                    <th>Leave Type</th>
+                    <th>Status</th>
+                    <th>Dates</th>
+                    <th>Number of Days</th>
+                    <th>Reason</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for app in approved_apps %}
+                  <tr data-leave-type="{{ app.leave_type }}" onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')" style="cursor: pointer;">
+                    <td>{{ app.referenceId|string|truncate(12, True, '...') }}</td>
+                    <td>{{ app.applicantName }}</td>
+                    <td>{{ app.applicantId }}</td>
+                    <td>{{ app.leave_type|capitalize }}</td>
+                    <td>
+                      <div class="status-container">
+                        {% if app.status == "issued" %}
+                        <div class="status-pill issued">
+                          <div class="status-dot"></div>
+                          <span>Issued</span>
+                        </div>
+                        {% else %}
+                        <div class="status-pill approved">
+                          <div class="status-dot"></div>
+                          <span>Approved</span>
+                        </div>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') }} – {{ app.endDate.strftime('%d %b %Y') }}</td>
+                    <td>{{ app.numberOfDays }}</td>
+                    <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
+                    <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago
+                      != 1 else '' }} ago</td>
+                    <td class="action-cell">
+                      <div class="action-menu">
+                        <button class="menu-btn" onclick="toggleLeaveMenu(event, this, '{{ app._id }}')">
+                          <i class="ri-more-2-line"></i>
+                        </button>
+                        <div id="floatingMenu-{{ app._id }}" class="floating-menu">
+                          <a href="javascript:void(0);" class="btn btn-sm btn-outline-info"
+                            onclick="openApproverPreviousModal('{{ app.applicantId }}', '{{ app.applicantName|escape }}')">
+                            <i class="fas fa-history me-1"></i> Previous Leaves
+                          </a>
+                          <a href="{{ url_for('approver_dashboard.view_application', app_id=app._id|string, ref=active_page) }}"
+                            class="btn btn-view">View Application
+                          </a>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <div class="no-data">
+                <p>No approved/issued applications found.</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Rejected Applications Table -->
+          <div id="rejected-table" class="table-content" style="display: none;">
+            <div class="table-header">
+              <i class="ri-close-circle-line"></i> Rejected Applications
+            </div>
+
+            <div class="filter-table mb-3 d-flex align-items-center flex-wrap">
+              <div style="padding: 10px;" class="filter-group me-2 mb-2">
+                <label for="rejected-filter" class="me-2 fw-bold">Quick Filter:</label>
+                <select id="rejected-filter" class="form-select form-select-sm" style="width: auto; min-width: 180px;">
+                  <option value="">All Rejected</option>
+                  <option value="annual">📅 Annual Leave</option>
+                  <option value="casual">🎯 Casual Leave</option>
+                  <option value="sick">🤒 Sick Leave</option>
+                  <option value="compassionate">💝 Compassionate Leave</option>
+                  <option value="paternity">👨‍👦 Paternity Leave</option>
+                  <option value="maternity">👩‍👧 Maternity Leave</option>
+                  <option value="disembarkation">✈️ Disembarkation Leave</option>
+                </select>
+              </div>
+              <button style="margin-top: 1.7rem;" class="btn btn-sm btn-outline-secondary ms-2 mb-2"
+                onclick="resetRejectedFilter()">
+                <i class="ri-refresh-line"></i> Reset
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              {% set rejected_apps = applications|selectattr('status', 'equalto', 'rejected')|list %}
+              {% if rejected_apps %}
+              <table class="documents-table" id="rejected-table-body">
+                <thead>
+                  <tr>
+                    <th>Ref</th>
+                    <th>Applicant</th>
+                    <th>Service No.</th>
+                    <th>Leave Type</th>
+                    <th>Status</th>
+                    <th>Dates</th>
+                    <th>Number of Days</th>
+                    <th>Reason</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for app in rejected_apps %}
+                  <tr data-leave-type="{{ app.leave_type }}" onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')" style="cursor: pointer;">
+                    <td>{{ app.referenceId|string|truncate(12, True, '...') }}</td>
+                    <td>{{ app.applicantName }}</td>
+                    <td>{{ app.applicantId }}</td>
+                    <td>{{ app.leave_type|capitalize }}</td>
+                    <td>
+                      <div class="status-container">
+                        <div class="status-pill rejected">
+                          <div class="status-dot"></div>
+                          <span>Rejected</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') }} – {{ app.endDate.strftime('%d %b %Y') }}</td>
+                    <td>{{ app.numberOfDays }}</td>
+                    <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
+                    <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago
+                      != 1 else '' }} ago</td>
+                    <td class="action-cell">
+                      <div class="action-menu">
+                        <button class="menu-btn" onclick="toggleLeaveMenu(event, this, '{{ app._id }}')">
+                          <i class="ri-more-2-line"></i>
+                        </button>
+                        <div id="floatingMenu-{{ app._id }}" class="floating-menu">
+                          <a href="javascript:void(0);" class="btn btn-sm btn-outline-info"
+                            onclick="openApproverPreviousModal('{{ app.applicantId }}', '{{ app.applicantName|escape }}')">
+                            <i class="fas fa-history me-1"></i> Previous Leaves
+                          </a>
+                          <a href="{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}"
+                            class="btn btn-view">View Application
+                          </a>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <div class="no-data">
+                <p>No rejected applications found.</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+      {% else %}
+      <!-- Personal Submitted Applications Section -->
+      <div class="documents-table-container" style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.01); text-align: left;">
+        <h3 style="font-size: 16px; color: #1a202c; font-weight: 600; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-top: 0;">
+          📋 Your Submitted Applications
+        </h3>
+
+        {% if submitted_applications %}
+        <div style="overflow-x: auto;">
+          <table class="documents-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+            <thead>
+              <tr style="border-bottom: 2px solid #edf2f7; color: #718096; font-weight: 700; text-transform: uppercase; font-size: 11px;">
+                <th style="padding: 12px 16px;">Reference ID</th>
+                <th style="padding: 12px 16px;">Leave Type</th>
+                <th style="padding: 12px 16px;">Period</th>
+                <th style="padding: 12px 16px;">Days</th>
+                <th style="padding: 12px 16px;">Status</th>
+                <th style="padding: 12px 16px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for app in submitted_applications %}
+              <tr style="border-bottom: 1px solid #edf2f7; transition: background-color 0.2s; cursor: pointer;" onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')">
+                <td style="padding: 16px; font-weight: 600; color: #2d3748; font-family: monospace; font-size: 14px;">{{ app.referenceId }}</td>
+                <td style="padding: 16px; color: #4a5568;">{{ app.leave_type | title }}</td>
+                <td style="padding: 16px; color: #4a5568;">
+                  {{ app.startDate.strftime('%d %b %Y') if app.startDate else 'N/A' }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate else 'N/A' }}
+                </td>
+                <td style="padding: 16px; color: #4a5568;">{{ app.numberOfDays }}</td>
+                <td style="padding: 16px;">
+                  <div class="status-container">
+                    {% if app.status == 'approved' or app.status == 'issued' %}
+                    <div class="status-pill approved">
+                      <div class="status-dot"></div>
+                      <span>Approved</span>
+                    </div>
+                    {% elif app.status == 'rejected' %}
+                    <div class="status-pill rejected">
+                      <div class="status-dot"></div>
+                      <span>Rejected</span>
+                    </div>
+                    {% else %}
+                    <div class="status-pill pending">
+                      <div class="status-dot"></div>
+                      <span>Pending</span>
+                    </div>
+                    {% endif %}
+                  </div>
+                </td>
+                <td style="padding: 16px; text-align: right;">
+                  <a href="/dashboard?track_id={{ app.referenceId }}" class="add-document-btn" style="padding: 6px 12px; font-size: 13px; text-decoration: none; display: inline-block;">
+                    🔍 Track
+                  </a>
+                  {% if app.status == 'issued' %}
+                  <a href="{{ url_for('approver_dashboard.view_receipt', app_id=app._id|string) }}" class="add-document-btn" style="padding: 6px 12px; font-size: 13px; margin-left: 5px; background: #10b981; text-decoration: none; display: inline-block;">
+                    📄 View Receipt
+                  </a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="no-data">
+          <p>You have not submitted any leave or pass applications yet.</p>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </main>
+  </div>
+
+
+
+
+
+  <!-- Receipt View Modal -->
+  <div id="receiptModal" class="modal-overlay">
+    <div class="modal-box receipt-modal">
+      <h3>Defence Space Administration<br>Leave/Pass Receipt</h3>
+      <button class="close-modal" onclick="closeReceiptModal()">×</button>
+
+      <div class="receipt-content" id="receiptContent">
+        <!-- Dynamic content will be loaded here via JS -->
+        <p>Loading receipt...</p>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="cancel-btn" onclick="closeReceiptModal()">Close</button>
+        <button class="download-btn" onclick="downloadReceipt()">Download PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reject Confirmation Modal -->
+  <div id="rejectModal" class="modal-overlay">
+    <div class="modal-box">
+
+      <h3>Reject Application</h3><br>
+      <p class="subtitle">Confirm your Rejection for this Leave/Pass request</p><br><br>
+
+      <form id="rejectForm" method="POST">
+        <div class="form-group">
+          <label for="comments">Comments (required for rejection)</label>
+          <input type="text" autocomplete="off" id="comments" name="comments" placeholder="">
+        </div>
+        <div class="form-group">
+          <label for="Comments">Name/Signature</label>
+          <input type="text" autocomplete="off" value="{{ user.name }}" id="signature_name" name="signature_name"
+            placeholder="">
+        </div>
+        <div class="form-group">
+          <label for="Comments">Role</label>
+          <input type="text" autocomplete="off" value="{{ user.role or '' }}" id="rank" name="rank" placeholder="">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" onclick="closeRejectModal()">Cancel</button>
+          <button type="submit" class="continues-btn">Confirm Rejection</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+
+  <!-- Approval Confirmation Modal -->
+  <div id="approveModal" class="modal-overlay">
+    <div class="modal-box">
+
+      <h3>Approve Application</h3><br>
+      <p class="subtitle">Confirm your approval for this leave/pass request</p><br><br>
+
+      <form id="approveForm" method="POST">
+        <div class="form-group">
+          <label for="comments">Comments</label>
+          <input type="text" autocomplete="off" id="comments" name="comments" placeholder="">
+        </div>
+        <div class="form-group">
+          <label for="Comments">Name/Signature</label>
+          <input type="text" autocomplete="off" value="{{ user.name }}" id="signature_name" name="signature_name"
+            placeholder="">
+        </div>
+        <div class="form-group">
+          <label for="Comments">Role</label>
+          <input type="text" autocomplete="off" value="{{ user.role or '' }}" id="rank" name="rank" placeholder="">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" onclick="closeApproveModal()">Cancel</button>
+          <button type="submit" class="continuess-btn">Confirm Approval</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+
+  <!-- Forward Confirmation Modal (for Chief Clerk) -->
+  <div id="forwardModal" class="modal-overlay">
+    <div class="modal-box">
+
+      <h3>Forward Application</h3><br>
+      <p class="subtitle">Confirm forwarding this application to SO1-DOA for final approval</p>
+      <br><br>
+
+      <form id="forwardForm" method="POST">
+        <div class="form-group">
+          <label for="forward_comments">Comments (optional)</label>
+          <input type="text" id="forward_comments" name="comments" placeholder="Any remarks before forwarding...">
+        </div>
+        <div class="form-group">
+          <label for="forward_signature">Name/Signature</label>
+          <input type="text" id="forward_signature" name="signature_name" value="{{ user.name }}" readonly>
+        </div>
+        <div class="form-group">
+          <label for="forward_rank">Rank / Grade</label>
+          <input type="text" id="forward_rank" name="rank" value="{{ user.rankOrGrade or '' }}" readonly>
+        </div>
+      </form>
+
+      <div class="modal-actions">
+        <button type="button" class="cancel-btn" onclick="closeForwardModal()">Cancel</button>
+        <button type="submit" class="continuess-btn" onclick="confirmForward()">Confirm
+          Forward</button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- Final Approve Modal (SO1-DOA) -->
+  <div id="finalApproveModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Final Approval</h3><br>
+      <p class="subtitle">Confirm final approval and receipt issuance</p><br><br>
+
+      <form id="finalApproveForm" method="POST">
+        <div class="form-group">
+          <label for="final_comments">Comments (optional)</label>
+          <input id="final_comments" name="comments" placeholder="Final remarks...">
+        </div>
+        <div class="form-group">
+          <label for="final_signature">Name/Signature</label>
+          <input type="text" id="final_signature" name="signature_name" value="{{ user.name }}" readonly>
+        </div>
+        <div class="form-group">
+          <label for="final_rank">Rank / Grade</label>
+          <input type="text" id="final_rank" name="rank" value="{{ user.rankOrGrade or '' }}" readonly>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" onclick="closeFinalApproveModal()">Cancel</button>
+          <button type="submit" class="continuess-btn">Confirm Final Approval</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Final Reject Modal (SO1-DOA) -->
+  <div id="finalRejectModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Final Rejection</h3><br>
+      <p class="subtitle">Confirm final rejection of this application</p><br><br>
+
+      <form id="finalRejectForm" method="POST">
+        <div class="form-group">
+          <label for="final_reject_comments">Comments (required)</label>
+          <input type="text" id="final_reject_comments" name="comments" required
+            placeholder="Reason for final rejection...">
+        </div>
+        <div class="form-group">
+          <label for="final_reject_signature">Name/Signature</label>
+          <input type="text" id="final_reject_signature" name="signature_name" value="{{ user.name }}" readonly>
+        </div>
+        <div class="form-group">
+          <label for="final_reject_rank">Rank / Grade</label>
+          <input type="text" id="final_reject_rank" name="rank" value="{{ user.rankOrGrade or '' }}" readonly>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" onclick="closeFinalRejectModal()">Cancel</button>
+          <button type="submit" class="continues-btn">Confirm Final Rejection</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Approver's View Previous Leaves Modal -->
+  <div class="modal fade" id="approverPreviousModal" tabindex="-1" aria-labelledby="approverPreviousModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="approverPreviousModalLabel">Applicant's Previous Leave
+            History</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="approverLoading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3">Loading applicant's leave history...</p>
+          </div>
+
+          <div id="approverContent" style="display: none;">
+            <div id="approverLeaveList"></div>
+          </div>
+
+          <div id="approverEmpty" class="text-center py-5 text-muted" style="display: none;">
+            <i class="fas fa-history fa-4x mb-3 opacity-50"></i>
+            <p>No previous leave records found in the last 6 months.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+
+  <!-- Bootstrap JS (required for modals, popovers, etc.) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
+    </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.js"></script>
+  <!-- Socket.IO client library -->
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+
+  <script id="current-user-data" type="application/json">
+                        {{ user | tojson }}
+                    </script>
+
+  <script>
+    const CURRENT_USER = JSON.parse(
+      document.getElementById("current-user-data").textContent
+    );
+    window.CURRENT_USER = CURRENT_USER;
+
+    // Test socket connection
+    setTimeout(() => {
+      if (window.socket && window.socket.connected) {
+        // Manually emit to verify room joining
+        const safeId = CURRENT_USER.service_number.replace(/\//g, "_");
+        window.socket.emit("join_rooms", {
+          service_number: safeId,
+          role: CURRENT_USER.role,
+          directorate: CURRENT_USER.directorate
+        });
+      } else {
+      }
+    }, 1000);
+    // ============ END DEBUG CODE ============
+  </script>
+
+  <script>
+    function openApproverPreviousModal(applicantId, applicantName = '') {
+      const modalTitle = document.getElementById('approverPreviousModalLabel');
+      modalTitle.textContent = applicantName
+        ? `Previous Leaves – ${applicantName} (${applicantId})`
+        : `Previous Leaves – ${applicantId}`;
+
+      const modal = new bootstrap.Modal(document.getElementById('approverPreviousModal'));
+
+      // Show loading, hide content
+      document.getElementById('approverLoading').style.display = 'block';
+      document.getElementById('approverContent').style.display = 'none';
+      document.getElementById('approverEmpty').style.display = 'none';
+
+      // Clear previous content
+      document.getElementById('approverLeaveList').innerHTML = '';
+
+      // Ensure the ID is properly encoded
+      const cleanId = String(applicantId).trim();
+      const url = `/applicant-previous-leaves?applicant_id=${encodeURIComponent(cleanId)}`;
+
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            return response.json().then(err => {
+              throw new Error(err.error || `HTTP ${response.status}`);
+            });
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('Received data:', data);
+
+          document.getElementById('approverLoading').style.display = 'none';
+
+          const listDiv = document.getElementById('approverLeaveList');
+          listDiv.innerHTML = '';
+
+          if (data.success && data.applications && data.applications.length > 0) {
+            data.applications.forEach(app => {
+              const card = document.createElement('div');
+
+              // Determine card color based on status
+              let borderColor = 'warning';
+              let badgeColor = 'warning';
+              if (app.status === 'rejected') {
+                borderColor = 'danger';
+                badgeColor = 'danger';
+              } else if (app.status === 'issued') {
+                borderColor = 'success';
+                badgeColor = 'success';
+              } else if (app.status === 'approved') {
+                borderColor = 'info';
+                badgeColor = 'success';
+              }
+
+              card.className = `card mb-3 border-${borderColor}`;
+
+              // ============ FINALAPPROVAL-OPTIMIZED APPROVAL CHAIN ============
+              let approvalChainHtml = '';
+
+              if (app.approvalChain && app.approvalChain.length > 0) {
+
+                // ----- PROCESS APPROVAL CHAIN -----
+                let chainItems = [];
+                let rejectingApprover = null;
+                let isRejected = false;
+
+                // Process main approval chain
+                for (let i = 0; i < app.approvalChain.length; i++) {
+                  const approver = app.approvalChain[i];
+                  const role = approver.role || 'Unknown';
+
+                  if (approver.status === 'approved') {
+                    chainItems.push(`<span class="text-success fw-bold">${role}</span> ✓`);
+                  } else if (approver.status === 'rejected') {
+                    chainItems.push(`<span class="text-danger fw-bold">${role}</span> ✗`);
+                    rejectingApprover = approver;
+                    isRejected = true;
+                    break; // Stop at rejection
+                  } else if (approver.status === 'pending' && !isRejected) {
+                    // Only show pending if we haven't hit a rejection
+                    chainItems.push(`<span class="text-muted fw-bold">${role}</span> <span class="text-muted">(pending)</span>`);
+                    break; // Stop at first pending
+                  }
+                }
+
+                // ----- ADD SO1-DOA FROM FINALAPPROVAL -----
+                // Only add SO1-DOA if application is approved/issued and not rejected
+                if (!isRejected && app.finalApproval) {
+                  const finalStatus = app.finalApproval.status;
+
+                  if (app.status === 'issued' || finalStatus === 'approved' || finalStatus === 'issued') {
+                    chainItems.push(`<span class="text-success fw-bold">SO1-DOA</span> ✓`);
+                  } else if (finalStatus === 'rejected') {
+                    chainItems.push(`<span class="text-danger fw-bold">SO1-DOA</span> ✗`);
+                    rejectingApprover = { role: 'SO1-DOA', comments: app.finalApproval.comments };
+                  }
+                }
+
+                const chainText = chainItems.join(' <span class="text-muted">→</span> ');
+
+                // ----- REJECTION INFORMATION -----
+                let rejectionInfo = '';
+                if (rejectingApprover && rejectingApprover.comments) {
+                  rejectionInfo = `
+                                <div class="text-danger mt-1">
+                                    <small>
+                                        <i class="bi bi-exclamation-triangle-fill"></i> 
+                                        <strong>Rejected by ${rejectingApprover.role}:</strong> "${rejectingApprover.comments}"
+                                    </small>
+                                </div>
+                            `;
+                } else if (rejectingApprover) {
+                  rejectionInfo = `
+                                <div class="text-danger mt-1">
+                                    <small>
+                                        <i class="bi bi-exclamation-triangle-fill"></i> 
+                                        <strong>Rejected by ${rejectingApprover.role}</strong>
+                                    </small>
+                                </div>
+                            `;
+                }
+
+                // ----- CHIEF CLERK FORWARDING STATUS -----
+                let pendingInfo = '';
+                if (app.status === 'pending' || app.status === 'approved') {
+                  const chiefClerk = app.approvalChain.find(a => a.role === 'Chief Clerk');
+                  if (chiefClerk && chiefClerk.status === 'pending') {
+                    pendingInfo = `
+                                    <div class="text-warning mt-1">
+                                        <small>
+                                            <i class="bi bi-hourglass-split"></i> 
+                                            <strong>Pending:</strong> Chief Clerk to forward to SO1-DOA
+                                        </small>
+                                    </div>
+                                `;
+                  }
+                }
+
+                // ----- ISSUED/APPROVED INFORMATION FROM FINALAPPROVAL -----
+                let approvedInfo = '';
+                if (app.status === 'issued' && app.finalApproval) {
+                  const receipt = app.finalApproval.receipt || {};
+                  const receiptNumber = receipt.receiptNumber || 'N/A';
+                  const issuedDate = receipt.issuedDate || 'N/A';
+
+                  approvedInfo = `
+                                <div class="text-success mt-2">
+                                    <small>
+                                        <i class="bi bi-check-circle-fill"></i> 
+                                        <strong>✓ Approved by SO1-DOA • Leave Issued</strong><br>
+                                        <span class="text-muted">Receipt: ${receiptNumber} | Issued: ${issuedDate}</span>
+                                    </small>
+                                </div>
+                            `;
+                } else if (app.status === 'approved' && app.finalApproval) {
+                  approvedInfo = `
+                                <div class="text-success mt-1">
+                                    <small>
+                                        <i class="bi bi-check-circle"></i> 
+                                        <strong>✓ Approved by SO1-DOA</strong> • Ready for issuance
+                                    </small>
+                                </div>
+                            `;
+                } else if (app.finalApproval && app.finalApproval.status === 'approved' && app.status !== 'issued') {
+                  // Fallback: if finalApproval shows approved but status not updated
+                  approvedInfo = `
+                                <div class="text-success mt-1">
+                                    <small>
+                                        <i class="bi bi-check-circle"></i> 
+                                        <strong>✓ Approved by SO1-DOA</strong> • Awaiting issuance
+                                    </small>
+                                </div>
+                            `;
+                }
+
+                // ----- FINAL APPROVAL SUMMARY FROM FINALAPPROVAL FIELD -----
+                let finalApprovalSummary = '';
+                if (app.finalApproval && !rejectionInfo && !approvedInfo) {
+                  if (app.finalApproval.approverId) {
+                    finalApprovalSummary = `
+                                    <div class="text-info mt-1">
+                                        <small>
+                                            <i class="bi bi-info-circle"></i>
+                                            <strong>Final Approver:</strong> ${app.finalApproval.approverId || 'SO1-DOA'}
+                                            ${app.finalApproval.status ? `• Status: ${app.finalApproval.status}` : ''}
+                                        </small>
+                                    </div>
+                                `;
+                  }
+                }
+
+                // Build the HTML if we have chain items
+                if (chainItems.length > 0) {
+                  approvalChainHtml = `
+                                <div class="mt-3 pt-2 border-top">
+                                    <div class="small">
+                                        <div class="text-muted mb-1 fw-bold">
+                                            APPROVAL WORKFLOW:
+                                        </div>
+                                        <div class="approval-chain mb-1" style="line-height: 1.8;">
+                                            ${chainText}
+                                        </div>
+                                        ${rejectionInfo}
+                                        ${pendingInfo}
+                                        ${approvedInfo}
+                                        ${finalApprovalSummary}
+                                    </div>
+                                </div>
+                            `;
+                }
+              }
+              // ============ END FINALAPPROVAL-OPTIMIZED APPROVAL CHAIN ============
+
+              // Format dates properly
+              const appliedDate = app.createdAt || 'N/A';
+              const effectiveDate = app.dates?.effectiveDate || 'N/A';
+              const endDate = app.dates?.endDate || 'N/A';
+
+              card.innerHTML = `
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="mb-0 fw-bold">${app.leave_type ? app.leave_type.replace(/_/g, ' ').toUpperCase() : 'UNKNOWN'}</h6>
+                                    <span class="small text-muted">
+                                        <i class="bi bi-tag"></i> Ref: ${app.referenceId || 'N/A'}
+                                    </span>
+                                </div>
+                                <span class="badge bg-${badgeColor} px-3 py-2">
+                                    ${app.status ? app.status.toUpperCase() : 'UNKNOWN'}
+                                </span>
+                            </div>
+                            
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <div class="small text-muted">
+                                        <i class="bi bi-calendar3"></i> 
+                                        <strong>${effectiveDate} – ${endDate}</strong>
+                                        <span class="badge bg-light text-dark ms-2">${app.numberOfDays || '?'} days</span>
+                                    </div>
+                                    <div class="small text-muted mt-1">
+                                        <i class="bi bi-clock"></i> Applied: ${appliedDate}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${app.reason ? `
+                                <div class="mt-2 small p-2 bg-light rounded">
+                                    <i class="bi bi-chat-text text-muted"></i>
+                                    <em class="text-muted">Reason:</em> 
+                                    <span class="text-dark">${app.reason}</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${approvalChainHtml}
+                        </div>
+                    `;
+
+              listDiv.appendChild(card);
+            });
+
+            document.getElementById('approverContent').style.display = 'block';
+            document.getElementById('approverEmpty').style.display = 'none';
+          } else {
+            document.getElementById('approverContent').style.display = 'none';
+            document.getElementById('approverEmpty').style.display = 'block';
+
+            const emptyDiv = document.getElementById('approverEmpty');
+            emptyDiv.innerHTML = `
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        No previous leave applications found for ${applicantName || applicantId} in the last 6 months.
+                    </div>
+                `;
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching history:', err);
+          document.getElementById('approverLoading').style.display = 'none';
+
+          const contentDiv = document.getElementById('approverContent');
+          contentDiv.style.display = 'block';
+          contentDiv.innerHTML = `
+                <div class="alert alert-danger mb-0">
+                    <strong><i class="bi bi-exclamation-triangle-fill"></i> Failed to load history.</strong><br>
+                    ${err.message.includes('403') ? 'Access denied.' : 'Server error. Please try again.'}
+                </div>
+            `;
+          document.getElementById('approverEmpty').style.display = 'none';
+        });
+
+      modal.show();
+    }
+
+
+
+
+
+    function navigateToDetail(event, url) {
+      const target = event.target;
+      // Do not navigate if clicking on action button, link, dropdown menu, or interactive elements
+      if (
+        target.closest('.action-cell') || 
+        target.closest('.floating-menu') || 
+        target.closest('.menu-btn') || 
+        target.closest('a') || 
+        target.closest('button') ||
+        target.closest('input')
+      ) {
+        return;
+      }
+      window.location.href = url;
+    }
+
+    // LEAVE AND PASS ACTION DROPDOWN JS
+    function toggleLeaveMenu(event, button, appId) {
+      event.stopPropagation();
+
+      // Get the specific menu for this application
+      const menu = document.getElementById(`floatingMenu-${appId}`);
+      if (!menu) return;
+
+      // Hide all other menus first
+      document.querySelectorAll('[id^="floatingMenu-"]').forEach(m => {
+        if (m.id !== `floatingMenu-${appId}`) {
+          m.style.display = 'none';
+        }
+      });
+
+      // Toggle current menu
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+      } else {
+        // Position the menu
+        const rect = button.getBoundingClientRect();
+
+        // Use fixed positioning for manual placement
+        menu.style.position = 'fixed';
+        menu.style.top = rect.bottom + 'px';
+        menu.style.left = rect.left + 'px';
+        menu.style.display = 'block';
+
+        // Ensure menu stays within viewport
+        const menuRect = menu.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Adjust if menu goes off-screen to the right
+        if (menuRect.right > viewportWidth) {
+          menu.style.left = (viewportWidth - menuRect.width - 10) + 'px';
+        }
+
+        // Adjust if menu goes off-screen at the bottom
+        if (menuRect.bottom > viewportHeight) {
+          menu.style.top = (rect.top - menuRect.height) + 'px';
+        }
+      }
+    }
+
+    // Close when clicking outside
+    document.addEventListener("click", function (event) {
+      if (!event.target.closest('.menu-btn') && !event.target.closest('[id^="floatingMenu-"]')) {
+        document.querySelectorAll('[id^="floatingMenu-"]').forEach(menu => {
+          menu.style.display = 'none';
+        });
+      }
+    });
+
+    // Close on escape key
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        document.querySelectorAll('[id^="floatingMenu-"]').forEach(menu => {
+          menu.style.display = 'none';
+        });
+      }
+    });
+
+    // Close on scroll
+    window.addEventListener('scroll', function () {
+      document.querySelectorAll('[id^="floatingMenu-"]').forEach(menu => {
+        menu.style.display = 'none';
+      });
+    }, { passive: true });
+
+
+
+
+
+
+    // Add this to your main.js or in a script tag in dashboard_main.html
+
+    // ==================== QUICK FILTER FUNCTIONS ====================
+
+    function applyFilter() {
+      const filterSelect = document.getElementById('status-filter');
+      const filterValue = filterSelect.value;
+
+      // Hide all filter containers first
+      document.getElementById('date-picker-container').style.display = 'none';
+      document.getElementById('month-picker-container').style.display = 'none';
+
+      if (filterValue === 'date-picker') {
+        // Show date picker
+        document.getElementById('date-picker-container').style.display = 'inline-block';
+      } else if (filterValue === 'month-picker') {
+        // Show month picker
+        document.getElementById('month-picker-container').style.display = 'inline-block';
+      } else if (filterValue.startsWith('status-')) {
+        // Filter by status
+        const status = filterValue.replace('status-', '');
+        filterTableByStatus(status);
+      } else if (['annual', 'casual', 'sick', 'compassionate', 'paternity', 'maternity', 'disembarkation'].includes(filterValue)) {
+        // Filter by leave type
+        filterTableByLeaveType(filterValue);
+      } else {
+        // Show all rows
+        showAllRows();
+      }
+    }
+
+    function filterTableByStatus(status) {
+      const table = document.getElementById('documents-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const statusCell = row.querySelector('.status-pill span');
+
+        if (statusCell) {
+          const rowStatus = statusCell.textContent.toLowerCase();
+          if (rowStatus === status.toLowerCase()) {
+            row.style.display = '';
+            visibleCount++;
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      }
+      updateFilterCount()
+      toggleNoResultsMessage(visibleCount === 0);
+
+    }
+
+    function filterTableByLeaveType(leaveType) {
+      const table = document.getElementById('documents-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const leaveTypeCell = row.cells[4]; // Leave Type column (adjust index if needed)
+
+        if (leaveTypeCell) {
+          const rowLeaveType = leaveTypeCell.textContent.toLowerCase().trim();
+          if (rowLeaveType === leaveType.toLowerCase() ||
+            rowLeaveType.includes(leaveType.toLowerCase())) {
+            row.style.display = '';
+            visibleCount++;
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      }
+      updateFilterCount()
+      toggleNoResultsMessage(visibleCount === 0);
+    }
+
+    function applyDateFilter() {
+      const dateInput = document.getElementById('date-filter');
+      const selectedDate = dateInput.value;
+
+      if (!selectedDate) return;
+
+      const table = document.getElementById('documents-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      const filterDate = new Date(selectedDate);
+      filterDate.setHours(0, 0, 0, 0);
+
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const dateCell = row.cells[10]; // Submitted column (adjust index if needed)
+
+        if (dateCell) {
+          const dateText = dateCell.textContent;
+          // Parse relative date like "X days ago"
+          const match = dateText.match(/(\d+)\s+day/);
+
+          if (match) {
+            const daysAgo = parseInt(match[1]);
+            const rowDate = new Date();
+            rowDate.setDate(rowDate.getDate() - daysAgo);
+            rowDate.setHours(0, 0, 0, 0);
+
+            if (rowDate.getTime() === filterDate.getTime()) {
+              row.style.display = '';
+              visibleCount++;
+            } else {
+              row.style.display = 'none';
+            }
+          }
+        }
+      }
+      updateFilterCount()
+      toggleNoResultsMessage(visibleCount === 0);
+    }
+
+    function applyMonthFilter() {
+      const monthInput = document.getElementById('month-filter');
+      const selectedMonth = monthInput.value;
+
+      if (!selectedMonth) return;
+
+      const [year, month] = selectedMonth.split('-');
+      const filterYear = parseInt(year);
+      const filterMonth = parseInt(month) - 1; // JavaScript months are 0-based
+
+      const table = document.getElementById('documents-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const dateCell = row.cells[10]; // Submitted column (adjust index)
+
+        if (dateCell) {
+          const dateText = dateCell.textContent;
+          const match = dateText.match(/(\d+)\s+day/);
+
+          if (match) {
+            const daysAgo = parseInt(match[1]);
+            const rowDate = new Date();
+            rowDate.setDate(rowDate.getDate() - daysAgo);
+
+            const rowYear = rowDate.getFullYear();
+            const rowMonth = rowDate.getMonth();
+
+            if (rowYear === filterYear && rowMonth === filterMonth) {
+              row.style.display = '';
+              visibleCount++;
+            } else {
+              row.style.display = 'none';
+            }
+          }
+        }
+      }
+      updateFilterCount()
+      toggleNoResultsMessage(visibleCount === 0);
+    }
+
+    function showAllRows() {
+      const table = document.getElementById('documents-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      for (let i = 0; i < rows.length; i++) {
+        rows[i].style.display = '';
+      }
+
+      // Remove no results message
+      const noResultsRow = document.getElementById('no-results-row');
+      if (noResultsRow) noResultsRow.remove();
+      updateFilterCount()
+    }
+
+    function toggleNoResultsMessage(show) {
+      const table = document.getElementById('documents-table-body');
+      if (!table) return;
+
+      let noResultsRow = document.getElementById('no-results-row');
+
+      if (show) {
+        if (!noResultsRow) {
+          noResultsRow = document.createElement('tr');
+          noResultsRow.id = 'no-results-row';
+          const td = document.createElement('td');
+          td.colSpan = 12; // Adjust based on your column count
+          td.style.textAlign = 'center';
+          td.style.padding = '30px';
+          td.style.color = '#6c757d';
+          td.style.fontStyle = 'italic';
+          td.innerHTML = '<i class="ri-search-line"></i> No applications match the selected filter.';
+          noResultsRow.appendChild(td);
+          table.appendChild(noResultsRow);
+        }
+      } else if (noResultsRow) {
+        noResultsRow.remove();
+      }
+    }
+
+    function resetQuickFilters() {
+      // Reset dropdown
+      const filterSelect = document.getElementById('status-filter');
+      if (filterSelect) filterSelect.value = '';
+
+      // Hide pickers
+      document.getElementById('date-picker-container').style.display = 'none';
+      document.getElementById('month-picker-container').style.display = 'none';
+
+      // Clear date inputs
+      document.getElementById('date-filter').value = '';
+      document.getElementById('month-filter').value = '';
+
+      // Show all rows
+      showAllRows();
+    }
+
+    // Search by text in table
+    function searchTable(columnIndex, searchText) {
+      const table = document.getElementById('documents-table-body');
+      if (!table || !searchText) return;
+
+      const rows = table.getElementsByTagName('tr');
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cell = row.cells[columnIndex];
+
+        if (cell) {
+          const cellText = cell.textContent.toLowerCase().trim();
+          if (cellText.includes(searchText.toLowerCase())) {
+            row.style.display = '';
+            visibleCount++;
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      }
+
+      toggleNoResultsMessage(visibleCount === 0);
+    }
+
+    // ==================== INITIALIZATION ====================
+
+    document.addEventListener('DOMContentLoaded', function () {
+      console.log('🔧 Quick filters initialized');
+
+      // Add event listener for the filter dropdown
+      const filterSelect = document.getElementById('status-filter');
+      if (filterSelect) {
+        filterSelect.addEventListener('change', applyFilter);
+      }
+
+      // Add keyboard support - Escape to reset
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          resetQuickFilters();
+        }
+      });
+
+      // Add event listeners for date inputs
+      const dateFilter = document.getElementById('date-filter');
+      if (dateFilter) {
+        dateFilter.addEventListener('change', applyDateFilter);
+      }
+
+      const monthFilter = document.getElementById('month-filter');
+      if (monthFilter) {
+        monthFilter.addEventListener('change', applyMonthFilter);
+      }
+    });
+
+
+    // Add this function to update the filter count badge
+    function updateFilterCount() {
+      const table = document.getElementById('documents-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i].style.display !== 'none' && rows[i].id !== 'no-results-row') {
+          visibleCount++;
+        }
+      }
+
+      const totalRows = rows.length - (document.getElementById('no-results-row') ? 1 : 0);
+
+      const countBadge = document.getElementById('filter-count');
+      if (countBadge) {
+        if (visibleCount < totalRows) {
+          countBadge.style.display = 'inline-block';
+          countBadge.textContent = `${visibleCount} of ${totalRows} results`;
+        } else {
+          countBadge.style.display = 'none';
+        }
+      }
+    }
+
+    // Tab switching functionality
+    function switchTableTab(tab) {
+      // Hide all tables
+      document.getElementById('pending-table').style.display = 'none';
+      document.getElementById('approved-table').style.display = 'none';
+      document.getElementById('rejected-table').style.display = 'none';
+
+      // Remove active class from all tabs
+      document.getElementById('pending-tab-btn').classList.remove('active');
+      document.getElementById('approved-tab-btn').classList.remove('active');
+      document.getElementById('rejected-tab-btn').classList.remove('active');
+
+      // Show selected table and activate tab
+      if (tab === 'pending') {
+        document.getElementById('pending-table').style.display = 'block';
+        document.getElementById('pending-tab-btn').classList.add('active');
+      } else if (tab === 'approved') {
+        document.getElementById('approved-table').style.display = 'block';
+        document.getElementById('approved-tab-btn').classList.add('active');
+      } else if (tab === 'rejected') {
+        document.getElementById('rejected-table').style.display = 'block';
+        document.getElementById('rejected-tab-btn').classList.add('active');
+      }
+    }
+
+    // Filter functions for pending table
+    function filterPendingTable() {
+      const filterValue = document.getElementById('pending-filter').value;
+      const table = document.getElementById('pending-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (filterValue === '') {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          const leaveType = row.getAttribute('data-leave-type');
+          if (leaveType === filterValue) {
+            row.style.display = '';
+            visibleCount++;
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      }
+
+      // Show/hide no results message
+      const noDataDiv = document.querySelector('#pending-table .no-data');
+      if (noDataDiv) {
+        noDataDiv.style.display = visibleCount === 0 ? 'block' : 'none';
+      }
+    }
+
+    function resetPendingFilter() {
+      document.getElementById('pending-filter').value = '';
+      filterPendingTable();
+    }
+
+    // Filter functions for approved table
+    function filterApprovedTable() {
+      const filterValue = document.getElementById('approved-filter').value;
+      const table = document.getElementById('approved-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (filterValue === '') {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          const leaveType = row.getAttribute('data-leave-type');
+          if (leaveType === filterValue) {
+            row.style.display = '';
+            visibleCount++;
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      }
+
+      const noDataDiv = document.querySelector('#approved-table .no-data');
+      if (noDataDiv) {
+        noDataDiv.style.display = visibleCount === 0 ? 'block' : 'none';
+      }
+    }
+
+    function resetApprovedFilter() {
+      document.getElementById('approved-filter').value = '';
+      filterApprovedTable();
+    }
+
+    // Filter functions for rejected table
+    function filterRejectedTable() {
+      const filterValue = document.getElementById('rejected-filter').value;
+      const table = document.getElementById('rejected-table-body');
+      if (!table) return;
+
+      const rows = table.getElementsByTagName('tr');
+      let visibleCount = 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (filterValue === '') {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          const leaveType = row.getAttribute('data-leave-type');
+          if (leaveType === filterValue) {
+            row.style.display = '';
+            visibleCount++;
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      }
+
+      const noDataDiv = document.querySelector('#rejected-table .no-data');
+      if (noDataDiv) {
+        noDataDiv.style.display = visibleCount === 0 ? 'block' : 'none';
+      }
+    }
+
+    function resetRejectedFilter() {
+      document.getElementById('rejected-filter').value = '';
+      filterRejectedTable();
+    }
+
+    // Initialize filters when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function () {
+      // Add event listeners for filters
+      const pendingFilter = document.getElementById('pending-filter');
+      if (pendingFilter) {
+        pendingFilter.addEventListener('change', filterPendingTable);
+      }
+
+      const approvedFilter = document.getElementById('approved-filter');
+      if (approvedFilter) {
+        approvedFilter.addEventListener('change', filterApprovedTable);
+      }
+
+      const rejectedFilter = document.getElementById('rejected-filter');
+      if (rejectedFilter) {
+        rejectedFilter.addEventListener('change', filterRejectedTable);
+      }
+    });
+
+
+
+  </script>
+
+  <!-- Your custom Socket.IO script -->
+
+  <script>window.DASHBOARD_TYPE = "leave";</script>
+  <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+
+
+
+</body>
+
+</html>
