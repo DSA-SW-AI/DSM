@@ -1,0 +1,3 @@
+class Config:
+    SECRET_KEY = "DSA_PAPERLESS_SECRET_ENCRYPTION_KEY_TOKEN"
+    MONGO_URI = 'mongodb://localhost:27017/DSM'

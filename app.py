@@ -1,28 +1,86 @@
 import datetime
-from flask import Flask, jsonify, render_template, request, session, redirect, url_for
+from flask import Flask, jsonify, render_template, request, session, redirect, url_for, send_file
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.security import check_password_hash
 import os
-from flask import jsonify, request, session
 from werkzeug.utils import secure_filename
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import ssl
-
+from modules.extensions import socketio
+from flask_wtf.csrf import CSRFProtect
 # Import your master permission layout configurations
 from permissions import ROLE_PERMISSIONS 
+from gridfs import GridFS
+from bson.objectid import ObjectId
+from io import BytesIO
 
+# LEAVE AND PASS BLUEPRINTS
+from modules.leave_pass.leave_pass_routes.verify_service_number import verify_service_number_routes
+from modules.leave_pass.leave_pass_routes.start_application import application_routes
+from modules.leave_pass.leave_pass_routes.application_success import application_success_routes
+from modules.leave_pass.leave_pass_routes.approver_dashboard import approver_dashboard    
+from modules.leave_pass.leave_pass_routes.application_track import application_track, compute_application_timeline
+
+
+# FLASK APP INITIALIZATION
 app = Flask(__name__)
-app.secret_key = "DSA_PAPERLESS_SECRET_ENCRYPTION_KEY_TOKEN"
+app.config['SECRET_KEY'] = os.getenv(
+    'SECRET_KEY',
+    'default-unsafe-key-change-this-in-env-file'
+)
+csrf = CSRFProtect(app)
+
+
+# Session(app)    
+socketio.init_app(
+    app,
+    manage_session=False,
+    cors_allowed_origins="*"
+)
+
+
+
 
 # MongoDB Connection Configuration (DSM Database)
 client = MongoClient("mongodb://localhost:27017/")
 db = client["DSM"]
+
+
+
+# Create GridFS instance
+fs = GridFS(db, collection="attachments")
+app.fs = fs
+
+
+
+# DATABASE COLLECTIONS
 users_collection = db["users"]
+applications_collection = db["applications"]
+leave_balances = db["leave_balances"]
+medical_records = db["medical_records"]
+notifications_collection = db["notifications"]
+daily_parade_states = db["daily_parade_states"]
 
 
+# REGISTER BLUEPRINTS FOR LEAVE AND PASS MODULES
+app.register_blueprint(verify_service_number_routes)
+app.register_blueprint(application_routes)
+app.register_blueprint(application_success_routes)
+app.register_blueprint(approver_dashboard)
+app.register_blueprint(application_track)
+
+
+
+app.users_collection = users_collection
+app.user_collection = users_collection
+app.applications_collection = applications_collection
+app.leave_balances =  leave_balances
+app.medical_records = medical_records
+app.notifications_collection = notifications_collection
+app.daily_parade_states = daily_parade_states
 
 # ================= GALAXY BACKBONE IMPLICIT PRODUCTION SETTINGS =================
 SMTP_SERVER = "mail.govmail.gbb.com.ng"      # Public GovMail domain handle
@@ -112,7 +170,6 @@ def index():
 # app.py - Replace your /login endpoint with this exact verified code:
 
 
-
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -138,13 +195,25 @@ def login():
         if check_password_hash(stored_hash, password) or stored_hash == password or password == "password123":
             session['user_email'] = user['email']
             session['user_role'] = user.get('role', 'civilian')
+
+            # Store session values
+            session["service_number"] = user.get("service_number") or user.get("email")
+            session["role"] = user["role"]
+            session["name"] = user["name"]
+            session["category"] = user.get("category", "civilian")
+            session["appt"] = user.get("appt") or user.get("onboarding_data", {}).get("step_1", {}).get("appt")
+            session["gender"] = user.get("onboarding_data", {}).get("step_5", {}).get("gender")
+            session["rankOrGrade"] = user.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade")
+            session["directorate"] = user.get("directorate")
+            session["is_so_approver"] = user.get("is_so_approver", False)
+            session["is_ad_approver"] = user.get("is_ad_approver", False)
+            session["is_dd_approver"] = user.get("is_dd_approver", False)
+            session["is_approval_role"] = user.get("is_approval_role") in (True, "true", "True")
+            session["is_final_approver"] = user.get("is_final_approver") in (True, "true", "True")
             return jsonify({"status": "success", "message": "Login successful. Redirecting..."}), 200
 
     return jsonify({"status": "error", "message": "Invalid official email or password"}), 401
 
-
-
-# app.py - Update your dashboard loader function to pull live data rows:
 
 @app.route('/dashboard')
 def dashboard():
@@ -166,14 +235,67 @@ def dashboard():
     ).sort("timestamp", -1).limit(5))
     # ===============================================================
 
-    user_allowed_features = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS['civilian'])
+    # Retrieve pending reliever requests targeting current logged-in user
+    reliever_requests = []
+    try:
+        reliever_requests = list(db.reliever_requests.find({
+            "relieverEmail": session['user_email'].strip().lower(),
+            "status": "pending"
+        }))
+    except Exception as e:
+        print(f"Error fetching reliever requests: {e}")
+
+    # Fetch submitted applications for this user
+    submitted_applications = []
+    service_number = user_data.get('service_number')
+    email = user_data.get('email')
+    if not session.get("is_approval_role") and (service_number or email):
+        query_conditions = []
+        if service_number:
+            query_conditions.append({"applicantId": service_number})
+        if email:
+            query_conditions.append({"applicantId": email})
+        try:
+            submitted_applications = list(db.applications.find({"$or": query_conditions}).sort("createdAt", -1))
+        except Exception as e:
+            print(f"Error fetching submitted applications: {e}")
+
+    # Modal tracking request handling
+    track_id = request.args.get('track_id')
+    show_result_modal = False
+    track_app = None
+    timeline = []
+    completed_steps_count = 0
+    total_steps_count = 0
+    track_error = None
+    
+    if track_id:
+        track_id = track_id.strip().upper()
+        try:
+            track_app = db.applications.find_one({"referenceId": track_id})
+            if track_app:
+                timeline, completed_steps_count, total_steps_count, _ = compute_application_timeline(track_app, track_id)
+                show_result_modal = True
+            else:
+                track_error = "Application not found."
+        except Exception as e:
+            print(f"Error tracking application in dashboard: {e}")
+            track_error = "Error loading tracking data."
+
+    if not session.get("is_approval_role"):
+        user_allowed_features = ROLE_PERMISSIONS['civilian']
+    else:
+        user_allowed_features = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS['civilian'])
     current_time = datetime.datetime.now().strftime("%A, %d %B %Y - %H:%M:%S")
 
     ui_user_profile = {
         "email": user_data.get("email"),
         "name": user_data.get("name", "Officer"),
         "role": user_role,
+        "category": user_data.get("category", "civilian"),
+        "appt": user_data.get("appt"),
         "directorate": user_dir.upper(),
+        "is_approval_role": session.get("is_approval_role", False),
         "training_request_active": user_data.get("training_request_active", False)
     }
 
@@ -182,7 +304,16 @@ def dashboard():
         user=ui_user_profile, 
         permissions=user_allowed_features, 
         current_time=current_time,
-        feed=live_feed # Pass the live logs straight into the dashboard template context
+        feed=live_feed,
+        reliever_requests=reliever_requests,
+        submitted_applications=submitted_applications,
+        show_result_modal=show_result_modal,
+        application=track_app,
+        timeline=timeline,
+        completed_steps=completed_steps_count,
+        total_steps=total_steps_count,
+        reference_id=track_id,
+        track_error=track_error
     )
 
 
@@ -192,6 +323,10 @@ def personnel_view():
     if 'user_email' not in session:
         return redirect(url_for('index'))
 
+    if not session.get("is_approval_role"):
+        print("You are not authorized to view personnel list.", "error")
+        return redirect(url_for('dashboard'))
+
     # Load active user profile metadata details directly out of MongoDB
     user_data = db.users.find_one({"email": session['user_email']})
     if not user_data:
@@ -199,7 +334,7 @@ def personnel_view():
         return redirect(url_for('index'))
 
     user_role = str(user_data.get('role', 'civilian')).strip().lower()
-    user_dir_clean = str(user_data.get('directorate', 'doa')).strip().lower()
+    user_dir_clean = str(user_data.get('directorate', 'DOA')).strip().upper()
 
     # Case-insensitive filtration lookup engine
     if user_role == 'director':
@@ -242,14 +377,22 @@ def add_staff():
     service_number = data.get('service_number')
     alt_email = data.get('alternate_email')
     plain_password = data.get('password')
+    surname = data.get('surname')
+    firstname = data.get('firstname')
+    middlename = data.get('middlename')
+    official_login_email = data.get('official_email')
+
+    full_name = f"{firstname} {surname}"
+
+
     
-    if not all([category, directorate, service_number, alt_email, plain_password]):
+    if not all([category, directorate, service_number, alt_email, plain_password, full_name, middlename, official_login_email]):
         return jsonify({"status": "error", "message": "All required form fields must be populated"}), 400
 
-    normalized_sn = service_number.replace('/', '_').lower()
-    official_login_email = f"{normalized_sn}@dsa.mil.ng"
+    # normalized_sn = service_number.replace('/', '_').lower()
+    # official_login_email = f"{normalized_sn}@dsa.mil.ng"
 
-    existing_user = db.users.find_one({"email": official_login_email})
+    existing_user = users_collection.find_one({"email": official_login_email})
     if existing_user:
         return jsonify({"status": "error", "message": "User profile or service number already registered"}), 409
 
@@ -258,18 +401,23 @@ def add_staff():
     new_user_document = {
         "email": official_login_email,
         "alternate_email": alt_email,
-        "name": service_number.upper(),
+        "name": full_name.strip(),
+        "surname": surname.strip(),
+        "firstname": firstname.strip(),
+        "middlename": middlename.strip(),
+        "service_number": service_number.upper(),
         "role": "civilian" if category.lower() == "civilian" else "personnel",
+        "directorate": directorate.upper(),
         "category": category.lower().strip(),
         "password_hash": secure_flask_hash,
         "is_active": True,
         "is_onboarded": False,
-        "directorate": directorate.lower(),
+        "is_approval_role": "false",
         "created_at": datetime.datetime.now()
     }
     
     # 1. Insert new account into MongoDB database
-    db.users.insert_one(new_user_document)
+    users_collection.insert_one(new_user_document)
 
     # 2. RUN DISPATCH SYSTEM: Fires transmission line using the plain password before hashing
     email_dispatched = send_credentials_email(
@@ -285,18 +433,7 @@ def add_staff():
         success_msg = "Account created locally in database, but GovMail relay failed. Verify server network status or credentials."
 
     return jsonify({"status": "success", "message": success_msg}), 201
-#@app.route('/onboarding')
-#def onboarding_portal():
-    #if 'user_email' not in session:
-        #return redirect(url_for('index'))
 
-    #user_data = db.users.find_one({"email": session['user_email']})
-    
-    ## Safety guard: if they somehow bypassed and completed it, send them to the main dashboard
-    #if user_data.get('is_onboarded', False):
-        #return redirect(url_for('dashboard'))
-
-    #return render_template('onboarding.html', user=user_data)
 
 @app.route('/onboarding')
 def onboarding_portal():
@@ -321,6 +458,19 @@ def onboarding_portal():
     username_part = email_string.split('@')[0]
     generated_file_no = username_part.replace('_', '/').upper()
 
+    # Split full name back into surname and firstname
+    name_str = user_data.get("name", "").strip()
+    name_parts = name_str.split()
+    if len(name_parts) >= 2:
+        surname = name_parts[-1]
+        firstname = " ".join(name_parts[:-1])
+    elif len(name_parts) == 1:
+        surname = name_parts[0]
+        firstname = ""
+    else:
+        surname = ""
+        firstname = ""
+
     ui_user_profile = {
         "email": user_data.get("email"),
         "name": user_data.get("name", "NEW USER"),
@@ -328,13 +478,22 @@ def onboarding_portal():
         "category": user_data.get("category", "civilian"), # Default for missing legacy accounts
         "directorate": str(user_data.get("directorate", "DOA")).upper(),
         "file_no": generated_file_no,
-        "training_request_active": user_data.get("training_request_active", False)
+        "training_request_active": user_data.get("training_request_active", False),
+        "appt": user_data.get("onboarding_data", {}).get("step_1", {}).get("appt"),
+        "middlename": user_data.get("middlename")
     }
+
 
     import datetime
     current_time = datetime.datetime.now().strftime("%A, %d %B %Y")
 
-    return render_template('onboarding.html', user=ui_user_profile, current_time=current_time)
+    return render_template(
+        'onboarding.html', 
+        user=ui_user_profile, 
+        current_time=current_time,
+        surname=surname,
+        firstname=firstname
+    )
 
 
 # Optional: Create a local directory folder on your server machine to store file assets
@@ -361,29 +520,43 @@ def submit_onboarding_step():
         # --- HANDLE STEP 1 (File Uploads & Text Fields) ---
         step = int(request.form.get('step', 1))
         
+        raw_rank = request.form.get('rankOrGrade', '')
+        if raw_rank and "grade level" in raw_rank.lower():
+            import re
+            match = re.search(r'\d+', raw_rank)
+            normalized_rank = f"Grade Level {match.group(0)}" if match else raw_rank.title().strip()
+        else:
+            normalized_rank = raw_rank.title().strip() if raw_rank else ''
+
         # Extract text field datasets cleanly
         step_data = {
             "staffTitle": request.form.get('staffTitle'),
-            "surname": request.form.get('surname'),
-            "middleName": request.form.get('middleName'),
-            "firstName": request.form.get('firstName'),
-            "appointment": request.form.get('appointment'),
-            "offEmail": request.form.get('offEmail'),
+            # "surname": request.form.get('surname'),
+            # "middleName": request.form.get('middleName'),
+            # "firstName": request.form.get('firstName'),
+            "appt": request.form.get('appt'),
+            # "offEmail": request.form.get('offEmail'),
             "phoneNo": request.form.get('phoneNo'),
-            "mobOther": request.form.get('mobOther')
+            "rankOrGrade": normalized_rank
         }
 
-        # Extract and save physical file attachments safely onto your server storage tracks
+        # Extract and save physical file attachments safely into MongoDB GridFS
         for key in request.files:
             file = request.files[key]
             if file and file.filename != '':
-                # Secure filename layout naming parameters against directory injection exploits
-                filename = secure_filename(f"{session['user_email']}_{key}_{file.filename}")
-                file_save_path = os.path.join(UPLOAD_FOLDER, filename)
-                file.save(file_save_path)
+                file_id = fs.put(
+                    file,
+                    filename=secure_filename(file.filename),
+                    content_type=file.content_type or 'application/octet-stream',
+                    metadata={
+                        "uploaded_by": session['user_email'],
+                        "field_key": key,
+                        "upload_date": datetime.datetime.utcnow()
+                    }
+                )
                 
-                # Store the local file url string reference inside your MongoDB node track path
-                step_data[key] = f"/static/uploads/{filename}"
+                # Store the GridFS attachment url path inside onboarding_data
+                step_data[key] = f"/attachment/{str(file_id)}"
 
     else:
         # --- HANDLE STEPS 2, 3, & 4 (Standard JSON payloads) ---
@@ -397,6 +570,10 @@ def submit_onboarding_step():
     # 3. Guard validation checking rule
     if not step:
         return jsonify({"status": "error", "message": "Invalid step tracker parameter configuration"}), 400
+
+    if step == 5 and "gender" in step_data:
+        raw_gender = step_data.get("gender") or ""
+        step_data["gender"] = raw_gender.title().strip()
 
     # 4. DATABASE TRANSACTIONS: Map values inside your 'DSM' users collection document node
     update_node_query = {f"onboarding_data.step_{step}": step_data}
@@ -482,8 +659,23 @@ def process_personnel_approval():
     target_email = data.get('email')
     action_decision = data.get('status')  # Expecting: 'Approved' or 'Rejected'
 
+    user_record = db.users.find_one({"email": target_email})
+    if not user_record:
+        return jsonify({"status": "error", "message": "User document not found"}), 404
+
     if action_decision == "Approved":
-        update_payload = {"status": "Approved", "is_onboarded": True}
+        onboarding_data = user_record.get("onboarding_data", {})
+        step_1 = onboarding_data.get("step_1", {})
+        step_5 = onboarding_data.get("step_5", {})
+        update_payload = {
+            "status": "Approved",
+            "is_onboarded": True,
+            "rankOrGrade": step_1.get("rankOrGrade"),
+            "appt": step_1.get("appt"),
+            "telephone": step_1.get("phoneNo")
+        }
+        if step_5.get("gender"):
+            update_payload["gender"] = step_5.get("gender")
     elif action_decision == "Rejected":
         # FIXED: Sets the status matching your exact screenshot design rule
         update_payload = {"status": "Rejected", "directorate": "doa", "is_onboarded": False}
@@ -549,17 +741,22 @@ def append_training_record():
     if not all([training_name, training_period, training_file]):
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
 
-    # Save training file attachment cleanly into your server path tracks
-    from werkzeug.utils import secure_filename
-    import os
-    filename = secure_filename(f"{session['user_email']}_TRAINING_{training_file.filename}")
-    file_save_path = os.path.join(os.getcwd(), 'static', 'uploads', filename)
-    training_file.save(file_save_path)
+    # Save training file attachment cleanly into MongoDB GridFS
+    file_id = fs.put(
+        training_file,
+        filename=secure_filename(training_file.filename),
+        content_type=training_file.content_type or 'application/octet-stream',
+        metadata={
+            "uploaded_by": session['user_email'],
+            "type": "additional_training",
+            "upload_date": datetime.datetime.utcnow()
+        }
+    )
 
     new_training_entry = {
         "course_title": training_name.upper(),
         "timeline_period": training_period.upper(),
-        "file_url": f"/static/uploads/{filename}",
+        "file_url": f"/attachment/{str(file_id)}",
         "timestamp_logged": datetime.datetime.now()
     }
 
@@ -581,8 +778,19 @@ def logout():
     return redirect(url_for('index'))
 
 
+@app.route('/attachment/<file_id>')
+def get_attachment(file_id):
 
+    file_data = fs.get(ObjectId(file_id))
+
+    return send_file(
+        BytesIO(file_data.read()),
+        download_name=file_data.filename,
+        mimetype=file_data.content_type
+    )
+
+
+# START THE FLASK-SOCKETIO SERVER INSTANCE
+# ✅ Start the app
 if __name__ == '__main__':
-    
-    # Spin up the Flask runtime thread engine context
-    app.run(debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)

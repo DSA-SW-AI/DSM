@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styles.css')}}"
+    />
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+
+  <body>
+    <div class="background-welcome">
+      <div class="container-welcome">
+        <div class="welcome-card">
+          <h1 class="welcome-tag"></h1>
+          <div class="welcome-logo">
+            <img style="width: 350px;"
+              src="{{ url_for('static', filename='images/dsa.png') }}"
+              alt="DCS Logo"
+            />
+          </div>
+          <h3 class="welcome-tag">DSA Eletronic Document Management System (EDMS)</h3>
+          
+          <a href="{{ url_for('login') }}">
+            <button class="continue-btn">Continue</button>
+          </a>
+
+          <footer class="welcome-footer">
+          <!-- <p>© 2025 DCS Software Team</p> -->
+        </footer>
+        </div>
+        
+      </div>
+    </div>
+  </body>
+</html>
+
+

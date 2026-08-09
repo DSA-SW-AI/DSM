@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "C:\Users\HP\Desktop\DSM\modules\leave_pass\leave_pass_routes\start_application.py", line 1105, in handle_application_post
+    notify_pending_approval(application, first_pending, applicant)
+  File "C:\Users\HP\Desktop\DSM\modules\leave_pass\leave_pass_routes\start_application.py", line 346, in notify_pending_approval
+    print(f"⚠️ No specific handler for role: {next_step.get('role')}")
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>

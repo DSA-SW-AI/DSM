@@ -8,7 +8,10 @@
   <title>DSA Paperless - Onboarding</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding.css') }}" />
-</head>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  </head>
 
 <body>
   <div class="dashboard-wrapper">
@@ -34,7 +37,7 @@
     <main class="main-content">
       <header class="top-navbar">
         <div class="breadcrumb">
-          📋 DSA PAPERLESS &gt; <span class="active-crumb">Dashboard</span>
+          📋 DSA PAPERLESS &gt; <span class="active-crumb"> Onboarding</span>
         </div>
         <div class="user-profile-badge">
           <!-- Clean circle initials token frame -->
@@ -53,13 +56,14 @@
           </div>
         </div>
       </header>
+      <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
 
       <!-- ================= STEP 0: MAIN ROAMAP INDEX VIEW ================= -->
       <div id="stepView_0" class="onboarding-view-wrapper">
-        <div class="onboarding-controls-bar">
+        <div class="onboarding-controls-bar" style="margin: 25px;">
           <span class="orange-status-badge">Onboarding</span>
         </div>
-        <div class="onboarding-portal-card">
+        <div class="onboarding-portal-card" style="margin: 25px; padding: 30px; border-radius: 12px; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
           <h2>New Staff/Personnel Onboarding Portal</h2>
           <p class="subtitle-text">
             Complete the following steps to fully onboard this staff.
@@ -111,7 +115,7 @@
       <!-- ================= STEP 1: EMPLOYEE INFORMATION FORM & CERTIFICATE MATRIX ================= -->
       <div id="stepView_1" class="onboarding-view-wrapper" style="display: none">
         <!-- Top Action Nav Bar -->
-        <div class="onboarding-controls-bar">
+        <div class="onboarding-controls-bar" style="margin: 25px;">
           <button type="button" class="round-back-btn" onclick="goToStep(0)">
             ←
           </button>
@@ -136,7 +140,7 @@
         {% endif %}
 
         <!-- Main Card Body Container Frame -->
-        <div class="form-container-card">
+        <div class="form-container-card" style="margin: 25px; padding: 30px; border-radius: 12px; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
           <h2 class="form-title-header">Employee Information Form</h2>
           <p class="form-subtitle">
             Fill the form below to provide basic account details and verify
@@ -154,22 +158,22 @@
               </div>
               <div class="field-group">
                 <label>Title <span class="required">*</span></label>
-                <input type="text" id="staffTitle" placeholder="e.g. Officer" required />
+                <input type="text" id="staffTitle" placeholder="e.g. Mr, Mrs etc" required />
               </div>
             </div>
 
             <div class="form-row-grid tri-grid">
               <div class="field-group">
                 <label>Surname <span class="required">*</span></label>
-                <input type="text" id="surname" placeholder="e.g. Alabi" required autocomplete="off" />
+                <input type="text" id="surname" value="{{ surname }}" placeholder="e.g. Alabi" required autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>Middle Name</label>
-                <input type="text" id="middleName" placeholder="e.g. Chinedu" autocomplete="off" />
+                <input type="text" id="middleName" value="{{ user.middlename }}" placeholder="e.g. Chinedu" autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>First Name <span class="required">*</span></label>
-                <input type="text" id="firstName" placeholder="e.g. Musa" required autocomplete="off" />
+                <input type="text" id="firstName" value="{{ firstname }}" placeholder="e.g. Musa" required autocomplete="off" />
               </div>
             </div>
 
@@ -181,7 +185,7 @@
               <div class="field-group">
                 <label>Official Email
                   <span class="required">(Auto-Generated)</span></label>
-                <input type="email" id="offEmail" placeholder="surname.middlename@dsa.mil.ng" required readonly style="
+                <input type="email" id="offEmail" value="{{ user.email }}" placeholder="surname.middlename@dsa.mil.ng" required readonly style="
                       background-color: #e2e8f0;
                       font-weight: 600;
                       color: #4a5568;
@@ -195,8 +199,8 @@
                 <input type="tel" id="phoneNo" placeholder="e.g. 08031234567" required />
               </div>
               <div class="field-group">
-                <label>Mobile/Other</label>
-                <input type="tel" id="mobOther" placeholder="Optional" />
+                <label>Grade Level</label>
+                <input type="text" id="rankOrGrade" placeholder="e.g. Grade Level 8" />
               </div>
             </div>
 
@@ -456,7 +460,7 @@
 
       <!-- ================= STEP 2: ADDITIONAL INFORMATION FORM (RE-ALIGNED) ================= -->
       <div id="stepView_2" class="onboarding-view-wrapper" style="display: none">
-        <div class="onboarding-controls-bar">
+        <div class="onboarding-controls-bar" style="margin: 25px;">
           <!-- Force explicit button behaviors to bypass native browser form traps -->
           <button type="button" class="round-back-btn" onclick="goToStep(1)">
             ←
@@ -466,7 +470,7 @@
           </button>
         </div>
 
-        <div class="form-container-card">
+        <div class="form-container-card" style="margin: 25px;">
           <h2 class="form-title-header">Additional Information Form</h2>
           <p class="form-subtitle">
             Provide your detailed residential address and emergency next of
@@ -509,14 +513,14 @@
                   <option value="" disabled selected hidden>
                     Select Status
                   </option>
-                  <option value="SINGLE">SINGLE</option>
-                  <option value="MARRIED">MARRIED</option>
-                  <option value="DIVORCED">DIVORCED</option>
+                  <option value="SINGLE">Single</option>
+                  <option value="MARRIED">Married</option>
+                  <option value="DIVORCED">Divorced</option>
                 </select>
               </div>
               <div class="field-group">
                 <label>Religion <span class="required">*</span></label>
-                <input type="text" id="religion" placeholder="e.g. CHRISTIANITY / ISLAM" required autocomplete="off" />
+                <input type="text" id="religion" placeholder="e.g. Christianity / Islam" required autocomplete="off" />
               </div>
             </div>
 
@@ -549,7 +553,7 @@
 
       <!-- ================= STEP 3: ID CARD INFORMATION GENERATOR ================= -->
       <div id="stepView_3" class="onboarding-view-wrapper" style="display: none">
-        <div class="onboarding-controls-bar">
+        <div class="onboarding-controls-bar" style="margin: 25px;">
           <button type="button" class="round-back-btn" onclick="goToStep(2)">
             ←
           </button>
@@ -558,7 +562,7 @@
           </button>
         </div>
 
-        <div class="form-container-card text-center">
+        <div class="form-container-card text-center" style="margin: 25px;">
           <h2 class="form-title-header">ID Card Information</h2>
 
           <!-- FIXED: Explicit form enclosure to satisfy the JavaScript boundary validator -->
@@ -603,6 +607,9 @@
                 <p style="margin: 3px 0; font-size: 13px; color: #4a5568">
                   <strong>File Number:</strong> {{ user.file_no }}
                 </p>
+                <p id="idCardAppointmentDisplay" style="margin: 3px 0; font-size: 13px; color: #4a5568">
+                  <strong>Appointment:</strong> {{ user.appt }}
+                </p>
               </div>
             </div>
           </form>
@@ -611,7 +618,7 @@
 
       <!-- ================= STEP 4: SALARY ACCOUNT DETAILS FORM ================= -->
       <div id="stepView_4" class="onboarding-view-wrapper" style="display: none">
-        <div class="onboarding-controls-bar">
+        <div class="onboarding-controls-bar" style="margin: 25px;">
           <button type="button" class="round-back-btn" onclick="goToStep(3)">
             ←
           </button>
@@ -624,7 +631,7 @@
           </button>
         </div>
 
-        <div class="form-container-card">
+        <div class="form-container-card" style="margin: 25px;">
           <h2 class="form-title-header">Salary Account Details Form</h2>
           <p class="form-subtitle text-center" style="
                 color: red;
@@ -674,7 +681,7 @@
 
       <!-- ================= STEP 5: DSA CIVILIAN STAFF REGISTRATION FORM ================= -->
       <div id="stepView_5" class="onboarding-view-wrapper" style="display: none">
-        <div class="onboarding-controls-bar">
+        <div class="onboarding-controls-bar" style="margin: 25px;">
           <button type="button" class="round-back-btn" onclick="goToStep(4)">
             ←
           </button>
@@ -683,7 +690,7 @@
           </button>
         </div>
 
-        <div class="form-container-card">
+        <div class="form-container-card" style="margin: 25px;">
           <h2 class="form-title-header">DSA Civilian Staff Registration Form</h2>
           <p class="form-subtitle">
             Provide your official details in compliance with the Official Secrets Act.
@@ -701,11 +708,11 @@
                 <input type="date" id="dob" required />
               </div>
               <div class="field-group">
-                <label>Sex <span class="required">*</span></label>
-                <select id="sex" required>
-                  <option value="" disabled selected hidden>Select Sex</option>
-                  <option value="MALE">MALE</option>
-                  <option value="FEMALE">FEMALE</option>
+                <label>Gender <span class="required">*</span></label>
+                <select id="gender" required>
+                  <option value="" disabled selected hidden>Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
                 </select>
               </div>
               <div class="field-group">

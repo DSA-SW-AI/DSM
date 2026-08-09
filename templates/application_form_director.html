@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leave/Pass Application Form</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+    <style>
+        .conditional-field {
+            display: none;
+        }
+        /* NEW STYLES FOR TWO-COLUMN LAYOUT */
+        .application-container {
+            display: flex;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .leave-info-sidebar {
+            flex: 1;
+            min-width: 350px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            position: sticky;
+            top: 20px;
+        }
+
+        .form-main-content {
+            flex: 2;
+            min-width: 500px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .info-section:last-child {
+            border-bottom: none;
+        }
+
+        .info-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-section h3 i {
+            color: #3498db;
+        }
+
+        .balance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .balance-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .balance-item.good {
+            border-left-color: #60a5fa;
+        }
+
+        .balance-item.warning {
+            border-left-color: #f39c12;
+        }
+
+        .balance-item.danger {
+            border-left-color: #e74c3c;
+        }
+
+        .balance-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .balance-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .balance-detail {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .entitlement-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .entitlement-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .entitlement-list li:last-child {
+            border-bottom: none;
+        }
+
+        .leave-type {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .leave-days {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .previous-applications {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .previous-app {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid #95a5a6;
+        }
+
+        .previous-app.approved {
+            border-left-color: #2ecc71;
+        }
+
+        .previous-app.issued {
+            border-left-color: #3498db;
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .app-type {
+            font-weight: 600;
+            color: #2c3e50;
+            text-transform: capitalize;
+        }
+
+        .app-status {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .status-approved {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-issued {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .app-dates {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .app-days {
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #95a5a6;
+            font-style: italic;
+        }
+
+        @media (max-width: 992px) {
+            .application-container {
+                flex-direction: column;
+            }
+
+            .leave-info-sidebar {
+                max-height: none;
+                position: static;
+            }
+        }
+
+        /* Leave Calculation Message Styling */
+        .leave-info-message {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            border-left: 4px solid transparent;
+            background-color: #f8f9fa;
+        }
+
+        .leave-info-message.casual {
+            border-left-color: #17a2b8;
+            background-color: #e3f2fd;
+        }
+
+        .leave-info-message.working {
+            border-left-color: #28a745;
+            background-color: #e8f5e9;
+        }
+
+        .leave-info-message .message-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .leave-info-message .message-title i {
+            font-size: 1.1rem;
+        }
+
+        .leave-info-message .days-count {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #0056b3;
+            margin: 0 4px;
+        }
+
+        .leave-info-message .holiday-list {
+            margin-top: 8px;
+            padding: 8px 10px;
+            background-color: #fff3cd;
+            border-radius: 4px;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            font-size: 0.85rem;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .leave-info-message .holiday-list summary {
+            cursor: pointer;
+            font-weight: 500;
+            color: #856404;
+        }
+
+        .leave-info-message .holiday-list details[open] {
+            margin-bottom: 5px;
+        }
+
+        .leave-info-message .holiday-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px dashed #ffe28c;
+        }
+
+        .leave-info-message .holiday-item:last-child {
+            border-bottom: none;
+        }
+
+        .leave-info-message .holiday-name {
+            font-weight: 500;
+        }
+
+        .leave-info-message .holiday-date {
+            font-family: monospace;
+            color: #856404;
+        }
+
+        .leave-info-message .validation-note {
+            margin-top: 8px;
+            font-style: italic;
+            color: #6c757d;
+            padding: 5px 0;
+            border-top: 1px dashed #dee2e6;
+        }
+
+        .leave-info-message .validation-note i {
+            color: #28a745;
+            margin-right: 4px;
+        }
+
+        /* Tooltip for more info */
+        .leave-info-message .info-tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            border-bottom: 1px dotted #6c757d;
+        }
+
+        .leave-info-message .info-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background-color: #333;
+            color: white;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 5px;
+        }
+
+        /* Loading state */
+        .leave-info-message.loading {
+            background-color: #e9ecef;
+            border-left-color: #6c757d;
+            color: #495057;
+        }
+
+        .leave-info-message.loading .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #6c757d;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Error state */
+        .leave-info-message.error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .leave-info-message.error i {
+            color: #dc3545;
+            margin-right: 6px;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+
+<body>
+
+    <div class="dashboard-wrapper">
+
+        <!-- ================= SIDEBAR COMPONENT ================= -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+                <div>
+                    <h2>Defence Space Administration</h2>
+                    <p>{{ user.directorate }}</p>
+                </div>
+            </div>
+            <nav class="sidebar-menu">
+                <div class="menu-section-label">OVERVIEW</div>
+                <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
+
+                <div class="menu-section-label">REGISTRY</div>
+                {% if "documents" in permissions.sidebar %}
+                <a href="/documents-view" class="menu-item">📁 Documents</a>
+                {% endif %} {% if "incoming" in permissions.sidebar %}
+                <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+                {% endif %} {% if "outgoing" in permissions.sidebar %}
+                <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+                {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+                <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+                {% endif %}
+
+                <div class="menu-section-label">HR MANAGEMENT</div>
+                {% if "civilian_personnel" in permissions.sidebar %}
+                <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+                {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+                <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+                {% endif %} {% if "leave_pass" in permissions.sidebar %}
+                <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+                {% endif %}
+            </nav>
+            <!-- Permanently Locked Footer Segment -->
+            <div class="sidebar-footer">
+                <a href="{{ url_for('logout') }}" class="logout-btn">
+                    🚪 Logout
+                </a>
+            </div>
+        </aside>
+
+
+
+
+        <div class="background-welcome">
+            <!-- Top Navbar Section -->
+            <header class="top-navbar">
+                <div class="breadcrumb">
+                    📋 DSA PAPERLESS &gt; <span class="active-crumb"> Directors Leave/Pass Application Form</span>
+                </div>
+                <div class="user-profile-badge">
+                    <!-- Clean circle initials token frame -->
+                    <div class="user-avatar-circle" id="navAvatarIcon">
+                        {{ user.name[:2] | upper if user.name else 'DS' }}
+                    </div>
+                    <!-- Multi-line text metadata stacking engine -->
+                    <div class="user-meta-stack">
+                        <h4 class="user-fullname-text">{{ user.name }}</h4>
+                        <div class="user-role-row">
+                            <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+                            <span class="role-divider-dot">•</span>
+                            <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+
+            <div class="container-login">
+                <div class="application-container">
+
+
+                    <!-- RIGHT SIDE: APPLICATION FORM -->
+                    <div class="form-main-content">
+                        <div class="login-card-apply">
+                            <div class="form_header" style="text-align: center; margin-bottom: 20px;">
+                                <img src="{{ url_for('static', filename='images/dsa2.png') }}" alt="Logo" width="100"
+                                    height="100" srcset="">
+                                <h1 class="login-tag">DEFENCE SPACE ADMINISTRATION <br>
+                                    LEAVES/PASSES APPLICATION PROFORMA FOR DIRECTORS</h1>
+                            </div>
+
+                            <form id="registerForm"
+                                action="{{ url_for('application_routes.application_form_director') }}" method="POST"
+                                enctype="multipart/form-data">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="form-group">
+                                    <label for="service_number">Service Number</label>
+                                    <input type="text" autocomplete="off" id="service_number" name="service_number"
+                                        value="{{ applicant.service_number }}" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="service_number">Rank</label>
+                                    <input type="text" autocomplete="off" id="rank" name="rank"
+                                        value="{{ applicant.rankOrGrade }}" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="fname">Name</label>
+                                    <input type="text" autocomplete="off" id="fname" name="fname"
+                                        value="{{ applicant.fullName }}" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="directorate">Place of Deployment</label>
+                                    <input type="text" autocomplete="off" id="directorate" name="directorate"
+                                        value="{{ applicant.directorate }}" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="directorate">Appointment (Where Applicable)</label>
+                                    <input type="text" autocomplete="off" id="designation" name="designation"
+                                        value="{{ applicant.designation }}" readonly>
+                                </div>
+                                <!-- === Most important field === -->
+                                <div class="form-group">
+                                    <label for="leave_type">Type of Leave/Pass <span style="color:red;">*</span></label>
+                                    <select id="leave_type" name="leave_type" required>
+                                        <option value="">-- Select type --</option>
+                                        <option value="annual">Annual Leave</option>
+                                        <option value="casual">Casual Leave / Pass</option>
+                                        <option value="compassionate">Compassionate Leave</option>
+                                        <option value="sick">Sick Leave</option>
+                                        <option value="maternity">Maternity Leave</option>
+                                        <option value="paternity">Paternity Leave</option>
+                                        <option value="disembarkation">Disembarkation Leave</option>
+                                        <option value="terminal">Terminal Leave (on retirement)</option>
+                                    </select>
+                                </div>
+                                <!-- Conditional fields -->
+
+                                <!-- Maternity -->
+                                <div class="conditional-field" id="maternity_fields">
+                                    <div class="form-group">
+                                        <label for="expected_delivery_date">Expected Delivery Date (EDD) <span
+                                                style="color:red;">*</span></label>
+                                        <input type="date" id="expected_delivery_date" name="expected_delivery_date">
+                                    </div>
+                                </div>
+
+                                <!-- Disembarkation -->
+                                <div class="conditional-field" id="disembarkation_fields">
+                                    <div class="form-group">
+                                        <label for="attachment_months">Duration of Course/Operational Attachment
+                                            (months)
+                                            <span style="color:red;">*</span></label>
+                                        <input type="number" id="attachment_months" name="attachment_months" min="1"
+                                            max="60">
+                                    </div>
+                                </div>
+
+                                <!-- Sick -->
+                                <div class="conditional-field" id="sick_fields">
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="has_medical_certificate" value="true">
+                                            I will attach a medical certificate from a government hospital
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="hospitalized" id="hospitalized_check"
+                                                value="true">
+                                            This period includes hospital admission
+                                        </label>
+                                    </div>
+                                    <div class="form-group conditional-field" id="first_hospitalization_field">
+                                        <label>
+                                            <input type="checkbox" name="first_hospitalization" value="true">
+                                            This is the first hospitalization for this condition
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="start_date">Start Date</label>
+                                    <input type="date" autocomplete="off" id="start_date" name="start_date"
+                                        placeholder="">
+                                </div>
+                                <div class="form-group">
+                                    <label for="end_date">End Date</label>
+                                    <input type="date" autocomplete="off" id="end_date" name="end_date" placeholder="">
+                                </div>
+                                <div class="form-group">
+                                    <label for="effective_date">Effective Date/Date of Proceeding on Leave *</label>
+                                    <input type="date" id="effective_date" name="effective_date" required>
+                                    <small>→ The actual date you plan to leave the office / begin absence (Change only
+                                        if
+                                        different)</small>
+                                </div>
+
+                                <!-- Calculated days display -->
+                                <div class="form-group" id="calculated-days-container">
+                                    <small id="days_message" class="info-note"></small>
+                                    <input type="hidden" id="calculated_days_actual" name="calculated_days_actual"
+                                        value="">
+                                </div>
+
+
+                                <!-- Effective date warning -->
+                                <div id="effective-warning" class="warning-note" style="display:none;">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    Note: Effective date is different from proposed start date.
+                                    Please confirm this is intentional.
+                                </div>
+                                <div class="form-group">
+                                    <label>Reason(s) for the Application</label>
+                                    <textarea autocomplete="off" id="reasons_for_application"
+                                        name="reasons_for_application" placeholder="">
+                        </textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Supporting Documents (medical certificate, hospital papers, etc.)</label>
+                                    <div class="upload-area" id="uploadBox">
+                                        <p>Click or drag files here (max 20MB each, multiple allowed)</p>
+                                        <input type="file" id="fileInput" name="attachments" multiple
+                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                                    </div>
+                                    <div class="file-list" id="fileList"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="place_intended">Place of intended travel</label>
+                                    <input type="text" autocomplete="off" id="place_intended" name="place_intended"
+                                        placeholder="">
+                                </div>
+                                <div class="form-group">
+                                    <label for="Telephone">Telephone</label>
+                                    <input type="number" autocomplete="off" id="telephone" name="telephone"
+                                        placeholder="">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="contact_address">Contact Address</label>
+                                    <input type="text" autocomplete="off" id="contact_address" name="contact_address"
+                                        placeholder="">
+                                </div>
+
+                                <div class="form-group">
+                                     <label for="director_reliever_select">Who to oversee duties/responsibilities during period of my pass/leave.</label>
+                                     <select id="director_reliever_select" class="form-select" style="padding: 10px; border-radius: 8px; border: 1px solid #ced4da; font-size: 14px; margin-top: 5px; cursor: pointer; color: #2c3e50; font-weight: 500;">
+                                         <option value="">-- Select Deputy Director --</option>
+                                         {% for dd in deputy_directors %}
+                                         <option value="{{ dd.service_number }}" data-name="{{ dd.name }}" data-rank="{{ dd.rankOrGrade }}" data-tel="{{ dd.telephone }}">
+                                             {{ dd.rankOrGrade }} {{ dd.name }} ({{ dd.service_number }})
+                                         </option>
+                                         {% endfor %}
+                                     </select>
+                                 </div>
+                                 <div class="form-group">
+                                     <label for="director_reliever_service_number">Service Number</label>
+                                     <input type="text" autocomplete="off" id="director_reliever_service_number"
+                                         name="director_reliever_service_number" placeholder="" readonly style="background-color: #f8f9fa; color: #495057;">
+                                 </div>
+                                 <div class="form-group">
+                                     <label for="director_reliever_rank">Rank</label>
+                                     <input type="text" autocomplete="off" id="director_reliever_rank"
+                                         name="director_reliever_rank" placeholder="" readonly style="background-color: #f8f9fa; color: #495057;">
+                                 </div>
+                                 <div class="form-group">
+                                     <label for="director_reliever_name">Name</label>
+                                     <input type="text" autocomplete="off" id="director_reliever_name"
+                                         name="director_reliever_name" placeholder="" readonly style="background-color: #f8f9fa; color: #495057;">
+                                 </div>
+                                 <div class="form-group">
+                                     <label for="director_reliever_telephone">Telephone</label>
+                                     <input type="text" autocomplete="off" id="director_reliever_telephone"
+                                         name="director_reliever_telephone" placeholder="" readonly style="background-color: #f8f9fa; color: #495057;">
+                                 </div>
+
+                                <button type="submit" class="login-btn">Submit Application</button>
+                            </form>
+
+                            <!-- Validation Error Modal -->
+                            <div id="validationErrorModal" class="modal-overlay"
+                                style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 25000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+                                <div class="success-card"
+                                    style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 500px; width: 100%; text-align: center; position: relative; box-sizing: border-box; transform: scale(0.9); transition: transform 0.3s ease;">
+                                    
+                                    <div class="error-icon" style="font-size: 60px; color: #dc3545; margin-bottom: 15px;">
+                                        <i class="bi bi-x-circle-fill" style="color: #dc3545;"></i>
+                                    </div>
+
+                                    <h1 id="validationErrorTitle" style="color: #2c3e50; margin-bottom: 15px; font-size: 22px; font-weight: 700; line-height: 1.2;">Validation Error</h1>
+
+                                    <p id="validationErrorMessage" style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 25px;">
+                                        Error message
+                                    </p>
+
+                                    <div class="action-buttons" style="display: flex; gap: 12px; justify-content: center;">
+                                        <button type="button" onclick="closeValidationErrorModal()" class="btn btn-home" style="padding: 10px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px; background: #dc3545; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Application Success Modal -->
+                            <div id="applicationSuccessModal" class="modal-overlay"
+                                style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 20000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+                                <div class="success-card"
+                                    style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 600px; width: 100%; text-align: center; position: relative; box-sizing: border-box; max-height: 95vh; overflow-y: auto;">
+                                    
+                                    <div class="success-icon" style="font-size: 60px; color: #28a745; margin-bottom: 15px; animation: bounce 1s ease;">
+                                        <i class="ri-checkbox-circle-fill"></i>
+                                    </div>
+
+                                    <h1 style="color: #2c3e50; margin-bottom: 15px; font-size: 24px; font-weight: 700; line-height: 1.2;">Application Submitted Successfully!</h1>
+
+                                    <p class="success-message" style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 20px;">
+                                        Your application has been received and is now being processed.<br>
+                                        Please keep your Reference ID for tracking purposes.
+                                    </p>
+
+                                    <div class="ref-id-box" style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 15px; padding: 20px; margin: 20px 0; position: relative; box-sizing: border-box;">
+                                        <strong style="display: block; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Reference ID</strong>
+                                        <div id="successRefIdValue" class="ref-id-value" style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; color: #2c3e50; letter-spacing: 2px;">DSA-DCS-2026-XXXXXX</div>
+                                        <button type="button" class="ref-id-copy" onclick="copyModalReferenceId()" style="position: absolute; top: 12px; right: 12px; background: #3498db; color: white; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; transition: all 0.3s ease;">
+                                            <i class="ri-file-copy-line"></i> Copy
+                                        </button>
+                                    </div>
+
+                                    <div class="instructions" style="background: #e8f4f8; border-radius: 15px; padding: 20px; margin: 20px 0; text-align: left;">
+                                        <h3 style="color: #2c3e50; margin-bottom: 10px; font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: 700; margin-top: 0;"><i class="ri-information-line"></i> What's Next?</h3>
+                                        <ul style="list-style: none; padding: 0; margin: 0;">
+                                            <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                <i class="ri-save-line" style="color: #3498db; margin-top: 3px;"></i>
+                                                <div>
+                                                    <strong>Save Your Reference ID</strong>
+                                                    <p style="margin: 0; font-size: 12px; color: #777;">Keep this ID safe to track your application status.</p>
+                                                </div>
+                                            </li>
+                                            <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                <i class="ri-time-line" style="color: #3498db; margin-top: 3px;"></i>
+                                                <div>
+                                                    <strong>Processing Time</strong>
+                                                    <p style="margin: 0; font-size: 12px; color: #777;">Applications typically take 3-5 working days.</p>
+                                                </div>
+                                            </li>
+                                            <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                <i class="ri-notification-line" style="color: #3498db; margin-top: 3px;"></i>
+                                                <div>
+                                                    <strong>Status Updates</strong>
+                                                    <p style="margin: 0; font-size: 12px; color: #777;">You'll receive email notifications at each approval stage.</p>
+                                                </div>
+                                            </li>
+                                            <li style="padding: 8px 0; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                <i class="ri-search-line" style="color: #3498db; margin-top: 3px;"></i>
+                                                <div>
+                                                    <strong>Track Progress</strong>
+                                                    <p style="margin: 0; font-size: 12px; color: #777;">Use the button below to track your application anytime.</p>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="action-buttons" style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+                                        <a id="modalTrackBtn" href="#" class="btn btn-track" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                            <i class="ri-search-line"></i> Track Application
+                                        </a>
+
+                                        <button type="button" onclick="window.print()" class="btn btn-print" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #f8f9fa; color: #495057; border: 1px solid #dee2e6; cursor: pointer;">
+                                            <i class="ri-printer-line"></i> Print Receipt
+                                        </button>
+
+                                        <a href="/dashboard_leave_pass" class="btn btn-home" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #28a745; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                            <i class="ri-home-line"></i> Back to Dashboard
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LEFT SIDEBAR: LEAVE INFORMATION -->
+                    <div class="leave-info-sidebar">
+                        <!-- Staff Information -->
+                        <div class="info-section">
+                            <h3><i class="fas fa-user"></i> Director's Information</h3>
+                            <div style="background: white; padding: 15px; border-radius: 8px;">
+                                <p style="margin: 0 0 8px 0;"><strong>{{ applicant.fullName }}</strong></p>
+                                <p style="margin: 0 0 8px 0; font-size: 14px; color: #666;">{{ applicant.service_number
+                                    }}
+                                </p>
+                                <p style="margin: 0 0 8px 0; font-size: 14px; color: #666;">{{ applicant.directorate }}
+                                </p>
+                                <p style="margin: 0; font-size: 14px; color: #666;">
+                                    <span style="background: #e3f2fd; padding: 2px 8px; border-radius: 12px;">
+                                        {{ applicant_gender }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Current Leave Balances -->
+                        <div class="info-section">
+                            <h3><i class="fas fa-chart-pie"></i>Your Current Leave Balances</h3>
+                            {% if leave_data.balances %}
+                            <div class="balance-grid">
+                                <div
+                                    class="balance-item {% if leave_data.balances.annualRemaining > 10 %}good{% elif leave_data.balances.annualRemaining > 5 %}warning{% else %}danger{% endif %}">
+                                    <div class="balance-label">Annual Leave</div>
+                                    <div class="balance-value">{{ leave_data.balances.annualRemaining }}</div>
+                                    <div class="balance-detail">of {{ leave_data.entitlements.annual }} Working days
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="balance-item {% if leave_data.balances.compassionateRemaining > 5 %}good{% elif leave_data.balances.compassionateRemaining > 2 %}warning{% else %}danger{% endif %}">
+                                    <div class="balance-label">Compassionate</div>
+                                    <div class="balance-value">{{ leave_data.balances.compassionateRemaining }}</div>
+                                    <div class="balance-detail">of 10 Working days</div>
+                                </div>
+
+                                <div
+                                    class="balance-item {% if leave_data.balances.casualCalendarDaysRemaining > 3 %}good{% elif leave_data.balances.casualCalendarDaysRemaining > 1 %}warning{% else %}danger{% endif %}">
+                                    <div class="balance-label">Casual Days</div>
+                                    <div class="balance-value">{{ leave_data.balances.casualCalendarDaysRemaining }}
+                                    </div>
+                                    <div class="balance-detail">of 7 Calender days</div>
+                                </div>
+
+                                <div
+                                    class="balance-item {% if leave_data.balances.sickThisYearRemaining > 10 %}good{% elif leave_data.balances.sickThisYearRemaining > 5 %}warning{% else %}danger{% endif %}">
+                                    <div class="balance-label">Sick Leave</div>
+                                    <div class="balance-value">{{ leave_data.balances.sickThisYearRemaining }}</div>
+                                    <div class="balance-detail">before Medical Board</div>
+                                </div>
+
+                                <!-- Conditional Maternity Balance -->
+                                {% if leave_data.entitlements.maternity > 0 %}
+                                <div
+                                    class="balance-item {% if leave_data.balances.maternityAvailable %}good{% else %}warning{% endif %}">
+                                    <div class="balance-label">Maternity Leave</div>
+                                    <div class="balance-value">
+                                        {% if leave_data.balances.maternityAvailable %}Available{% else %}Used{% endif
+                                        %}
+                                    </div>
+                                    <div class="balance-detail">112 Working days block</div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Conditional Paternity Balance -->
+                                {% if leave_data.entitlements.paternity > 0 %}
+                                <div
+                                    class="balance-item {% if leave_data.balances.paternityAvailable %}good{% else %}warning{% endif %}">
+                                    <div class="balance-label">Paternity Leave</div>
+                                    <div class="balance-value">
+                                        {% if leave_data.balances.paternityAvailable %}Available{% else %}Used{% endif
+                                        %}
+                                    </div>
+                                    <div class="balance-detail">14 Working days</div>
+                                </div>
+                                {% endif %}
+
+                            </div>
+                            {% else %}
+                            <div class="no-data">
+                                <p>Leave balance information not available</p>
+                                <small>Balances will be updated after first approval</small>
+                            </div>
+                            {% endif %}
+                        </div>
+
+
+                        <!-- Leave Entitlements -->
+                        <div class="info-section">
+                            <h3><i class="fas fa-award"></i> Your Leave Entitlements</h3>
+                            <ul class="entitlement-list">
+                                <li>
+                                    <span class="leave-type">Annual Leave</span>
+                                    <span class="leave-days">{{ leave_data.entitlements.annual }} days</span>
+                                </li>
+                                <li>
+                                    <span class="leave-type">Compassionate Leave</span>
+                                    <span class="leave-days">10 days/year</span>
+                                </li>
+                                <li>
+                                    <span class="leave-type">Casual Leave</span>
+                                    <span class="leave-days">7 calendar days free</span>
+                                </li>
+                                <li>
+                                    <span class="leave-type">Sick Leave</span>
+                                    <span class="leave-days">21 days/year</span>
+                                </li>
+
+                                <!-- Conditional Gender-Based Leave -->
+                                {% if leave_data.entitlements.maternity > 0 %}
+                                <li>
+                                    <span class="leave-type">Maternity Leave</span>
+                                    <span class="leave-days">112 working days</span>
+                                </li>
+                                {% endif %}
+
+                                {% if leave_data.entitlements.paternity > 0 %}
+                                <li>
+                                    <span class="leave-type">Paternity Leave</span>
+                                    <span class="leave-days">14 working days</span>
+                                </li>
+                                {% endif %}
+
+                                <li>
+                                    <span class="leave-type">Disembarkation Leave</span>
+                                    <span class="leave-days">7-14 days</span>
+                                </li>
+
+                                <li>
+                                    <span class="leave-type">Terminal Leave</span>
+                                    <span class="leave-days">{{ leave_data.entitlements.terminal }} days</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Recent Applications -->
+                        <div class="info-section">
+                            <h3><i class="fas fa-history"></i> Recent Applications</h3>
+                            <div class="previous-applications">
+                                {% if leave_data.previous_applications %}
+                                {% for app in leave_data.previous_applications %}
+                                <div class="previous-app {{ app.status }}">
+                                    <div class="app-header">
+                                        <span class="app-type">{{ app.leave_type|title }}</span>
+                                        <span class="app-status status-{{ app.status }}">
+                                            {{ app.status|title }}
+                                        </span>
+                                    </div>
+                                    <div class="app-dates">
+                                        {{ app.dates.effectiveDate.strftime('%d %b') if app.dates.effectiveDate else
+                                        'N/A'
+                                        }}
+                                        - {{ app.dates.endDate.strftime('%d %b %Y') if app.dates.endDate else 'N/A' }}
+                                    </div>
+                                    <div class="app-days">
+                                        <span>{{ app.numberOfDays }} days</span>
+                                        <span>{{ app.createdAt.strftime('%d %b') if app.createdAt else '' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="no-data">
+                                    <p>No recent applications found</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <footer class="login-footer">
+                    <!-- <p>© 2025 DCS Software Team</p> -->
+                </footer>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+    <script>
+
+        // === Show / hide conditional fields ===
+        const leaveTypeSelect = document.getElementById('leave_type');
+        const maternityFields = document.getElementById('maternity_fields');
+        const disembarkationFields = document.getElementById('disembarkation_fields');
+        const sickFields = document.getElementById('sick_fields');
+        const firstHospField = document.getElementById('first_hospitalization_field');
+
+        leaveTypeSelect.addEventListener('change', function () {
+            const type = this.value;
+
+            // Hide all
+            [maternityFields, disembarkationFields, sickFields].forEach(el => el.style.display = 'none');
+            firstHospField.style.display = 'none';
+
+            if (type === 'maternity') {
+                maternityFields.style.display = 'block';
+            } else if (type === 'disembarkation') {
+                disembarkationFields.style.display = 'block';
+            } else if (type === 'sick') {
+                sickFields.style.display = 'block';
+            }
+
+            // Recalculate when leave type changes
+            updateLeaveDaysDisplay();
+
+        });
+
+        // Show first hospitalization option only if hospitalized is checked
+        document.getElementById('hospitalized_check')?.addEventListener('change', function () {
+            firstHospField.style.display = this.checked ? 'block' : 'none';
+        });
+
+        // Auto-sync effective date with start date (initially)
+        document.getElementById('start_date').addEventListener('change', function () {
+            const start = this.value;
+            if (start) {
+                document.getElementById('effective_date').value = start;
+            }
+            updateLeaveDaysDisplay();
+        });
+
+        // Warn if effective date differs from start date
+        document.getElementById('effective_date').addEventListener('change', function () {
+            const start = document.getElementById('start_date').value;
+            const warning = document.getElementById('effective-warning');
+            if (start && this.value !== start) {
+                warning.style.display = 'block';
+            } else {
+                warning.style.display = 'none';
+            }
+            updateLeaveDaysDisplay();
+        });
+
+        // When end date changes, update display
+        document.getElementById('end_date').addEventListener('change', function () {
+            updateLeaveDaysDisplay();
+        });
+
+        // When leave type changes, update display
+        document.getElementById('leave_type').addEventListener('change', function () {
+            updateLeaveDaysDisplay();
+        });
+
+
+        // Main function to update leave days display
+        function updateLeaveDaysDisplay() {
+            const start = document.getElementById('start_date').value;
+            const end = document.getElementById('end_date').value;
+            const effective = document.getElementById('effective_date').value;
+            const leaveType = document.getElementById('leave_type')?.value;
+            // const daysDisplay = document.getElementById('calculated_days');
+            const messageEl = document.getElementById('days_message');
+            const hiddenField = document.getElementById('calculated_days_actual');
+
+            if (!start || !end || !effective || !leaveType) {
+                // daysDisplay.textContent = '—';
+                messageEl.innerHTML = '';
+                if (hiddenField) hiddenField.value = '';
+                return;
+            }
+
+            // Use effective date for calculation (actual leave start date)
+            const startDate = new Date(effective);
+            const endDate = new Date(end);
+
+            if (startDate > endDate) {
+                // daysDisplay.textContent = '—';
+                messageEl.innerHTML = '<div class="leave-info-message error"><i class="bi bi-exclamation-triangle"></i> ⚠️ End date must be after effective date</div>';
+                if (hiddenField) hiddenField.value = '';
+                return;
+            }
+
+            // Show loading state
+            // daysDisplay.textContent = '...';
+            messageEl.innerHTML = '<div class="leave-info-message loading"><span class="spinner"></span> Calculating working days...</div>';
+
+            // Call backend API for accurate calculation
+            fetch('/calculate_working_days', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document
+                        .querySelector('meta[name="csrf-token"]')
+                        .getAttribute('content')
+                },
+                body: JSON.stringify({
+                    start_date: effective,
+                    end_date: end,
+                    leave_type: leaveType
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        // daysDisplay.textContent = '—';
+                        messageEl.innerHTML = `<div class="leave-info-message error"><i class="bi bi-exclamation-triangle"></i> ⚠️ ${data.error}</div>`;
+                        if (hiddenField) hiddenField.value = '';
+                        return;
+                    }
+
+                    // Display the exact days from backend
+                    // daysDisplay.textContent = data.days;
+
+                    // Store in hidden field for form submission
+                    if (hiddenField) hiddenField.value = data.days;
+
+                    // Build informative message with enhanced styling
+                    const messageContainer = document.createElement('div');
+                    messageContainer.className = 'leave-info-message';
+
+                    if (data.type === 'calendar') {
+                        messageContainer.className += ' casual';
+                        messageContainer.innerHTML = `
+                <div class="message-title">
+                    <i class="bi bi-calendar-check"></i>
+                    <span>Casual Leave Calculation</span>
+                </div>
+                <div>
+                    <span class="info-tooltip" data-tooltip="Casual leave counts all days including weekends">
+                        📅 Total duration:
+                    </span>
+                    <span class="days-count">${data.days}</span> calendar days
+                </div>
+                <div class="validation-note">
+                    <i class="bi bi-info-circle"></i>
+                    Includes weekends. No deduction from annual leave if within 7-day allowance.
+                </div>
+            `;
+                    } else {
+                        messageContainer.className += ' working';
+
+                        // Build holidays section if any
+                        let holidaysHtml = '';
+                        if (data.holidays_excluded && data.holidays_excluded.length > 0) {
+                            const holidayItems = data.holidays_excluded.map(h => `
+                    <div class="holiday-item">
+                        <span class="holiday-name">${h.name}</span>
+                        <span class="holiday-date">${h.date}</span>
+                    </div>
+                `).join('');
+
+                            holidaysHtml = `
+                    <div class="holiday-list">
+                        <details>
+                            <summary>⚠️ Excludes ${data.holidays_excluded.length} public holiday(s)</summary>
+                            <div style="margin-top: 8px;">
+                                ${holidayItems}
+                            </div>
+                        </details>
+                    </div>
+                `;
+                        }
+
+                        messageContainer.innerHTML = `
+                <div class="message-title">
+                    <i class="bi bi-briefcase"></i>
+                    <span>Working Days Calculation</span>
+                </div>
+                <div>
+                    <span class="info-tooltip" data-tooltip="Working days exclude weekends and public holidays">
+                        💼 Total working days:
+                    </span>
+                    <span class="days-count">${data.days}</span> working days
+                </div>
+                ${holidaysHtml}
+                <div class="validation-note">
+                    <i class="bi bi-check-circle"></i>
+                    This is the final count that will be used for validation
+                </div>
+            `;
+                    }
+
+                    // Clear and append the new message
+                    messageEl.innerHTML = '';
+                    messageEl.appendChild(messageContainer);
+                })
+                .catch(error => {
+                    console.error('Error calculating days:', error);
+                    // daysDisplay.textContent = '—';
+                    messageEl.innerHTML = '<div class="leave-info-message error"><i class="bi bi-exclamation-triangle"></i> ⚠️ Error calculating days</div>';
+                    if (hiddenField) hiddenField.value = '';
+                });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            updateLeaveDaysDisplay();
+
+            const overseerSelect = document.getElementById("director_reliever_select");
+            const serviceNoInput = document.getElementById("director_reliever_service_number");
+            const rankInput = document.getElementById("director_reliever_rank");
+            const nameInput = document.getElementById("director_reliever_name");
+            const telInput = document.getElementById("director_reliever_telephone");
+
+            if (overseerSelect) {
+                overseerSelect.addEventListener("change", function() {
+                    const selectedOpt = overseerSelect.options[overseerSelect.selectedIndex];
+                    if (selectedOpt && selectedOpt.value !== "") {
+                        serviceNoInput.value = selectedOpt.value;
+                        rankInput.value = selectedOpt.getAttribute("data-rank") || "";
+                        nameInput.value = selectedOpt.getAttribute("data-name") || "";
+                        telInput.value = selectedOpt.getAttribute("data-tel") || "";
+                    } else {
+                        serviceNoInput.value = "";
+                        rankInput.value = "";
+                        nameInput.value = "";
+                        telInput.value = "";
+                    }
+                });
+            }
+        });
+
+
+
+
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+
+        fileInput.addEventListener('change', () => {
+            fileList.innerHTML = '';
+            Array.from(fileInput.files).forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                <span>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                <button type="button" onclick="removeFile(${index})">Remove</button>
+            `;
+                fileList.appendChild(item);
+            });
+        });
+
+        function removeFile(index) {
+            const dt = new DataTransfer();
+            Array.from(fileInput.files).forEach((file, i) => {
+                if (i !== index) dt.items.add(file);
+            });
+            fileInput.files = dt.files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+
+        const annualRemaining = parseInt("{{ leave_data.balances.annualRemaining|default(0) }}") || 0;
+        const casualRemaining = parseInt("{{ leave_data.balances.casualCalendarDaysRemaining|default(0) }}") || 0;
+
+        function showValidationErrorModal(title, message) {
+            document.getElementById('validationErrorTitle').textContent = title;
+            document.getElementById('validationErrorMessage').innerHTML = message;
+            const modal = document.getElementById('validationErrorModal');
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.children[0].style.transform = 'scale(1)';
+            }, 50);
+        }
+
+        window.closeValidationErrorModal = function() {
+            const modal = document.getElementById('validationErrorModal');
+            modal.children[0].style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 150);
+        }
+
+        // === Form Submit Interceptor to show Success Modal ===
+        document.getElementById('registerForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Submit Application';
+            
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
+            }
+
+            const days = parseInt(document.getElementById('calculated_days_actual')?.value) || 0;
+            const leaveType = document.getElementById('leave_type')?.value;
+
+            if (leaveType === 'annual' && days > annualRemaining) {
+                showValidationErrorModal(
+                    'Annual Leave Limit Exceeded',
+                    `You selected <strong>${days}</strong> working days, but you only have <strong>${annualRemaining}</strong> annual leave days remaining.`
+                );
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+                return;
+            }
+
+            if ((leaveType === 'casual' || leaveType === 'pass') && days > (casualRemaining + annualRemaining)) {
+                showValidationErrorModal(
+                    'Casual Leave Limit Exceeded',
+                    `You selected <strong>${days}</strong> calendar/calendar-equivalent days. Your remaining casual leave is <strong>${casualRemaining}</strong> days, which combined with your <strong>${annualRemaining}</strong> annual leave days, allows a maximum of <strong>${casualRemaining + annualRemaining}</strong> days.`
+                );
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+                return;
+            }
+            
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.success) {
+                    // Populate success modal values
+                    document.getElementById('successRefIdValue').textContent = data.referenceId;
+                    document.getElementById('modalTrackBtn').href = `/track_application?reference_id=${data.referenceId}`;
+                    
+                    // Show success modal
+                    const successModal = document.getElementById('applicationSuccessModal');
+                    successModal.style.display = 'flex';
+                    setTimeout(() => {
+                        successModal.children[0].style.transform = 'scale(1)';
+                    }, 50);
+                } else {
+                    alert(data && data.error ? data.error : 'An error occurred during submission.');
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnHtml;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Submission error:', error);
+                alert('A network error occurred while submitting your application.');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+            });
+        });
+
+        // Function to copy reference ID from success modal
+        window.copyModalReferenceId = function() {
+            const refId = document.getElementById('successRefIdValue').textContent;
+            navigator.clipboard.writeText(refId).then(() => {
+                const copyBtn = document.querySelector('#applicationSuccessModal .ref-id-copy');
+                copyBtn.innerHTML = '<i class="ri-check-line"></i> Copied!';
+                copyBtn.style.background = '#28a745';
+
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="ri-file-copy-line"></i> Copy';
+                    copyBtn.style.background = '#3498db';
+                }, 2000);
+            });
+        }
+
+
+
+
+
+
+    </script>
+</body>
+
+</html>

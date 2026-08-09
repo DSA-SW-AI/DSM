@@ -3,7 +3,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    font-family: 'Poppins', 'Segoe UI', Roboto, Arial, sans-serif;
 }
 
 body {
@@ -136,7 +136,7 @@ body {
 /* Main Dashboard Workspace Screen View */
 .main-content {
     flex-grow: 1;
-    padding: 25px 35px;
+    /* padding: 25px 35px; */
     overflow-y: auto;
 }
 
@@ -145,6 +145,13 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 25px;
+    background-color: #FFFFFF;
+    padding: 8px 16px;
+    width: 100%;    
+    /* border-radius: 0%; */
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
 }
 
 /* Welcome Deep Royal Blue Card Heading Strip Banner */

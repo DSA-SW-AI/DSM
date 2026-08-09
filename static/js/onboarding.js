@@ -135,6 +135,12 @@ function goToStep(stepNumber) {
         const idCardElement = document.getElementById('idCardNameDisplay');
         if (idCardElement) idCardElement.textContent = compiledFullName || "NEW PERSONNEL STAFF";
 
+        const appointmentVal = document.getElementById('appointment')?.value || '';
+        const appointmentDisplay = document.getElementById('idCardAppointmentDisplay');
+        if (appointmentDisplay) {
+            appointmentDisplay.innerHTML = `<strong>Appointment:</strong> ${appointmentVal.toUpperCase()}`;
+        }
+
         // Inject the passport image file binary preview directly onto your ID Card block element
         const passportFiles = document.getElementById('uploadPassport')?.files;
         const avatarPreviewBox = document.querySelector('.id-avatar-box');
@@ -170,7 +176,9 @@ async function submitStepForm(stepNumber) {
     console.log(`Processing submission request block for Step: ${stepNumber}`);
 
     let submissionBody;
-    let headers = {};
+    let headers = {
+        'X-CSRFToken': document.getElementById('csrf_token').value
+    };
 
     // 1. ISOLATED CONTAINER BOUNDARY VALIDATOR CHECK RULE
     if (stepNumber !== 3) {

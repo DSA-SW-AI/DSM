@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Your Application - DSA</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+    <style>
+        .tracking-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .tracking-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .tracking-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .tracking-header p {
+            opacity: 0.9;
+            margin-bottom: 0;
+        }
+
+        .tracking-body {
+            padding: 40px 30px;
+        }
+
+        .input-group {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group-text {
+            background: #f8f9fa;
+            border: none;
+            padding: 0 20px;
+            color: #666;
+        }
+
+        .form-control {
+            border: none;
+            padding: 15px 20px;
+            font-size: 16px;
+        }
+
+        .form-control:focus {
+            box-shadow: none;
+        }
+
+        .btn-track {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-weight: 600;
+            border-radius: 12px;
+            width: 100%;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-track:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .info-box h5 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .info-item i {
+            color: #3498db;
+            margin-right: 10px;
+            margin-top: 3px;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            color: #3498db;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+
+<body>
+    <div class="dashboard-wrapper">
+        <!-- ================= SIDEBAR COMPONENT ================= -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+                <div>
+                    <h2>Defence Space Administration</h2>
+                    <p>{{ user.directorate }}</p>
+                </div>
+            </div>
+            <nav class="sidebar-menu">
+                <div class="menu-section-label">OVERVIEW</div>
+                <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
+
+                <div class="menu-section-label">REGISTRY</div>
+                {% if "documents" in permissions.sidebar %}
+                <a href="/documents-view" class="menu-item">📁 Documents</a>
+                {% endif %} {% if "incoming" in permissions.sidebar %}
+                <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+                {% endif %} {% if "outgoing" in permissions.sidebar %}
+                <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+                {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+                <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+                {% endif %}
+
+                <div class="menu-section-label">HR MANAGEMENT</div>
+                {% if "civilian_personnel" in permissions.sidebar %}
+                <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+                {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+                <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+                {% endif %} {% if "leave_pass" in permissions.sidebar %}
+                <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+                {% endif %}
+            </nav>
+            <!-- Permanently Locked Footer Segment -->
+            <div class="sidebar-footer">
+                <a href="{{ url_for('logout') }}" class="logout-btn">
+                    🚪 Logout
+                </a>
+            </div>
+        </aside>
+
+        <div class="background-welcome">
+
+            <!-- Top Navbar Section -->
+            <header class="top-navbar">
+                <div class="breadcrumb">
+                    📋 DSA PAPERLESS &gt; <span class="active-crumb" >Track Application</span>
+                </div>
+                <div class="user-profile-badge">
+                    <!-- Clean circle initials token frame -->
+                    <div class="user-avatar-circle" id="navAvatarIcon">
+                        {{ user.name[:2] | upper if user.name else 'DS' }}
+                    </div>
+                    <!-- Multi-line text metadata stacking engine -->
+                    <div class="user-meta-stack">
+                        <h4 class="user-fullname-text">{{ user.name }}</h4>
+                        <div class="user-role-row">
+                            <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+                            <span class="role-divider-dot">•</span>
+                            <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+
+            <div class="tracking-card">
+                <div class="tracking-header">
+                    <h1><i class="ri-search-line me-2"></i> Track Your Application</h1>
+                    <p>Enter your Reference ID to check application status</p>
+                </div>
+
+                <div class="tracking-body">
+                    <form action="{{ url_for('application_track.track_application') }}" method="GET">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold mb-3">Reference ID</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ri-hashtag"></i></span>
+                                <input type="text" class="form-control" name="reference_id"
+                                    placeholder="e.g. DSA-DCS-2026-000000" required pattern="[A-Z0-9\-]+"
+                                    title="Enter your Reference ID (letters, numbers, and hyphens only)">
+                            </div>
+                            <div class="form-text mt-2">
+                                <i class="ri-information-line"></i> Enter the Reference ID you received after submission
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-track">
+                            <i class="ri-search-line me-2"></i> Track Application
+                        </button>
+                    </form>
+
+                    <div class="info-box">
+                        <h5><i class="ri-information-line me-2"></i> Need Help?</h5>
+                        <div class="info-item">
+                            <i class="ri-question-line"></i>
+                            <div>
+                                <strong>Where to find Reference ID?</strong>
+                                <p class="mb-0 small">Check your email or the confirmation page after submission.</p>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="ri-time-line"></i>
+                            <div>
+                                <strong>Processing Time</strong>
+                                <p class="mb-0 small">Applications typically take 3-5 working days for processing.</p>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="ri-customer-service-line"></i>
+                            <div>
+                                <strong>Contact Support</strong>
+                                <p class="mb-0 small">Email: support@dsa.gov.ng | Phone: 0800-DSA-HELP</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="{{ url_for('approver_dashboard.dashboard_leave_pass') }}" class="back-link">
+                        <i class="ri-arrow-left-line me-1"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Application Not Found Modal Overlay -->
+    {% if show_modal %}
+    <div id="notFoundModal" class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1050; backdrop-filter: blur(5px); animation: fadeIn 0.3s ease;">
+        <div class="modal-box text-center" style="background: white; max-width: 500px; width: 90%; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transform: scale(1.05); animation: modalScale 0.3s ease;">
+            <div class="mb-4">
+                <!-- Red Circle with exclamation point -->
+                <div style="width: 80px; height: 80px; background-color: #fdf2f2; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto; border: 2px solid #fecaca;">
+                    <i class="ri-error-warning-fill" style="font-size: 40px; color: #dc3545;"></i>
+                </div>
+            </div>
+            <h3 style="font-weight: 700; color: #2c3e50; margin-bottom: 10px; font-size: 24px;">Application Not Found</h3>
+            <p style="color: #6c757d; margin-bottom: 25px; font-size: 15px;">{{ error }}</p>
+            
+            <div style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-bottom: 15px;">
+                <div style="background-color: #f8f9fa; padding: 12px 20px; border-radius: 12px; font-family: monospace; font-size: 15px; border: 1px solid #e2e8f0; color: #4a5568;">
+                    {{ reference_id }}
+                </div>
+                <button type="button" class="btn btn-track" style="margin-top: 0; width: auto; padding: 12px 25px; border-radius: 12px;" onclick="closeNotFoundModal()">
+                    <i class="ri-search-line me-1"></i> Try Again
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes modalScale {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1.05); opacity: 1; }
+        }
+    </style>
+    <script>
+        function closeNotFoundModal() {
+            document.getElementById('notFoundModal').style.display = 'none';
+        }
+    </script>
+    {% endif %}
+
+    <!-- Application Tracking Results Modal Overlay -->
+    {% if show_result_modal %}
+    <div id="resultModal" class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1050; backdrop-filter: blur(5px); animation: fadeIn 0.3s ease;">
+        <div class="modal-box" style="background: white; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transform: scale(1.02); animation: modalScale 0.3s ease;">
+            
+            <!-- Modal Header -->
+            <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-4">
+                <div>
+                    <h3 style="font-weight: 700; color: #2c3e50; margin: 0 0 5px 0; font-size: 24px;">Application Status</h3>
+                    <div style="background: #f8f9fa; padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 15px; display: inline-block; border: 1px solid #e2e8f0; color: #4a5568;">
+                        <i class="ri-hashtag"></i> {{ reference_id }}
+                    </div>
+                </div>
+                <div class="status-badge status-{{ application.status }}" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 50px; font-weight: 600; text-transform: uppercase; font-size: 14px; letter-spacing: 0.5px;
+                     {% if application.status == 'pending' %} background: #fff3cd; color: #856404;
+                     {% elif application.status == 'approved' %} background: #d1e7dd; color: #0f5132;
+                     {% elif application.status == 'rejected' %} background: #f8d7da; color: #721c24;
+                     {% elif application.status == 'issued' %} background: #cfe2ff; color: #084298; {% endif %}">
+                    {% if application.status == "pending" %}
+                    <i class="ri-time-line"></i> Pending
+                    {% elif application.status == "approved" %}
+                    <i class="ri-check-line"></i> Approved
+                    {% elif application.status == "rejected" %}
+                    <i class="ri-close-line"></i> Rejected
+                    {% elif application.status == "issued" %}
+                    <i class="ri-check-double-line"></i> Issued
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Application Info Grid -->
+            <div style="background: #f8f9fa; border-radius: 16px; padding: 20px; margin-bottom: 25px; border: 1px solid #e2e8f0;">
+                <div class="row g-3">
+                    <div class="col-md-4 col-6">
+                        <div style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Applicant</div>
+                        <div style="font-weight: 600; color: #2d3748;">{{ application.applicantName }}</div>
+                    </div>
+                    <div class="col-md-4 col-6">
+                        <div style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Service Number</div>
+                        <div style="font-weight: 600; color: #2d3748;">{{ application.applicantId }}</div>
+                    </div>
+                    <div class="col-md-4 col-6">
+                        <div style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Leave Type</div>
+                        <div style="font-weight: 600; color: #2d3748;">{{ application.leave_type|title }}</div>
+                    </div>
+                    <div class="col-md-4 col-6">
+                        <div style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Directorate</div>
+                        <div style="font-weight: 600; color: #2d3748;">{{ application.directorate }}</div>
+                    </div>
+                    <div class="col-md-4 col-6">
+                        <div style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Period</div>
+                        <div style="font-weight: 600; color: #2d3748;">
+                            {{ application.startDate.strftime('%d %b %Y') }} - {{ application.endDate.strftime('%d %b %Y') }}
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-6">
+                        <div style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Days</div>
+                        <div style="font-weight: 600; color: #2d3748;">{{ application.numberOfDays }} days</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Section -->
+            <div style="margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #4a5568;">
+                    <span>Progress: {{ completed_steps }} of {{ total_steps }} steps</span>
+                    <span>
+                        {% if total_steps > 0 %}
+                        {{ ((completed_steps / total_steps) * 100)|round|int }}%
+                        {% else %}
+                        0%
+                        {% endif %}
+                    </span>
+                </div>
+                <div style="height: 10px; border-radius: 5px; background: #e2e8f0; overflow: hidden;">
+                    <div style="height: 100%; background: linear-gradient(90deg, #3182ce, #38a169); border-radius: 5px; width: {% if total_steps > 0 %}{{ (completed_steps / total_steps) * 100 }}{% else %}0{% endif %}%;"></div>
+                </div>
+            </div>
+
+            <!-- Timeline Section -->
+            <div style="margin-bottom: 30px;">
+                <h4 style="font-size: 16px; font-weight: 700; color: #2d3748; margin-bottom: 20px;"><i class="ri-history-line me-2"></i> Application Timeline</h4>
+                <div style="position: relative; padding-left: 20px; margin-left: 10px; border-left: 2px solid #e2e8f0;">
+                    {% for step in timeline %}
+                    <div style="position: relative; margin-bottom: 25px;">
+                        <!-- Dot Indicator -->
+                        <div style="position: absolute; left: -31px; top: 2px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; z-index: 10;
+                             {% if step.status == 'completed' %} background-color: #38a169;
+                             {% elif step.status == 'rejected' %} background-color: #e53e3e;
+                             {% else %} background-color: #dd6b20; {% endif %}">
+                        </div>
+                        <div style="background: #f7fafc; padding: 15px; border-radius: 12px; border: 1px solid #edf2f7; margin-left: 10px;">
+                            <div style="font-weight: 700; color: #2d3748; font-size: 14px; margin-bottom: 4px;">
+                                <i class="{{ step.icon }} me-1"></i> {{ step.title }}
+                            </div>
+                            <div style="font-size: 12px; color: #718096; margin-bottom: 8px;">
+                                {{ step.date.strftime('%d %b %Y, %I:%M %p') if step.date else 'N/A' }}
+                            </div>
+                            <div style="font-size: 13px; color: #4a5568; line-height: 1.4;">
+                                {{ step.description }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 20px; flex-wrap: wrap;">
+                <button onclick="window.print()" class="btn btn-print" style="background: #f7fafc; color: #4a5568; border: 1px solid #cbd5e0; border-radius: 10px; padding: 10px 20px; font-weight: 600; margin-top: 0; width: auto;">
+                    <i class="ri-printer-line me-1"></i> Print Status
+                </button>
+
+                {% if application.status == "issued" %}
+                {# Check for SO1-DOA receipt (civilian) #}
+                {% set so1_receipt_step = application.approvalChain|selectattr("role", "equalto", "so1_doa")|first %}
+                {# Check for Central Registry receipt (military/director) #}
+                {% set central_receipt_step = application.approvalChain|selectattr("role", "equalto", "central_registry")|first %}
+
+                {% if (so1_receipt_step and so1_receipt_step.receipt) or (central_receipt_step and central_receipt_step.receipt) %}
+                <a href="{{ url_for('approver_dashboard.download_receipt', app_id=application._id|string) }}"
+                    class="btn btn-new" style="background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border-radius: 10px; padding: 10px 20px; font-weight: 600; text-decoration: none; margin-top: 0; width: auto;">
+                    <i class="ri-download-line me-1"></i> Download Receipt
+                </a>
+                <a href="{{ url_for('approver_dashboard.view_receipt', app_id=application._id|string) }}"
+                    class="btn btn-new" style="background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border-radius: 10px; padding: 10px 20px; font-weight: 600; text-decoration: none; margin-top: 0; width: auto;">
+                    <i class="ri-eye-line me-1"></i> View Receipt
+                </a>
+                {% endif %}
+                {% endif %}
+
+                <button type="button" class="btn btn-new" style="background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border-radius: 10px; padding: 10px 20px; font-weight: 600; margin-top: 0; width: auto;" onclick="closeResultModal()">
+                    <i class="ri-close-line me-1"></i> Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+    <script>
+        function closeResultModal() {
+            document.getElementById('resultModal').style.display = 'none';
+        }
+    </script>
+    {% endif %}
+</body>
+
+</html>
