@@ -995,7 +995,8 @@
         <span onclick="document.getElementById('extraDocModal').style.display='none'"
           style="cursor: pointer; font-size: 24px; font-weight: bold; color: #a0aec0;">&times;</span>
       </div>
-      <form action="/append-training-record" method="POST" enctype="multipart/form-data">
+      <form id="extraDocForm" onsubmit="submitExtraDocForm(event)" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Name of
             Certificate/Document <span style="color: #e50000">*</span></label>
@@ -1011,10 +1012,8 @@
             placeholder="e.g. Sep 2020 - July 2022">
         </div>
         <div style="margin-bottom: 25px;">
-          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Upload Certificate <span
-              style="color: #e50000">*</span></label>
-          <input type="file" name="trainingFile" accept=".pdf,image/*" required
-            style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Upload Certificate <span style="color: #718096; font-weight: normal; font-size: 12px;">(Optional / If available)</span></label>
+          <input type="file" name="trainingFile" accept=".pdf,image/*" style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
         </div>
         <button type="submit"
           style="width: 100%; padding: 12px; background-color: #38A169; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px;">Submit
@@ -1023,6 +1022,54 @@
     </div>
   </div>
 
+  <script>
+    async function submitExtraDocForm(e) {
+      e.preventDefault();
+      const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting...";
+
+      try {
+        const formData = new FormData(form);
+        const response = await fetch('/append-training-record', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+          showAppToast(result.message || "Training record appended successfully!", 'success');
+          document.getElementById('extraDocModal').style.display = 'none';
+          setTimeout(() => window.location.reload(), 1200);
+        } else {
+          showAppToast(result.message || "Failed to submit record.", 'error', 'Submission Error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+      } catch (err) {
+        console.error(err);
+        showAppToast("Network error occurred while submitting training record.", 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
+    }
+  </script>
+
+  {% if user.training_request_active %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const modal = document.getElementById('extraDocModal');
+      if (modal) {
+        modal.style.display = 'flex';
+      }
+    });
+  </script>
+  {% endif %}
+
+  <script src="{{ url_for('static', filename='js/app_notifications.js') }}"></script>
   <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
 </body>
 

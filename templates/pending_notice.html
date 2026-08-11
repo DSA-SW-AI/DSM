@@ -68,14 +68,13 @@
 
       {% if user.status == 'Rejected' %}
       Your onboarding registration has been <span style="color: #e50000; font-weight: 700">rejected</span>.
-      Your file has been routed back to the <span style="color: #e50000; font-weight: 700">DOA Registry Control
-        Sector</span>
-      and you are currently awaiting reassignment or further instructions.
+      Your file has been routed back to the <span style="color: #e50000; font-weight: 700">CDSA / DCDSA Directorate</span>
+      and you are currently awaiting directorate reassignment or further instructions.
       {% else %}
       Your multi-step onboarding registration records have been securely
-      logged into the system. Your file is currently routing through the
-      <span style="color: #e50000; font-weight: 700">Directorate of {{ user.directorate | upper }}</span>
-      for official approval.
+      logged into the system. Your file is currently routing to the
+      <span style="color: #e50000; font-weight: 700">CDSA & DCDSA Directorate</span>
+      for final approval or directorate assignment.
       {% endif %}
     </p>
 
@@ -90,9 +89,9 @@
         ">
       Current Status: <strong>
         {% if user.status == 'Rejected' %}
-        Awaiting Registry Reassignment
+        Awaiting Directorate Reassignment
         {% else %}
-        Awaiting Director Sign-off
+        Awaiting CDSA / DCDSA Final Approval
         {% endif %}
       </strong>
     </div>

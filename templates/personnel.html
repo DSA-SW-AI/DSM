@@ -37,6 +37,9 @@
         {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
         <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
         {% endif %}
+        {% if user.role == 'registry' and user.directorate|lower == 'doa' %}
+        <a href="/pending-emails-view" class="menu-item {% if active_page == 'pending_emails' %}active{% endif %}">✉️ Pending Mail Queue</a>
+        {% endif %}
 
         <div class="menu-section-label">HR MANAGEMENT</div>
         {% if "civilian_personnel" in permissions.sidebar %}
@@ -50,7 +53,7 @@
       <!-- Permanently Locked Footer Segment -->
       <div class="sidebar-footer">
         <a href="{{ url_for('logout') }}" class="logout-btn">
-          🚪 Logout
+          Logout
         </a>
       </div>
     </aside>
@@ -83,18 +86,27 @@
       </header>
 
       <!-- Table Controls Row Header Section -->
-      <div class="table-controls-bar" style="margin: 25px;">
+      <div class="table-controls-bar"
+        style="margin: 25px; display: flex; gap: 15px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
         <!-- Sub Category Filter Pills Grid Toggle Buttons -->
-        <div class="category-tabs">
-          <button class="tab-btn active" data-category="civilian">
-            Civilian
-          </button>
-          <button class="tab-btn" data-category="military">Military</button>
-          <button class="tab-btn" data-category="nysc">NYSC</button>
-          <button class="tab-btn" data-category="it">IT</button>
+        <div class="category-tabs" id="categoryTabsContainer">
+          <button type="button" class="tab-btn active" data-category="all">All</button>
+          <button type="button" class="tab-btn" data-category="civilian">Civilian</button>
+          <button type="button" class="tab-btn" data-category="military">Military</button>
+          <button type="button" class="tab-btn" data-category="it">IT</button>
+          <button type="button" class="tab-btn" data-category="nysc">NYSC</button>
         </div>
 
-        <!-- Inside templates/personnel.html - Update your button line exactly to this: -->
+        <!-- Universal Live Search Bar -->
+        <div style="position: relative; flex-grow: 1; max-width: 420px; min-width: 250px;">
+          <input type="text" id="personnelSearchInput" placeholder=" Search any detail (Name, SN, Rank, Directorate...)"
+            style="width: 100%; padding: 9px 16px 9px 38px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 13.5px; background: #ffffff; color: #1a202c; outline: none; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: border-color 0.2s;"
+            onfocus="this.style.borderColor='#e2a114';" onblur="this.style.borderColor='#cbd5e0';" />
+          <span
+            style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #a0aec0; font-size: 14px; pointer-events: none;">🔍</span>
+        </div>
+
+        <!-- Add Staff Button -->
         {% if user.role == 'registry' and user.directorate|lower == 'doa' %}
         <button class="add-staff-btn" onclick="openStaffModal(event)">
           ➕ Add New Staff
@@ -118,57 +130,58 @@
             </tr>
           </thead>
           <tbody id="personnelTableBody">
-            {% if personnel %} {% for staff in personnel %}
-            <tr>
+            {% if personnel %}
+            {% for staff in personnel %}
+            {% set raw_cat = (staff.category or staff.role or 'civilian') | lower | trim %}
+            {% if raw_cat in ['personnel', 'military'] %}
+            {% set staff_cat = 'military' %}
+            {% else %}
+            {% set staff_cat = raw_cat %}
+            {% endif %}
+
+            {% set rank_val = staff.onboarding_data.step_1.rankOrGrade if staff.onboarding_data else '' %}
+            {% set appt_val = staff.onboarding_data.step_1.appointment if staff.onboarding_data else '' %}
+            {% set cur_status = staff.get('status', 'Pending Onboarding') %}
+            {% set search_data = (staff.service_number or '') ~ ' ' ~ (staff.name or '') ~ ' ' ~ (staff.email or '') ~ '
+            ' ~ (staff.directorate or '') ~ ' ' ~ staff_cat ~ ' ' ~ rank_val ~ ' ' ~ appt_val ~ ' ' ~ cur_status %}
+
+            <tr class="personnel-row" data-category="{{ staff_cat }}" data-search="{{ search_data | lower }}">
               <td><input type="checkbox" class="row-checkbox" /></td>
-              <td class="text-bold">
-                {{ staff.service_number }}
-              </td>
+              <td class="text-bold">{{ staff.service_number }}</td>
               <td class="text">{{ staff.name }}</td>
-              <td>
-                {{ staff.onboarding_data.step_1.rankOrGrade if
-                staff.onboarding_data else '-' }}
-              </td>
-              <td>
-                {{ staff.onboarding_data.step_1.appointment if
-                staff.onboarding_data else '-' }}
-              </td>
+              <td>{{ rank_val if rank_val else '-' }}</td>
+              <td>{{ appt_val if appt_val else '-' }}</td>
               <td class="text-bold">{{ staff.directorate | upper }}</td>
               <td>
-                <!-- Assign custom CSS flags to dynamic status strings -->
-                {% set cur_status = staff.get('status', 'Pending Onboarding')
-                %}
                 <span class="status-tag tag-{{ cur_status | lower | replace(' ', '-') }}">
                   {{ cur_status }}
                 </span>
               </td>
-              <!-- Inside templates/personnel.html -> Find and replace your entire action cell block with this: -->
               <td class="action-cell" onclick="toggleActionMenu(event, '{{ staff.email }}')">
                 •••
                 <div id="menu_{{ staff.email | replace('@','_') | replace('.','_') }}" class="dropdown-action-menu"
                   style="display: none">
-                  <!-- View details option track -->
                   <button type="button" onclick="viewStaffProfileDetails('{{ staff.email }}')">
                     👁 View Details
                   </button>
 
+                  {% if user.role == 'registry' and user.directorate == 'DOA' %}
                   <button type="button" onclick="triggerAdditionalDocumentRequest('{{ staff.email }}')"
                     style="color: #e2a114; font-weight: bold">
                     ➕ Request Additional Document
                   </button>
+                  {% endif %}
 
-                  <!-- ================= CLEAN RE-ASSIGNMENT OPTIONS PANEL ================= -->
-                  {% set cur_status = staff.get('status', 'Pending
-                  Onboarding') | lower | trim %} {% if user.role == 'registry'
-                  and cur_status == 'rejected' %}
+                  {% set status_clean = cur_status | lower | trim %}
+                  {% if (user.role in ['cdsa', 'dcdsa', 'registry']) or status_clean == 'rejected' %}
                   <button type="button" class="reassign-btn" data-email="{{ staff.email }}" data-name="{{ staff.name }}"
                     data-id="{{ staff.email.split('@') | first | replace('_', '/') | upper }}"
                     data-title="{{ staff.onboarding_data.step_1.staffTitle if staff.onboarding_data else 'Civilian' }}">
-                    🔄 Re-assign New Directorate
+                    🔄 Pick / Re-assign Directorate
                   </button>
+                  {% endif %}
 
-                  {% endif %} {% if user.role == 'director' and cur_status ==
-                  'awaiting approval' %}
+                  {% if (user.role in ['cdsa', 'dcdsa', 'director']) and status_clean == 'awaiting approval' %}
                   <button type="button" class="btn-approve"
                     onclick="processApprovalAction('{{ staff.email }}', 'Approved')">
                     ✓ Approve Staff
@@ -181,11 +194,11 @@
                 </div>
               </td>
             </tr>
-            {% endfor %} {% else %}
+            {% endfor %}
+            {% else %}
             <tr>
-              <td colspan="8" style="text-align: center; color: #a0aec0">
-                No personnel profile matches found inside this directorate
-                tracking zone.
+              <td colspan="8" style="text-align: center; color: #a0aec0; padding: 30px;">
+                No personnel profile matches found inside this directorate tracking zone.
               </td>
             </tr>
             {% endif %}
@@ -207,8 +220,8 @@
   </div>
 
   <!-- ================= CREATE STAFF LOGIN MODAL POP-UP (FIXED CLOSURES) ================= -->
-  <div id="addStaffModal" class="modal-overlay">
-    <div class="modal-container">
+  <div id="addStaffModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(6px); z-index: 2000; justify-content: center; align-items: center; padding: 20px; overflow-y: auto;">
+    <div class="modal-container" style="max-width: 620px; width: 92%; max-height: 85vh; overflow-y: auto; background: #ffffff; border-radius: 14px; padding: 25px 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; border: 1px solid #e2e8f0;">
       <!-- Close Button Component -->
       <span class="close-modal-x" id="closeModalBtn">&times;</span>
 
@@ -305,39 +318,111 @@
   </div>
 
   <!-- ================= INSPECT STAFF LOGIN PROFILE MODAL ================= -->
-  <div id="viewProfileModal" class="modal-overlay">
-    <div class="modal-container" style="max-width: 760px; overflow-y: auto; max-height: 85vh">
-      <span class="close-modal-x" onclick="closeViewProfileModal()">&times;</span>
-      <h2 style="
-            border-bottom: 2px solid #f1f5f9;
-            padding-bottom: 12px;
-            margin-bottom: 20px;
-            text-align: left;
-          ">
-        Staff Credential & Profile Inspection
-      </h2>
+  <div id="viewProfileModal" class="modal-overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(6px); z-index: 1000; justify-content: center; align-items: center;">
+    <div class="modal-container"
+      style="max-width: 860px; width: 92%; overflow-y: auto; max-height: 90vh; background: #ffffff; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); padding: 0; border: 1px solid #e2e8f0; font-family: 'Poppins', sans-serif;">
 
-      <div style="display: flex; gap: 30px; margin-bottom: 25px; align-items: flex-start; text-align: left;">
-        <div id="inspectAvatarBox"
-          style="width: 140px; height: 170px; background-color: #f8fafc; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 45px; border: 1px solid #e2e8f0; flex-shrink: 0;">
-          👤
+      <!-- Modern Top Banner Header -->
+      <div
+        style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 30px; color: #ffffff; position: relative; border-top-left-radius: 16px; border-top-right-radius: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span
+            style="background: rgba(226, 161, 20, 0.2); color: #fbbf24; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid rgba(251, 191, 36, 0.3);">
+            Official Profile Inspection
+          </span>
+          <h2 id="inspectHeaderName"
+            style="margin: 8px 0 0 0; font-size: 22px; font-weight: 700; color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+            Staff Profile Details
+          </h2>
+          <p id="inspectHeaderSub" style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8;">
+            DSA Directorate Personnel Verification & Credentials Ledger
+          </p>
         </div>
-        <div id="dynamicMetadataGrid" style="flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-        </div>
+        <span onclick="closeViewProfileModal()"
+          style="cursor: pointer; font-size: 28px; font-weight: 300; color: #94a3b8; transition: color 0.2s;"
+          onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#94a3b8'">&times;</span>
       </div>
 
-      <h3 style="
-            font-size: 14px;
-            color: #e50000;
-            border-bottom: 1px solid #edf2f7;
-            padding-bottom: 6px;
-            margin-bottom: 15px;
-            text-align: left;
-          ">
-        Uploaded Credentials & Signature Verification
-      </h3>
-      <div style="display: flex; gap: 15px; justify-content: flex-start" id="attachmentsDownloadContainer">
-        <!-- Rendered links inject automatically via javascript FileReader hooks -->
+      <!-- Main Body Container -->
+      <div style="padding: 25px 30px;">
+
+        <!-- Header Info Card Row -->
+        <div
+          style="display: flex; gap: 24px; margin-bottom: 25px; align-items: center; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div id="inspectAvatarBox"
+            style="width: 120px; height: 145px; background-color: #e2e8f0; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 48px; border: 3px solid #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); flex-shrink: 0; overflow: hidden; color: #64748b;">
+            👤
+          </div>
+          <div style="flex-grow: 1;">
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;">
+              <span id="inspectRoleTag"
+                style="background: #3b82f6; color: white; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">CIVILIAN</span>
+              <span id="inspectStatusTag"
+                style="background: #10b981; color: white; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">APPROVED</span>
+              <span id="inspectDirTag"
+                style="background: #64748b; color: white; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">DOA</span>
+            </div>
+            <h3 id="inspectFullName" style="margin: 0 0 6px 0; font-size: 20px; font-weight: 700; color: #0f172a;">---
+            </h3>
+            <p style="margin: 0; font-size: 13px; color: #64748b; display: flex; gap: 15px; flex-wrap: wrap;">
+              <span>📧 <strong id="inspectEmailText" style="color: #334155;">---</strong></span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Section 1: Dynamic Profile Metadata Grid -->
+        <div style="margin-bottom: 30px;">
+          <h4
+            style="font-size: 14px; font-weight: 700; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <span>📋</span> Personnel & Service Bio Details
+          </h4>
+          <div id="dynamicMetadataGrid"
+            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px;">
+            <!-- Rendered grid items inject dynamically -->
+          </div>
+        </div>
+
+        <!-- Section 2: Uploaded Credentials & Documents Section -->
+        <div>
+          <h4
+            style="font-size: 14px; font-weight: 700; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <span>📄</span> Uploaded Credentials & Document Ledger
+          </h4>
+          <div id="attachmentsDownloadContainer"
+            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px;">
+            <!-- Rendered document cards inject dynamically -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= INLINE DOCUMENT LIGHTBOX PREVIEW MODAL ================= -->
+  <div id="docLightboxModal" class="modal-overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 1100; justify-content: center; align-items: center;">
+    <div
+      style="background: #ffffff; width: 90%; max-width: 1000px; height: 88vh; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+      <div
+        style="background: #0f172a; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">📄</span>
+          <h3 id="lightboxTitle" style="margin: 0; font-size: 16px; font-weight: 600; color: #f8fafc;">Document Preview
+          </h3>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <a id="lightboxDownloadBtn" href="#" download target="_blank"
+            style="background: #3b82f6; color: white; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none;">Download
+            File</a>
+          <span onclick="closeDocPreview()"
+            style="cursor: pointer; font-size: 26px; color: #94a3b8; line-height: 1;">&times;</span>
+        </div>
+      </div>
+      <div id="lightboxBody"
+        style="flex-grow: 1; background: #334155; display: flex; justify-content: center; align-items: center; overflow: auto; padding: 20px;">
+        <!-- Dynamic Iframe or Img injects here -->
       </div>
     </div>
   </div>
@@ -418,6 +503,78 @@
         );
       }
     }
+
+    // Dynamic Category Filtering & Universal Search Engine
+    document.addEventListener("DOMContentLoaded", () => {
+      const searchInput = document.getElementById("personnelSearchInput");
+      const tabButtons = document.querySelectorAll(".category-tabs .tab-btn");
+      const tableRows = document.querySelectorAll(".personnel-row");
+      const tableBody = document.getElementById("personnelTableBody");
+
+      let activeCategory = "all";
+
+      function filterPersonnelTable() {
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        let visibleCount = 0;
+
+        tableRows.forEach(row => {
+          const rowCat = (row.dataset.category || "").toLowerCase();
+          const rowSearchData = (row.dataset.search || row.textContent || "").toLowerCase();
+
+          // Category match rule
+          const categoryMatch = (activeCategory === "all") || (rowCat === activeCategory);
+
+          // Search query match rule
+          const searchMatch = !query || rowSearchData.includes(query);
+
+          if (categoryMatch && searchMatch) {
+            row.style.display = "";
+            visibleCount++;
+          } else {
+            row.style.display = "none";
+          }
+        });
+
+        // Dynamic Empty State Display
+        let emptyRow = document.getElementById("emptyFilterStateRow");
+        if (visibleCount === 0 && tableRows.length > 0) {
+          if (!emptyRow) {
+            emptyRow = document.createElement("tr");
+            emptyRow.id = "emptyFilterStateRow";
+            emptyRow.innerHTML = `
+              <td colspan="8" style="text-align: center; color: #718096; padding: 35px; font-style: italic;">
+                🔍 No personnel records match the category "${activeCategory.toUpperCase()}" and search query "${query}".
+              </td>
+            `;
+            tableBody.appendChild(emptyRow);
+          } else {
+            emptyRow.innerHTML = `
+              <td colspan="8" style="text-align: center; color: #718096; padding: 35px; font-style: italic;">
+                🔍 No personnel records match the category "${activeCategory.toUpperCase()}" and search query "${query}".
+              </td>
+            `;
+            emptyRow.style.display = "";
+          }
+        } else if (emptyRow) {
+          emptyRow.style.display = "none";
+        }
+      }
+
+      // Tab Click Listeners
+      tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          tabButtons.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          activeCategory = (btn.dataset.category || "all").toLowerCase();
+          filterPersonnelTable();
+        });
+      });
+
+      // Search Bar Input Listener
+      if (searchInput) {
+        searchInput.addEventListener("input", filterPersonnelTable);
+      }
+    });
 
     document.addEventListener("DOMContentLoaded", () => {
       const modal = document.getElementById("addStaffModal");
@@ -523,16 +680,20 @@
             const result = await response.json();
 
             if (response.ok) {
-              alert("Success: " + result.message);
+              if (result.email_sent === false) {
+                showAppToast(result.message || "Account created offline in database! Credentials saved to 'Pending Mail Queue' tab.", 'warning', 'Offline Registration');
+              } else {
+                showAppToast(result.message || "Account created successfully! Login credentials dispatched to alternate email.", 'success', 'Registration Success');
+              }
               modal.style.display = "none";
               createStaffForm.reset();
               generateBtn.textContent = "Generate Login Password";
-              window.location.reload();
+              setTimeout(() => window.location.reload(), 1500);
             } else {
-              alert("Registration Error: " + result.message);
+              showAppToast("Registration Error: " + result.message, 'error');
             }
           } catch (error) {
-            alert("An error occurred during database communications.");
+            showAppToast("An error occurred during database communications.", 'error');
           }
         });
       }
@@ -568,6 +729,28 @@
       }
     });
 
+    function openDocPreview(url, title) {
+      document.getElementById('lightboxTitle').textContent = title || 'Document Preview';
+      const downloadBtn = document.getElementById('lightboxDownloadBtn');
+      downloadBtn.href = url;
+
+      const container = document.getElementById('lightboxBody');
+      container.innerHTML = '<div style="color:white; font-size:16px;">Loading Document...</div>';
+
+      const isImage = String(url).match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+      if (isImage) {
+        container.innerHTML = `<img src="${url}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);" />`;
+      } else {
+        container.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none; background:#ffffff; border-radius:8px;"></iframe>`;
+      }
+      document.getElementById('docLightboxModal').style.display = 'flex';
+    }
+
+    function closeDocPreview() {
+      document.getElementById('docLightboxModal').style.display = 'none';
+      document.getElementById('lightboxBody').innerHTML = '';
+    }
+
     async function viewStaffProfileDetails(email) {
       try {
         const response = await fetch(`/get-personnel-profile?email=${email}`);
@@ -584,72 +767,138 @@
           return label.trim() || 'Unknown Field';
         };
 
-        const gridBox = document.getElementById("dynamicMetadataGrid");
-        gridBox.innerHTML = "";
+        // Header updates
+        document.getElementById("inspectFullName").textContent = data.name || "Personnel Profile";
+        document.getElementById("inspectHeaderName").textContent = data.name || "Staff Profile";
+        document.getElementById("inspectEmailText").textContent = data.email || email;
+        document.getElementById("inspectRoleTag").textContent = (data.role || "civilian").toUpperCase();
+        document.getElementById("inspectStatusTag").textContent = (data.status || "Pending").toUpperCase();
+        document.getElementById("inspectDirTag").textContent = (data.directorate || "DOA").toUpperCase();
 
-        let allPayloads = [
-          { source: data, include: ['email', 'directorate', 'status'] },
-          { source: ob.step_1 || {}, exclude: ['uploadPassport', 'uploadSignature', 'uploadCredentials'] },
-          { source: ob.step_2 || {}, exclude: [] },
-          { source: ob.step_4 || {}, exclude: [] },
-          { source: ob.step_5 || {}, exclude: [] } // Dynamically grabs everything the user filled in Step 5
-        ];
-
-        allPayloads.forEach(payloadGroup => {
-          if (!payloadGroup.source) return;
-          for (let [key, value] of Object.entries(payloadGroup.source)) {
-            // If there's an explicit include list, only include those. Otherwise, respect exclude list.
-            if (payloadGroup.include && !payloadGroup.include.includes(key)) continue;
-            if (payloadGroup.exclude && payloadGroup.exclude.includes(key)) continue;
-
-            // Skip objects/arrays in top level
-            if (typeof value === 'object' || value === null) continue;
-            // Skip file routes that might not be caught, just in case
-            if (String(value).startsWith('/static/') || key.startsWith('doc_')) continue;
-
-            gridBox.innerHTML += `
-                  <div>
-                    <strong>${formatLabel(key)}:</strong>
-                    <p style="margin-top: 4px; color: #4a5568; font-size: 14px;">${value || '---'}</p>
-                  </div>
-                `;
-          }
-        });
-
+        // Avatar update
         const avatarBox = document.getElementById("inspectAvatarBox");
         if (ob.step_1?.uploadPassport) {
-          avatarBox.innerHTML = `<img src="${ob.step_1.uploadPassport}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;" />`;
+          avatarBox.innerHTML = `<img src="${ob.step_1.uploadPassport}" style="width:100%; height:100%; object-fit:cover;" />`;
         } else {
           avatarBox.innerHTML = "👤";
         }
 
+        // Dynamic metadata grid
+        const gridBox = document.getElementById("dynamicMetadataGrid");
+        gridBox.innerHTML = "";
+
+        let metadataEntries = [
+          { key: "Official Email", val: data.email },
+          { key: "Directorate", val: (data.directorate || "").toUpperCase() },
+          { key: "Account Status", val: data.status },
+          { key: "Service Number", val: data.service_number || data.file_no },
+        ];
+
+        [ob.step_1, ob.step_2, ob.step_4, ob.step_5].forEach(step => {
+          if (step) {
+            for (let [k, v] of Object.entries(step)) {
+              if (typeof v === 'object' || v === null) continue;
+              if (String(v).startsWith('/attachment/') || String(v).startsWith('/static/') || k.startsWith('upload') || k.startsWith('doc_')) continue;
+              metadataEntries.push({ key: formatLabel(k), val: v });
+            }
+          }
+        });
+
+        metadataEntries.forEach(item => {
+          if (!item.val) return;
+          gridBox.innerHTML += `
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px;">
+              <span style="display: block; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">${item.key}</span>
+              <span style="font-size: 13px; font-weight: 600; color: #1e293b; margin-top: 2px; display: block; word-break: break-word;">${item.val}</span>
+            </div>
+          `;
+        });
+
+        // Document collection
         const docBox = document.getElementById("attachmentsDownloadContainer");
         docBox.innerHTML = "";
 
-        // Standard Signatures/Academic Documents
-        if (ob.step_1?.uploadSignature) docBox.innerHTML += `<a href="${ob.step_1.uploadSignature}" target="_blank" class="download-chip-link" style="margin-bottom:10px;">✍️ Signature Specimen</a>`;
-        if (ob.step_1?.uploadCredentials) docBox.innerHTML += `<a href="${ob.step_1.uploadCredentials}" target="_blank" class="download-chip-link" style="margin-bottom:10px;">📄 Academic Credentials</a>`;
+        let documentList = [];
 
-        // Check if step 1 or step 5 raw files exist (like compulsory JNR files or optional ones)
-        [ob.step_1, ob.step_5].forEach(stepObj => {
+        // Step 1 baseline docs
+        if (ob.step_1?.uploadSignature) {
+          documentList.push({ title: "Signature Specimen", url: ob.step_1.uploadSignature, type: "signature" });
+        }
+        if (ob.step_1?.uploadCredentials) {
+          documentList.push({ title: "Academic Credentials", url: ob.step_1.uploadCredentials, type: "academic" });
+        }
+
+        // Step 1 to 5 generic doc uploads
+        [ob.step_1, ob.step_2, ob.step_3, ob.step_4, ob.step_5].forEach((stepObj, idx) => {
           if (stepObj) {
             for (let [k, v] of Object.entries(stepObj)) {
-              if (String(v).startsWith('/static/') && k.startsWith('doc_')) {
-                docBox.innerHTML += `<a href="${v}" target="_blank" class="download-chip-link" style="margin-bottom:10px;">📄 ${formatLabel(k).replace('Doc ', '')}</a>`;
+              if (['uploadSignature', 'uploadCredentials', 'uploadPassport'].includes(k)) continue;
+              if (typeof v === 'string' && (v.startsWith('/attachment/') || v.startsWith('/static/'))) {
+                documentList.push({
+                  title: formatLabel(k).replace('Doc ', '').replace('Upload ', '') + ` (Step ${idx + 1})`,
+                  url: v,
+                  type: "document"
+                });
               }
             }
           }
         });
 
-        // Loop through any additionally requested documents appended to the profile
+        // Additional requested training records
         if (data.additional_trainings_ledger && Array.isArray(data.additional_trainings_ledger)) {
-          data.additional_trainings_ledger.forEach((doc, idx) => {
-            docBox.innerHTML += `<a href="${doc.file_url}" target="_blank" class="download-chip-link" style="margin-bottom:10px; border-color: #38A169; color: #38A169;">📁 ${doc.course_title} (${doc.timeline_period})</a>`;
+          data.additional_trainings_ledger.forEach((doc) => {
+            documentList.push({
+              title: doc.course_title || "Additional Training Record",
+              subtitle: `Period: ${doc.timeline_period || 'N/A'}`,
+              url: doc.file_url || null,
+              type: "additional_training"
+            });
+          });
+        }
+
+        if (documentList.length === 0) {
+          docBox.innerHTML = `
+            <div style="grid-column: 1 / -1; padding: 25px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e0; font-style: italic;">
+              No uploaded documents or certificates found for this personnel profile.
+            </div>
+          `;
+        } else {
+          documentList.forEach(doc => {
+            const safeTitle = (doc.title || 'Document').replace(/'/g, "\\'");
+            const isPdf = doc.url && doc.url.toLowerCase().includes('.pdf');
+            const icon = doc.type === 'signature' ? '✍️' : (doc.type === 'additional_training' ? '🎓' : (isPdf ? '📄' : '🖼️'));
+
+            docBox.innerHTML += `
+              <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                  <div style="width: 40px; height: 40px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                    ${icon}
+                  </div>
+                  <div style="min-width: 0;">
+                    <h5 style="margin: 0; font-size: 13.5px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${doc.title}</h5>
+                    <span style="font-size: 11.5px; color: #64748b; display: block;">${doc.subtitle || 'Verified Attachment'}</span>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                  ${doc.url ? `
+                    <button type="button" onclick="openDocPreview('${doc.url}', '${safeTitle}')" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                      👁️ View
+                    </button>
+                    <a href="${doc.url}" download target="_blank" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e0; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none; display: flex; align-items: center;">
+                      ⬇️
+                    </a>
+                  ` : `
+                    <span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">No File Uploaded</span>
+                  `}
+                </div>
+              </div>
+            `;
           });
         }
 
         document.getElementById("viewProfileModal").style.display = "flex";
       } catch (err) {
+        console.error(err);
         alert("An error occurred during transaction communications loops.");
       }
     }
@@ -659,12 +908,8 @@
     }
 
     async function processApprovalAction(email, nextStatus) {
-      if (
-        !confirm(
-          `Are you certain you want to mark this personnel profile state parameters as: ${nextStatus}?`,
-        )
-      )
-        return;
+      const confirmed = await showAppConfirm(`Are you certain you want to mark this personnel profile state parameters as: ${nextStatus}?`, "Approval State Confirmation");
+      if (!confirmed) return;
 
       try {
         const response = await fetch("/process-personnel-approval", {
@@ -677,17 +922,13 @@
         });
 
         if (response.ok) {
-          alert(
-            `Personnel profile state successfully committed: ${nextStatus}`,
-          );
-          window.location.reload();
+          showAppToast(`Personnel profile state successfully committed: ${nextStatus}`, 'success');
+          setTimeout(() => window.location.reload(), 1200);
         } else {
-          alert(
-            "Approval modification command rejected by server rules context.",
-          );
+          showAppToast("Approval modification command rejected by server rules context.", 'error');
         }
       } catch (err) {
-        alert("Network communication fail.");
+        showAppToast("Network communication fail.", 'error');
       }
     }
 
@@ -705,9 +946,8 @@
     });
 
     async function triggerAdditionalDocumentRequest(email) {
-      if (!confirm(`Are you sure you want to request an additional document from this user (${email})?`)) {
-        return;
-      }
+      const confirmed = await showAppConfirm(`Are you sure you want to request an additional document from this user (${email})?`, "Request Additional Document");
+      if (!confirmed) return;
 
       try {
         const response = await fetch("/request-additional-document", {
@@ -721,14 +961,14 @@
 
         const data = await response.json();
         if (response.ok) {
-          alert("Successfully flagged user for an additional document request.");
-          window.location.reload();
+          showAppToast("Successfully flagged user for an additional document request.", 'success');
+          setTimeout(() => window.location.reload(), 1200);
         } else {
-          alert(`Failed to request document: ${data.message || 'Server error'}`);
+          showAppToast(`Failed to request document: ${data.message || 'Server error'}`, 'error');
         }
       } catch (err) {
         console.error(err);
-        alert("Network error occurred while requesting extra document.");
+        showAppToast("Network error occurred while requesting extra document.", 'error');
       }
     }
 
@@ -806,20 +1046,21 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-  const surNameInput = document.getElementById('surName');
-  const middleNameInput = document.getElementById('middleName');
-  const firstNameInput = document.getElementById('firstName');
+    document.addEventListener('DOMContentLoaded', function () {
+      const surNameInput = document.getElementById('surName');
+      const middleNameInput = document.getElementById('middleName');
+      const firstNameInput = document.getElementById('firstName');
 
-  // Attach event listeners
-  if (surNameInput) surNameInput.addEventListener('input', generateOfficialEmail);
-  if (middleNameInput) middleNameInput.addEventListener('input', generateOfficialEmail);
-  if (firstNameInput) firstNameInput.addEventListener('input', generateOfficialEmail);
+      // Attach event listeners
+      if (surNameInput) surNameInput.addEventListener('input', generateOfficialEmail);
+      if (middleNameInput) middleNameInput.addEventListener('input', generateOfficialEmail);
+      if (firstNameInput) firstNameInput.addEventListener('input', generateOfficialEmail);
 
-  // Generate email on initial form load (if fields already have values)
-  generateOfficialEmail();
-});
+      // Generate email on initial form load (if fields already have values)
+      generateOfficialEmail();
+    });
   </script>
+  <script src="{{ url_for('static', filename='js/app_notifications.js') }}"></script>
 </body>
 
 </html>

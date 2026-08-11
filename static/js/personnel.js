@@ -91,17 +91,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    alert("Success: " + result.message);
+                    if (result.email_sent === false) {
+                        showAppToast(result.message || "Account created offline! Saved to 'Pending Mail Queue' tab.", 'warning');
+                    } else {
+                        showAppToast(result.message || "Success! Credentials dispatched to alternate email.", 'success');
+                    }
                     modal.style.display = 'none';
                     createStaffForm.reset();
                     generateBtn.textContent = "Generate Login Password";
-                    window.location.reload(); 
+                    setTimeout(() => window.location.reload(), 1500);
                 } else {
-                    alert("Registration Error: " + result.message);
+                    showAppToast("Registration Error: " + result.message, 'error');
                 }
             } catch (error) {
                 console.error("Network Error:", error);
-                alert("An error occurred during database communications. Check server log.");
+                showAppToast("An error occurred during database communications.", 'error');
             }
         });
     }
@@ -136,18 +140,28 @@ function closeReassignModal() {
 }
 
 async function triggerAdditionalDocumentRequest(email) {
-    if(!confirm("Are you sure you want to request additional training documents from this staff member?")) return;
+    if(!confirm(`Are you sure you want to request an additional document from this user (${email})?`)) return;
     try {
+        const headers = { 'Content-Type': 'application/json' };
+        const csrfElem = document.getElementById('csrf_token');
+        if (csrfElem) headers['X-CSRFToken'] = csrfElem.value;
+
         const response = await fetch('/request-additional-document', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({ email: email })
         });
+        const data = await response.json();
         if (response.ok) {
-            alert("Success: Training notification card pushed directly to the user's dashboard view!");
+            alert("Successfully flagged user for an additional document request.");
             window.location.reload();
+        } else {
+            alert(`Failed: ${data.message || 'Server rejected request'}`);
         }
-    } catch(err) { alert("Communication fail."); }
+    } catch(err) { 
+        console.error(err);
+        alert("Communication failure while requesting additional document."); 
+    }
 }
 
 
