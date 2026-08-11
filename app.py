@@ -282,6 +282,62 @@ def dashboard():
             print(f"Error tracking application in dashboard: {e}")
             track_error = "Error loading tracking data."
 
+    # Determine global visibility scope: CDSA, DCDSA, Director with DOA, Registry with DOA
+    user_role_clean = user_role.replace('_', '').replace(' ', '').lower()
+    user_dir_clean = user_dir.strip().upper()
+    is_global_scope = (user_role_clean in ['cdsa', 'dcdsa']) or (user_role_clean in ['director', 'registry'] and user_dir_clean == 'DOA')
+
+    target_stat_roles = ['cdsa', 'dcdsa', 'director', 'civilianhead', 'registry', 'so', 'so2', 'so1', 'dd', 'ad', 'centralregistry']
+
+    directorate_stats = None
+    personnel_stats = None
+
+    if user_role_clean in target_stat_roles:
+        if is_global_scope:
+            base_query = {"status": "Approved"}
+        else:
+            base_query = {
+                "status": "Approved",
+                "directorate": {"$regex": f"^{user_dir_clean}$", "$options": "i"}
+            }
+
+        approved_staff = list(db.users.find(base_query))
+
+        civilian_c = 0
+        military_c = 0
+        it_c = 0
+        nysc_c = 0
+
+        for s in approved_staff:
+            raw_cat = str(s.get('category') or s.get('role') or 'civilian').lower().strip()
+            if raw_cat == 'civilian':
+                civilian_c += 1
+            elif raw_cat in ['military', 'personnel']:
+                military_c += 1
+            elif raw_cat == 'it':
+                it_c += 1
+            elif raw_cat == 'nysc':
+                nysc_c += 1
+            else:
+                civilian_c += 1
+
+        personnel_stats = {
+            "civilian": civilian_c,
+            "military": military_c,
+            "it": it_c,
+            "nysc": nysc_c,
+            "total": len(approved_staff)
+        }
+
+    # Directorate breakdown calculation ONLY for Global Scope users (cdsa, dcdsa, Director of DOA, Registry of DOA)
+    if is_global_scope:
+        global_approved = list(db.users.find({"status": "Approved"}))
+        dir_map = {}
+        for s in global_approved:
+            d_name = str(s.get('directorate', 'DOA')).strip().upper()
+            dir_map[d_name] = dir_map.get(d_name, 0) + 1
+        directorate_stats = dir_map
+
     if not session.get("is_approval_role"):
         user_allowed_features = ROLE_PERMISSIONS['civilian']
     else:
@@ -294,7 +350,7 @@ def dashboard():
         "role": user_role,
         "category": user_data.get("category", "civilian"),
         "appt": user_data.get("appt"),
-        "directorate": user_dir.upper(),
+        "directorate": user_dir_clean,
         "is_approval_role": session.get("is_approval_role", False),
         "training_request_active": user_data.get("training_request_active", False)
     }
@@ -313,9 +369,10 @@ def dashboard():
         completed_steps=completed_steps_count,
         total_steps=total_steps_count,
         reference_id=track_id,
-        track_error=track_error
+        track_error=track_error,
+        personnel_stats=personnel_stats,
+        directorate_stats=directorate_stats
     )
-
 
 
 @app.route('/personnel-view')
@@ -334,16 +391,19 @@ def personnel_view():
         return redirect(url_for('index'))
 
     user_role = str(user_data.get('role', 'civilian')).strip().lower()
+    user_role_clean = user_role.replace('_', '').replace(' ', '')
     user_dir_clean = str(user_data.get('directorate', 'DOA')).strip().upper()
 
-    # Case-insensitive filtration lookup engine
-    if user_role == 'director':
+    # Scope rule: Only CDSA, DCDSA, Director of DOA, and Registry of DOA see cross-directorate personnel
+    is_global_scope = (user_role_clean in ['cdsa', 'dcdsa']) or (user_role_clean in ['director', 'registry'] and user_dir_clean == 'DOA')
+
+    if is_global_scope:
+        personnel_list = list(db.users.find({"role": {"$nin": ["cdsa", "dcdsa"]}}))
+    else:
         personnel_list = list(db.users.find({
             "directorate": {"$regex": f"^{user_dir_clean}$", "$options": "i"},
-            "role": {"$ne": "director"} 
+            "role": {"$nin": ["cdsa", "dcdsa"]}
         }))
-    else:
-        personnel_list = list(db.users.find({"role": {"$ne": "director"}}))
 
     # Construct the exact data layout payload structure expected by personnel.html
     ui_user_profile = {
@@ -428,11 +488,127 @@ def add_staff():
     )
 
     if email_dispatched:
+        users_collection.update_one(
+            {"email": official_login_email},
+            {"$set": {"email_sent": True, "email_sent_at": datetime.datetime.now()}}
+        )
         success_msg = f"Account compiled successfully! Credentials routed securely to {alt_email} via GovMail Gateway."
+        return jsonify({"status": "success", "email_sent": True, "message": success_msg}), 201
     else:
-        success_msg = "Account created locally in database, but GovMail relay failed. Verify server network status or credentials."
+        pending_data = {
+            "target_alt_email": alt_email,
+            "official_login_email": official_login_email,
+            "plain_password": plain_password,
+            "service_number": service_number
+        }
+        users_collection.update_one(
+            {"email": official_login_email},
+            {"$set": {"email_sent": False, "pending_credentials": pending_data}}
+        )
+        success_msg = "Account created offline in database. Internet connection unavailable — credentials saved to 'Pending Mail Queue' tab for batch dispatch."
+        return jsonify({"status": "success", "email_sent": False, "message": success_msg}), 201
 
-    return jsonify({"status": "success", "message": success_msg}), 201
+
+@app.route('/pending-emails-view')
+def pending_emails_view():
+    if 'user_email' not in session:
+        return redirect(url_for('index'))
+
+    user_data = db.users.find_one({"email": session['user_email']})
+    if not user_data or user_data.get('role') != 'registry':
+        return redirect(url_for('dashboard'))
+
+    user_role = str(user_data.get('role', 'registry')).strip().lower()
+    user_dir_clean = str(user_data.get('directorate', 'DOA')).strip().upper()
+
+    pending_list = list(db.users.find({
+        "$or": [
+            {"email_sent": False},
+            {"pending_credentials": {"$exists": True}}
+        ]
+    }).sort("created_at", -1))
+
+    ui_user_profile = {
+        "email": user_data.get("email"),
+        "name": user_data.get("name", "Officer"),
+        "title": str(user_data.get("title", "Registry Clerk")).upper(),
+        "directorate": user_dir_clean,
+        "role": user_role
+    }
+
+    from permissions import ROLE_PERMISSIONS
+    user_allowed_features = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS['civilian'])
+
+    return render_template(
+        'pending_emails.html',
+        user=ui_user_profile,
+        permissions=user_allowed_features,
+        pending_users=pending_list,
+        unpushed_count=len(pending_list),
+        active_page='pending_emails'
+    )
+
+
+@app.route('/resend-pending-emails', methods=['POST'])
+def resend_pending_emails():
+    if 'user_email' not in session:
+        return jsonify({"status": "error", "message": "Unauthorized session"}), 401
+
+    user_data = db.users.find_one({"email": session['user_email']})
+    if not user_data or user_data.get('role') != 'registry':
+        return jsonify({"status": "error", "message": "Only DOA Registry personnel can trigger mail dispatch"}), 403
+
+    req_json = request.get_json() or {}
+    target_email = req_json.get('email')
+
+    if target_email:
+        query = {"email": target_email, "$or": [{"email_sent": False}, {"pending_credentials": {"$exists": True}}]}
+    else:
+        query = {"$or": [{"email_sent": False}, {"pending_credentials": {"$exists": True}}]}
+
+    pending_users = list(db.users.find(query))
+    if not pending_users:
+        return jsonify({"status": "info", "message": "No pending credential emails found in queue."}), 200
+
+    sent_count = 0
+    failed_count = 0
+
+    for u in pending_users:
+        cred = u.get('pending_credentials', {})
+        target_alt = cred.get('target_alt_email') or u.get('alternate_email')
+        official_email = cred.get('official_login_email') or u.get('email')
+        plain_pass = cred.get('plain_password') or "password123"
+        sn = cred.get('service_number') or u.get('service_number', '')
+
+        if not target_alt or not official_email:
+            continue
+
+        dispatched = send_credentials_email(
+            target_alt_email=target_alt,
+            official_login_email=official_email,
+            plain_password=plain_pass,
+            service_number=sn
+        )
+
+        if dispatched:
+            sent_count += 1
+            db.users.update_one(
+                {"_id": u["_id"]},
+                {
+                    "$set": {"email_sent": True, "email_sent_at": datetime.datetime.now()},
+                    "$unset": {"pending_credentials": ""}
+                }
+            )
+        else:
+            failed_count += 1
+
+    if sent_count > 0:
+        msg = f"Successfully dispatched {sent_count} user account credentials via GovMail Gateway!"
+        if failed_count > 0:
+            msg += f" ({failed_count} remained offline/failed)."
+        return jsonify({"status": "success", "sent_count": sent_count, "failed_count": failed_count, "message": msg}), 200
+    else:
+        return jsonify({"status": "error", "sent_count": 0, "failed_count": failed_count, "message": "Internet/GovMail gateway unavailable. Could not send emails. Verify server network connection."}), 400
 
 
 @app.route('/onboarding')
@@ -652,7 +828,8 @@ def get_personnel_profile():
 
 @app.route('/process-personnel-approval', methods=['POST'])
 def process_personnel_approval():
-    if 'user_email' not in session or session.get('user_role') != 'director':
+    user_role = str(session.get('user_role', '')).lower().strip()
+    if 'user_email' not in session or user_role not in ['cdsa', 'dcdsa', 'director', 'registry']:
         return jsonify({"status": "error", "message": "Access Denied."}), 403
         
     data = request.get_json()
@@ -688,7 +865,8 @@ def process_personnel_approval():
 
 @app.route('/execute-directorate-reassignment', methods=['POST'])
 def execute_directorate_reassignment():
-    if 'user_email' not in session or session.get('user_role') != 'registry':
+    user_role = str(session.get('user_role', '')).lower().strip()
+    if 'user_email' not in session or user_role not in ['cdsa', 'dcdsa', 'registry', 'director']:
         return jsonify({"status": "error", "message": "Unauthorized role token access"}), 403
         
     data = request.get_json()
@@ -715,11 +893,24 @@ def execute_directorate_reassignment():
 @app.route('/request-additional-document', methods=['POST'])
 def request_additional_document():
     # Only allow a Registry Clerk inside the DOA directorate to initialize this action
-    if 'user_email' not in session or session.get('user_role') != 'registry':
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+    if 'user_email' not in session:
+        return jsonify({"status": "error", "message": "Unauthorized session"}), 403
+
+    current_user = db.users.find_one({"email": session['user_email']})
+    if not current_user:
+        return jsonify({"status": "error", "message": "User session invalid"}), 403
+
+    user_role = str(current_user.get('role', '')).strip().lower()
+    user_directorate = str(current_user.get('directorate', '')).strip().upper()
+
+    if user_role != 'registry' or user_directorate != 'DOA':
+        return jsonify({"status": "error", "message": "Unauthorized: Only Registry personnel in DOA can request additional documents."}), 403
         
-    data = request.get_json()
+    data = request.get_json() or {}
     target_recruit_email = data.get('email')
+
+    if not target_recruit_email:
+        return jsonify({"status": "error", "message": "Target email is required"}), 400
 
     # Stamp the target user record with a pending request flag directive
     db.users.update_one(
@@ -738,25 +929,28 @@ def append_training_record():
     training_period = request.form.get('trainingPeriod')
     training_file = request.files.get('trainingFile')
 
-    if not all([training_name, training_period, training_file]):
-        return jsonify({"status": "error", "message": "Missing required fields"}), 400
+    if not training_name or not training_period:
+        return jsonify({"status": "error", "message": "Training Name and Period are required fields"}), 400
 
-    # Save training file attachment cleanly into MongoDB GridFS
-    file_id = fs.put(
-        training_file,
-        filename=secure_filename(training_file.filename),
-        content_type=training_file.content_type or 'application/octet-stream',
-        metadata={
-            "uploaded_by": session['user_email'],
-            "type": "additional_training",
-            "upload_date": datetime.datetime.utcnow()
-        }
-    )
+    file_url = None
+    if training_file and training_file.filename != '':
+        # Save training file attachment cleanly into MongoDB GridFS
+        file_id = fs.put(
+            training_file,
+            filename=secure_filename(training_file.filename),
+            content_type=training_file.content_type or 'application/octet-stream',
+            metadata={
+                "uploaded_by": session['user_email'],
+                "type": "additional_training",
+                "upload_date": datetime.datetime.utcnow()
+            }
+        )
+        file_url = f"/attachment/{str(file_id)}"
 
     new_training_entry = {
         "course_title": training_name.upper(),
         "timeline_period": training_period.upper(),
-        "file_url": f"/attachment/{str(file_id)}",
+        "file_url": file_url,
         "timestamp_logged": datetime.datetime.now()
     }
 
@@ -780,14 +974,16 @@ def logout():
 
 @app.route('/attachment/<file_id>')
 def get_attachment(file_id):
-
-    file_data = fs.get(ObjectId(file_id))
-
-    return send_file(
-        BytesIO(file_data.read()),
-        download_name=file_data.filename,
-        mimetype=file_data.content_type
-    )
+    try:
+        file_data = fs.get(ObjectId(file_id))
+        return send_file(
+            BytesIO(file_data.read()),
+            download_name=file_data.filename,
+            mimetype=file_data.content_type,
+            as_attachment=False
+        )
+    except Exception as e:
+        return "Attachment file not found", 404
 
 
 # START THE FLASK-SOCKETIO SERVER INSTANCE

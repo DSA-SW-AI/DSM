@@ -6,6 +6,11 @@ ROLE_PERMISSIONS = {
             "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports"],
             "actions": ["approve_documents", "incoming_register", "outgoing_register"]
         },
+    "dcdsa": {
+            "sidebar": ["dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics"],
+            "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports"],
+            "actions": ["approve_documents", "incoming_register", "outgoing_register"]
+        },
     "director": {
         "sidebar": ["dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics"],
         "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports"],
@@ -27,12 +32,12 @@ ROLE_PERMISSIONS = {
             "actions": ["review_documents", "incoming_register"]
         },
     "registry": {
-        "sidebar": ["dashboard", "documents", "incoming","civilian_personnel" ,"outgoing", "filing_cabinets", "leave_pass"],
+        "sidebar": ["dashboard", "documents", "incoming","civilian_personnel" ,"outgoing", "filing_cabinets", "leave_pass", "pending_emails"],
         "modules": ["documents","personnel_civilian"],
         "actions": ["incoming_register", "outgoing_register", "archive_files"]
     },
     "central_registry": {
-            "sidebar": ["dashboard", "documents", "incoming","civilian_personnel" ,"outgoing", "filing_cabinets", "leave_pass"],
+            "sidebar": ["dashboard", "documents", "incoming","civilian_personnel" ,"outgoing", "filing_cabinets", "leave_pass", "pending_emails"],
             "modules": ["documents","personnel_civilian"],
             "actions": ["incoming_register", "outgoing_register", "archive_files"]
         },

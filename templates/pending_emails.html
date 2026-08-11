@@ -1,0 +1,341 @@
+<!-- templates/pending_emails.html -->
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSA Paperless - Pending Email Dispatch Queue</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .queue-hero-card {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: white;
+      border-radius: 14px;
+      padding: 24px 30px;
+      margin: 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .queue-hero-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .queue-hero-sub {
+      margin: 0;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .btn-resend-all {
+      background: linear-gradient(135deg, #e2a114 0%, #d97706 100%);
+      color: #ffffff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(226, 161, 20, 0.3);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-resend-all:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(226, 161, 20, 0.4);
+    }
+    .btn-resend-single {
+      background: #0f172a;
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-resend-single:hover {
+      background: #1e293b;
+      transform: translateY(-1px);
+    }
+    .badge-offline {
+      background: #fef3c7;
+      color: #b45309;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>{{ user.directorate }}</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+
+        <div class="menu-section-label">REGISTRY</div>
+        {% if "documents" in permissions.sidebar %}
+        <a href="/documents-view" class="menu-item">📁 Documents</a>
+        {% endif %} {% if "incoming" in permissions.sidebar %}
+        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+        {% endif %} {% if "outgoing" in permissions.sidebar %}
+        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+        {% endif %}
+        {% if user.role == 'registry' and user.directorate|lower == 'doa' %}
+        <a href="/pending-emails-view" class="menu-item active">✉️ Pending Mail Queue</a>
+        {% endif %}
+
+        <div class="menu-section-label">HR MANAGEMENT</div>
+        {% if "civilian_personnel" in permissions.sidebar %}
+        <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+        {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+        <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+        {% endif %} {% if "leave_pass" in permissions.sidebar %}
+        <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+        {% endif %}
+      </nav>
+      <!-- Permanently Locked Footer Segment -->
+      <div class="sidebar-footer">
+        <a href="{{ url_for('logout') }}" class="logout-btn">
+          Logout
+        </a>
+      </div>
+    </aside>
+
+    <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
+    <main class="main-content">
+      <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 DSA PAPERLESS &gt;
+          <span class="active-crumb"> Pending Mail Dispatch Queue</span>
+        </div>
+        <div class="user-profile-badge">
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Queue Hero Banner -->
+      <div class="queue-hero-card">
+        <div>
+          <h2 class="queue-hero-title">
+            <span>✉️</span> Offline Email Dispatch Queue
+          </h2>
+          <p class="queue-hero-sub">
+            Accounts created while server was disconnected from internet. Click below to batch-dispatch credentials once online.
+          </p>
+        </div>
+        {% if pending_users and pending_users | length > 0 %}
+        <button type="button" class="btn-resend-all" id="btnResendAll" onclick="triggerBatchEmailDispatch()">
+          🚀 Dispatch All Pending Credentials ({{ pending_users | length }})
+        </button>
+        {% endif %}
+      </div>
+
+      <!-- Controls & Live Search Bar -->
+      <div class="table-controls-bar" style="margin: 25px; display: flex; gap: 15px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <div style="position: relative; flex-grow: 1; max-width: 450px; min-width: 260px;">
+          <input type="text" id="pendingSearchInput" placeholder="🔍 Search pending accounts (Name, SN, Email...)" style="width: 100%; padding: 9px 16px 9px 38px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 13.5px; background: #ffffff; color: #1a202c; outline: none; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" />
+          <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #a0aec0; font-size: 14px; pointer-events: none;">🔍</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 600; color: #64748b;">
+          Total Queued Accounts: <strong style="color: #0f172a;">{{ pending_users | length }}</strong>
+        </div>
+      </div>
+
+      <!-- Table Container -->
+      <div class="table-container" style="margin: 25px;">
+        <table class="personnel-table">
+          <thead>
+            <tr>
+              <th>Service Number</th>
+              <th>Staff Name</th>
+              <th>Official Email</th>
+              <th>Alternate Email</th>
+              <th>Directorate</th>
+              <th>Queue Status</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="pendingTableBody">
+            {% if pending_users and pending_users | length > 0 %}
+              {% for u in pending_users %}
+                {% set cred = u.get('pending_credentials', {}) %}
+                {% set alt_email = cred.get('target_alt_email') or u.get('alternate_email', 'N/A') %}
+                {% set sn = u.get('service_number', 'N/A') %}
+                {% set name = u.get('name', 'Staff') %}
+                {% set search_data = sn ~ ' ' ~ name ~ ' ' ~ u.email ~ ' ' ~ alt_email ~ ' ' ~ u.get('directorate', '') %}
+
+                <tr class="pending-row" data-search="{{ search_data | lower }}">
+                  <td class="text-bold">{{ sn }}</td>
+                  <td class="text">{{ name }}</td>
+                  <td style="color: #3b82f6; font-weight: 500;">{{ u.email }}</td>
+                  <td style="color: #059669; font-weight: 500;">{{ alt_email }}</td>
+                  <td class="text-bold">{{ u.get('directorate', 'DOA') | upper }}</td>
+                  <td>
+                    <span class="badge-offline">⏳ Pending Dispatch</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <button type="button" class="btn-resend-single" onclick="dispatchSingleEmail('{{ u.email }}', this)">
+                      📧 Dispatch Email
+                    </button>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr id="emptyQueueRow">
+                <td colspan="7" style="text-align: center; color: #10b981; padding: 40px; font-weight: 600;">
+                  ✓ All user account credentials have been successfully dispatched! Queue is empty.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Live Search Filter for Pending Queue
+    document.addEventListener("DOMContentLoaded", () => {
+      const searchInput = document.getElementById("pendingSearchInput");
+      const tableRows = document.querySelectorAll(".pending-row");
+
+      if (searchInput) {
+        searchInput.addEventListener("input", () => {
+          const query = searchInput.value.toLowerCase().trim();
+          tableRows.forEach(row => {
+            const data = (row.dataset.search || row.textContent).toLowerCase();
+            row.style.display = (!query || data.includes(query)) ? "" : "none";
+          });
+        });
+      }
+    });
+
+    // Single Email Dispatch Action
+    async function dispatchSingleEmail(email, btn) {
+      const confirmed = await showAppConfirm(`Are you sure you want to attempt sending login credentials to ${email}?`, "Email Dispatch");
+      if (!confirmed) return;
+
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = "⏳ Sending...";
+
+      try {
+        const response = await fetch('/resend-pending-emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.getElementById('csrf_token').value
+          },
+          body: JSON.stringify({ email: email })
+        });
+
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+          showAppToast(result.message || "Credentials dispatched successfully!", 'success');
+          setTimeout(() => window.location.reload(), 1200);
+        } else {
+          showAppToast(result.message || "Failed to dispatch email. Check internet connection.", 'error');
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      } catch (err) {
+        console.error(err);
+        showAppToast("Network communication error. Server might be offline.", 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    // Batch Email Dispatch Action
+    async function triggerBatchEmailDispatch() {
+      const confirmed = await showAppConfirm("Are you ready to batch dispatch credential emails to all pending users?", "Batch Dispatch");
+      if (!confirmed) return;
+
+      const btn = document.getElementById('btnResendAll');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = "🚀 Dispatching Emails...";
+      }
+
+      try {
+        const response = await fetch('/resend-pending-emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.getElementById('csrf_token').value
+          },
+          body: JSON.stringify({})
+        });
+
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+          showAppToast(result.message || "Batch email dispatch completed!", 'success');
+          setTimeout(() => window.location.reload(), 1200);
+        } else {
+          showAppToast(result.message || "Could not dispatch emails. Internet connection required.", 'error');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = "🚀 Dispatch All Pending Credentials";
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        showAppToast("Network connection error.", 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = "🚀 Dispatch All Pending Credentials";
+        }
+      }
+    }
+  </script>
+
+  <script src="{{ url_for('static', filename='js/app_notifications.js') }}"></script>
+</body>
+
+</html>
