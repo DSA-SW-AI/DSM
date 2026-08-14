@@ -747,9 +747,12 @@ def submit_onboarding_step():
     if not step:
         return jsonify({"status": "error", "message": "Invalid step tracker parameter configuration"}), 400
 
-    if step == 5 and "gender" in step_data:
-        raw_gender = step_data.get("gender") or ""
-        step_data["gender"] = raw_gender.title().strip()
+    if step == 5:
+        if "milSex" in step_data and "gender" not in step_data:
+            step_data["gender"] = step_data.get("milSex")
+        if "gender" in step_data:
+            raw_gender = step_data.get("gender") or ""
+            step_data["gender"] = raw_gender.title().strip()
 
     # 4. DATABASE TRANSACTIONS: Map values inside your 'DSM' users collection document node
     update_node_query = {f"onboarding_data.step_{step}": step_data}
@@ -780,7 +783,7 @@ def submit_onboarding_step():
         2: "Completed Step 2: Additional Personal Background Information Details",
         3: "Completed Step 3: Generated and Certified Digital ID Card Preview Layout",
         4: "Completed Step 4: Submitted Salary Account Emolument Details Roster Form",
-        5: "Completed Step 5: Submitted DSA Civilian Staff Registration Form"
+        5: "Completed Step 5: Submitted REGISTRATION FORM FOR DSA MILITARY PERSONNEL" if user_category == 'military' else "Completed Step 5: Submitted DSA Civilian Staff Registration Form"
     }
     action_log_message = step_logs_matrix.get(step, f"Updated Onboarding Phase Milestone Step {step}")
 
@@ -847,12 +850,14 @@ def process_personnel_approval():
         update_payload = {
             "status": "Approved",
             "is_onboarded": True,
-            "rankOrGrade": step_1.get("rankOrGrade"),
-            "appt": step_1.get("appt"),
-            "telephone": step_1.get("phoneNo")
+            "rankOrGrade": step_1.get("rankOrGrade") or step_5.get("milRank"),
+            "appt": step_1.get("appt") or step_5.get("milDsaAppt"),
+            "telephone": step_1.get("phoneNo") or step_5.get("milGsmNo")
         }
         if step_5.get("gender"):
             update_payload["gender"] = step_5.get("gender")
+        elif step_5.get("milSex"):
+            update_payload["gender"] = step_5.get("milSex")
     elif action_decision == "Rejected":
         # FIXED: Sets the status matching your exact screenshot design rule
         update_payload = {"status": "Rejected", "directorate": "doa", "is_onboarded": False}

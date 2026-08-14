@@ -72,7 +72,7 @@
             <div class="step-row-item cursor-pointer" onclick="goToStep(1)">
               <div class="step-status-icon number-icon" id="chk_1">1</div>
               <div class="step-meta-info">
-                <h3>Civilian Staff Registration Form</h3>
+                <h3>{% if user.category == 'military' %}Military Personnel Information Form{% else %}Civilian Staff Registration Form{% endif %}</h3>
                 <p>Fill the employee information form</p>
               </div>
             </div>
@@ -103,8 +103,8 @@
             <div class="step-row-item cursor-pointer" onclick="goToStep(5)">
               <div class="step-status-icon number-icon" id="chk_5">5</div>
               <div class="step-meta-info">
-                <h3>DSA Civilian Staff Registration Form</h3>
-                <p>Fill the official record sheet</p>
+                <h3>{% if user.category == 'military' %}REGISTRATION FORM FOR DSA MILITARY PERSONNEL{% else %}DSA Civilian Staff Registration Form{% endif %}</h3>
+                <p>Fill the official {% if user.category == 'military' %}military {% endif %}record sheet</p>
               </div>
             </div>
             {% endif %}
@@ -141,10 +141,13 @@
 
         <!-- Main Card Body Container Frame -->
         <div class="form-container-card" style="margin: 25px; padding: 30px; border-radius: 12px; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-          <h2 class="form-title-header">Employee Information Form</h2>
+          <h2 class="form-title-header">{% if user.category == 'military' %}Military Personnel Information Form{% else %}Employee Information Form{% endif %}</h2>
           <p class="form-subtitle">
-            Fill the form below to provide basic account details and verify
-            academic credentials.
+            {% if user.category == 'military' %}
+            Fill the form below to provide basic account details and verify posting letter & service experience credentials.
+            {% else %}
+            Fill the form below to provide basic account details and verify academic credentials.
+            {% endif %}
           </p>
 
           <form id="form_step_1" onsubmit="event.preventDefault()">
@@ -199,8 +202,8 @@
                 <input type="tel" id="phoneNo" placeholder="e.g. 08031234567" required />
               </div>
               <div class="field-group">
-                <label>Grade Level</label>
-                <input type="text" id="rankOrGrade" placeholder="e.g. Grade Level 8" />
+                <label>{% if user.category == 'military' %}Rank / Grade{% else %}Grade Level{% endif %}</label>
+                <input type="text" id="rankOrGrade" placeholder="{% if user.category == 'military' %}e.g. Lt Col / Wg Cdr / Cdr{% else %}e.g. Grade Level 8{% endif %}" />
               </div>
             </div>
 
@@ -232,7 +235,11 @@
                   font-weight: 600;
                   text-align: left;
                 ">
+              {% if user.category == 'military' %}
+              Military Posting & Experience Credentials
+              {% else %}
               Official Academic & Identity Credentials
+              {% endif %}
             </h3>
 
             {% if user.category in ['it', 'nysc'] %}
@@ -251,6 +258,21 @@
               <div class="field-group">
                 <label>Digital ID Scan <span class="required">*</span></label>
                 <input type="file" id="doc_digital_id" accept=".pdf, image/*" required />
+              </div>
+            </div>
+            {% elif user.category == 'military' %}
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>Posting Letter <span class="required">*</span></label>
+                <input type="file" id="doc_posting_letter" accept=".pdf, image/*" required />
+              </div>
+              <div class="field-group">
+                <label>Record of Experiences <span class="required">*</span></label>
+                <input type="file" id="doc_experiences" accept=".pdf, image/*" required />
+              </div>
+              <div class="field-group">
+                <label>Certificates <span style="color: #64748b; font-weight: normal; font-size: 12px;">(Optional / If need be)</span></label>
+                <input type="file" id="doc_certificate" accept=".pdf, image/*" />
               </div>
             </div>
             {% else %}
@@ -679,7 +701,7 @@
         </div>
       </div>
 
-      <!-- ================= STEP 5: DSA CIVILIAN STAFF REGISTRATION FORM ================= -->
+      <!-- ================= STEP 5: REGISTRATION FORM ================= -->
       <div id="stepView_5" class="onboarding-view-wrapper" style="display: none">
         <div class="onboarding-controls-bar" style="margin: 25px;">
           <button type="button" class="round-back-btn" onclick="goToStep(4)">
@@ -690,6 +712,331 @@
           </button>
         </div>
 
+        {% if user.category == 'military' %}
+        <!-- ================= REGISTRATION FORM FOR DSA MILITARY PERSONNEL ================= -->
+        <div class="form-container-card" style="margin: 25px;">
+          <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
+            <span style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #64748b; text-transform: uppercase;">STAFF IN CONFIDENCE</span>
+            <h2 class="form-title-header" style="margin-top: 5px; color: #0f172a; font-weight: 800;">REGISTRATION FORM FOR DSA MILITARY PERSONNEL</h2>
+            <p class="form-subtitle" style="margin-top: 4px; color: #64748b;">
+              Official Registration Record for Military Personnel attached to Defence Space Administration.
+            </p>
+          </div>
+
+          <form id="form_step_5" onsubmit="event.preventDefault()">
+            <!-- SECTION A: Personal & Service Profile -->
+            <h3 class="inner-section-heading" style="font-size: 15px; color: #e50000; margin: 20px 0 15px 0; font-weight: 700; text-transform: uppercase;">
+              Section A: Personal Details & Service Profile
+            </h3>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>a. Service No. <span class="required">*</span></label>
+                <input type="text" id="serviceNo" value="{{ user.file_no }}" required readonly style="background-color: #f1f5f9; font-weight: 600;" />
+              </div>
+              <div class="field-group">
+                <label>b. Rank <span class="required">*</span></label>
+                <input type="text" id="milRank" placeholder="e.g. Lt Col / Wg Cdr / Cdr" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>c. Name (In Full) <span class="required">*</span></label>
+                <input type="text" id="milFullName" value="{{ user.name }}" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>d. Date of Birth <span class="required">*</span></label>
+                <input type="date" id="milDob" required />
+              </div>
+              <div class="field-group">
+                <label>e. Sex <span class="required">*</span></label>
+                <select id="milSex" required>
+                  <option value="" disabled selected hidden>Select Sex</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>f. Marital Status <span class="required">*</span></label>
+                <select id="milMaritalStatus" required>
+                  <option value="" disabled selected hidden>Select Status</option>
+                  <option value="SINGLE">Single</option>
+                  <option value="MARRIED">Married</option>
+                  <option value="DIVORCED">Divorced</option>
+                  <option value="WIDOWED">Widowed</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>g. Name of Spouse</label>
+                <input type="text" id="milSpouseName" placeholder="Full name of spouse (if married)" autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>h. Children (Male)</label>
+                <input type="number" id="milChildrenMale" placeholder="0" min="0" />
+              </div>
+              <div class="field-group">
+                <label>h. Children (Female)</label>
+                <input type="number" id="milChildrenFemale" placeholder="0" min="0" />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>i. Religion <span class="required">*</span></label>
+                <input type="text" id="milReligion" placeholder="e.g. Christianity / Islam" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>j. Blood Group <span class="required">*</span></label>
+                <select id="milBloodGroup" required>
+                  <option value="" disabled selected hidden>Select Blood Group</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>k. Place of Birth <span class="required">*</span></label>
+                <input type="text" id="milPlaceOfBirth" placeholder="e.g. Kaduna" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid" style="text-align: left">
+              <div class="field-group">
+                <label>l. State of Origin <span class="required">*</span></label>
+                <input type="text" id="milStateOfOrigin" placeholder="e.g. Kano State" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>l. Local Govt Area (LGA) <span class="required">*</span></label>
+                <input type="text" id="milLgaOfOrigin" placeholder="e.g. Municipal LGA" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="field-group" style="margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px; display: block;">m. Permanent Home Address (Not PO Box) <span class="required">*</span></label>
+              <textarea id="milHomeAddress" rows="2" required placeholder="Permanent residential home address" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <!-- SECTION B: COMMISSION & SERVICE HISTORY -->
+            <h3 class="inner-section-heading" style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
+              Section B: Commission & Service History
+            </h3>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>n. Date & Type of Commission <span class="required">*</span></label>
+                <input type="text" id="milCommissionDateType" placeholder="e.g. 15 Sep 2012 (Direct Regular)" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>o. Date of Enlistment <span class="required">*</span></label>
+                <input type="date" id="milEnlistmentDate" required />
+              </div>
+              <div class="field-group">
+                <label>p. Seniority in Present Rank <span class="required">*</span></label>
+                <input type="text" id="milSeniorityRank" placeholder="e.g. 01 Oct 2021" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>q. Corps / Branch / Service <span class="required">*</span></label>
+                <input type="text" id="milCorpsBranch" placeholder="e.g. NAF / NA / NN / Signals" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>r. Former Unit <span class="required">*</span></label>
+                <input type="text" id="milFormerUnit" placeholder="e.g. HQ NAF" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>s. Appointment in Former Unit <span class="required">*</span></label>
+                <input type="text" id="milFormerAppt" placeholder="e.g. SO2 Ops" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>t. Present Unit <span class="required">*</span></label>
+                <input type="text" id="milPresentUnit" placeholder="e.g. Defence Space Administration" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>u. DSA Appointment <span class="required">*</span></label>
+                <input type="text" id="milDsaAppt" placeholder="e.g. SO1 Cyber Ops" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>v. Date TOS (Taken On Strength) <span class="required">*</span></label>
+                <input type="date" id="milDateTos" required />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>w. Directorate / Office <span class="required">*</span></label>
+                <input type="text" id="milDirectorate" value="{{ user.directorate | upper }}" required style="background-color: #f1f5f9; font-weight: 600;" readonly />
+              </div>
+              <div class="field-group">
+                <label>ac. Year of Service <span class="required">*</span></label>
+                <input type="number" id="milYearsOfService" placeholder="e.g. 12" min="0" required />
+              </div>
+              <div class="field-group">
+                <label>ad. Military ID Card Number <span class="required">*</span></label>
+                <input type="text" id="milIdCardNo" placeholder="Official Military ID Card No" required autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-row-grid tri-grid" style="text-align: left">
+              <div class="field-group">
+                <label>ad. GSM Number <span class="required">*</span></label>
+                <input type="tel" id="milGsmNo" placeholder="e.g. 08030000000" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>ae. Spoken Languages <span class="required">*</span></label>
+                <input type="text" id="milSpokenLang" placeholder="e.g. English, Hausa" required autocomplete="off" />
+              </div>
+              <div class="field-group">
+                <label>ae. Written Languages <span class="required">*</span></label>
+                <input type="text" id="milWrittenLang" placeholder="e.g. English, Hausa" required autocomplete="off" />
+              </div>
+            </div>
+
+            <!-- SECTION C: COURSES, PROMOTIONS & MEDALS -->
+            <h3 class="inner-section-heading" style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
+              Section C: Courses, Unit History & Medals
+            </h3>
+
+            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">x. Military Courses Attended (Serial, Course, Institution, Period, Remarks)</label>
+              <textarea id="milMilitaryCourses" rows="3" placeholder="e.g.&#10;1. Junior Staff Course - AFCSC Jaji (2018) - Passed&#10;2. Young Officers Course - NASME (2014) - Distinction" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">y. Civil Courses Attended (Serial, Course, Institution, Period, Remarks)</label>
+              <textarea id="milCivilCourses" rows="3" placeholder="e.g.&#10;1. B.Sc Cybersecurity - NDA Kaduna (2008-2013)&#10;2. M.Sc Information Security - ABU Zaria (2020-2022)" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">z. Last 3 Units Served (Serial, Unit, Appointment, Period, Remarks)</label>
+              <textarea id="milLast3UnitsServed" rows="3" placeholder="e.g.&#10;1. 101 Special Forces Battalion - CO - 2021 to 2023&#10;2. HQ NACWC - SO2 Training - 2019 to 2021&#10;3. 81 Division Garrison - Platoon Commander - 2016 to 2019" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">aa. Promotion History with Dates</label>
+              <textarea id="milPromotionHistory" rows="3" placeholder="e.g.&#10;1. Lieutenant Colonel - 01 Oct 2022&#10;2. Major - 01 Oct 2017&#10;3. Captain - 15 Sep 2012" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">ab. Medals and Awards</label>
+              <textarea id="milMedalsAwards" rows="2" placeholder="e.g.&#10;1. General Service Medal (GSM)&#10;2. Pass Staff Course (psc)&#10;3. Forces Service Star (FSS)" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <!-- SECTION D: NEXT OF KIN & CLOSE ASSOCIATES -->
+            <h3 class="inner-section-heading" style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
+              Section D: Next of Kin & Close Associates
+            </h3>
+
+            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">1st Next of Kin (1st NOK)</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>af. Name <span class="required">*</span></label>
+                  <input type="text" id="milNok1Name" placeholder="Full Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>ag. Address <span class="required">*</span></label>
+                  <input type="text" id="milNok1Address" placeholder="Address" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>ah. GSM No & Email <span class="required">*</span></label>
+                  <input type="text" id="milNok1GsmEmail" placeholder="Phone & Email" required autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">2nd Next of Kin (2nd NOK)</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>ai. Name <span class="required">*</span></label>
+                  <input type="text" id="milNok2Name" placeholder="Full Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>aj. Address <span class="required">*</span></label>
+                  <input type="text" id="milNok2Address" placeholder="Address" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>ak. GSM No & Email <span class="required">*</span></label>
+                  <input type="text" id="milNok2GsmEmail" placeholder="Phone & Email" required autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">1st Close Associate</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>al. Name <span class="required">*</span></label>
+                  <input type="text" id="milAssoc1Name" placeholder="Full Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>am. Address <span class="required">*</span></label>
+                  <input type="text" id="milAssoc1Address" placeholder="Address" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>an. GSM No & Email <span class="required">*</span></label>
+                  <input type="text" id="milAssoc1GsmEmail" placeholder="Phone & Email" required autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">2nd Close Associate</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>ao. Name <span class="required">*</span></label>
+                  <input type="text" id="milAssoc2Name" placeholder="Full Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>ap. Address <span class="required">*</span></label>
+                  <input type="text" id="milAssoc2Address" placeholder="Address" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>aq. GSM No & Email <span class="required">*</span></label>
+                  <input type="text" id="milAssoc2GsmEmail" placeholder="Phone & Email" required autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">3rd Close Associate</h4>
+              <div class="form-row-grid tri-grid" style="text-align: left">
+                <div class="field-group">
+                  <label>ar. Name <span class="required">*</span></label>
+                  <input type="text" id="milAssoc3Name" placeholder="Full Name" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>as. Address <span class="required">*</span></label>
+                  <input type="text" id="milAssoc3Address" placeholder="Address" required autocomplete="off" />
+                </div>
+                <div class="field-group">
+                  <label>at. GSM No & Email <span class="required">*</span></label>
+                  <input type="text" id="milAssoc3GsmEmail" placeholder="Phone & Email" required autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px; padding: 15px; background: #fff5f5; border: 1px dashed #feb2b2; border-radius: 8px; color: #c53030; font-size: 12px; font-weight: 700; letter-spacing: 0.5px;">
+              "Unauthorized disclosure, transmission, reproduction or retention of information on this sheet violates the Official Secrets Act CAP O3 (LFN) 2004"
+            </div>
+          </form>
+        </div>
+        {% else %}
+        <!-- ================= DSA CIVILIAN STAFF REGISTRATION FORM ================= -->
         <div class="form-container-card" style="margin: 25px;">
           <h2 class="form-title-header">DSA Civilian Staff Registration Form</h2>
           <p class="form-subtitle">
@@ -935,6 +1282,7 @@
             </div>
           </form>
         </div>
+        {% endif %}
       </div>
 
       <!-- ================= SUCCESS POPUP MODAL DIALOG CONTAINER ================= -->

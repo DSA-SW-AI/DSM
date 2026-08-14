@@ -242,6 +242,15 @@ async function submitStepForm(stepNumber) {
                 if (nyscPostingInput && nyscPostingInput.files.length > 0) submissionBody.append('doc_nysc_posting', nyscPostingInput.files[0]);
                 if (digitalIdInput && digitalIdInput.files.length > 0) submissionBody.append('doc_digital_id', digitalIdInput.files[0]);
             }
+            else if (activeCategory === 'military') {
+                const postingInput = document.getElementById('doc_posting_letter');
+                const expInput = document.getElementById('doc_experiences');
+                const certInput = document.getElementById('doc_certificate');
+
+                if (postingInput && postingInput.files.length > 0) submissionBody.append('doc_posting_letter', postingInput.files[0]);
+                if (expInput && expInput.files.length > 0) submissionBody.append('doc_experiences', expInput.files[0]);
+                if (certInput && certInput.files.length > 0) submissionBody.append('doc_certificate', certInput.files[0]);
+            }
             else {
                 // Loop through and capture your standard 7 Compulsory Table Grid files safely
                 const matrixDocumentIds = [
