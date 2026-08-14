@@ -51,6 +51,11 @@ ROLE_PERMISSIONS = {
         "modules": ["personnel_civilian", "leave_pass"],
         "actions": ["process_leave"]
     },
+    "civilian_head_cao": {
+            "sidebar": ["dashboard", "documents", "leave_pass", "parade_states"],
+            "modules": ["personnel_civilian", "leave_pass"],
+            "actions": ["process_leave"]
+        },
     "civilian": {
         "sidebar": ["dashboard", "documents", "leave_pass"],
         "modules": ["documents", "leave_pass"],

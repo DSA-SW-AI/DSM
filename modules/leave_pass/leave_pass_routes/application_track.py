@@ -40,8 +40,8 @@ def compute_application_timeline(app, reference_id):
             
         # Standard approver step
         display_name = role.upper()
-        if role == "civilian_head":
-            display_name = "Civilian Head"
+        if role == "civilian_head_cao":
+            display_name = "Head Civilian Affair"
         elif role == "so":
             display_name = "Staff Officer"
         elif role == "ad":
@@ -80,22 +80,23 @@ def compute_application_timeline(app, reference_id):
             comments = step.get("comments", "")
             approver_rank = step.get("approverRank", "")
             
-            if status == "approved":
-                desc = f"Approved by {approver_name}"
+            if status in ("approved", "Recommended for Approval"):
+                action_text = "Recommended" if status == "Recommended for Approval" else "Approved"
+                desc = f"{action_text} by {approver_name}"
                 if approver_rank:
                     desc += f" ({approver_rank})"
-                if comments and comments not in ["Approved", "Approved by CDSA"]:
+                if comments and comments not in ["Approved", "Approved by CDSA", "Recommended for Approval"]:
                     desc += f" - {comments}"
                 
                 timeline.append({
-                    "title": f"Step {idx}: {display_name} Approval",
+                    "title": f"Step {idx}: {display_name} {action_text}",
                     "date": step_date,
                     "description": desc,
                     "status": "completed",
                     "icon": "ri-check-line",
                     "step_number": idx
                 })
-            elif status == "rejected":
+            elif status in ("rejected", "Rejected"):
                 desc = f"Rejected by {approver_name}"
                 if comments:
                     desc += f" - {comments}"
@@ -116,7 +117,7 @@ def compute_application_timeline(app, reference_id):
                     all_prev_completed = True
                     for prev_step_info in approval_steps[:idx-1]:
                         prev_step = next((s for s in approval_chain if s.get("role") == prev_step_info["role"]), None)
-                        if not prev_step or prev_step.get("status") != "approved":
+                        if not prev_step or prev_step.get("status") not in ("approved", "Recommended for Approval"):
                             all_prev_completed = False
                             break
                     
@@ -322,7 +323,7 @@ def get_step_description(step):
             return "Awaiting Leave/Pass Receipt Issued from SO1 DOA"
         elif role == "registry":
             return "Awaiting forwarding to SO1 DOA"
-        elif role == "civilian_head":
+        elif role == "civilian_head_cao":
             return "Awaiting Civilian HOD approval"
         elif role == "officer":
             return "Awaiting Officer approval"
@@ -332,7 +333,7 @@ def get_step_description(step):
             return "Awaiting Director approval"
         else:
             return f"Awaiting approval from {role}"
-    elif status == "rejected":
+    elif status in ("rejected", "Rejected"):
         return "Application has been rejected"
     elif status == "completed":
         if role == "Completed":
@@ -346,6 +347,7 @@ def get_step_icon(status):
         "pending": "ri-time-line",
         "approved": "ri-check-line",
         "rejected": "ri-close-line",
+        "Rejected": "ri-close-line",
         "completed": "ri-check-double-line"
     }
     return icons.get(status, "ri-time-line")

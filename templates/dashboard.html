@@ -1283,15 +1283,21 @@
         </div>
         <div class="status-badge status-{{ application.status }}" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 50px; font-weight: 600; text-transform: uppercase; font-size: 14px; letter-spacing: 0.5px;
                    {% if application.status == 'pending' %} background: #fff3cd; color: #856404;
-                   {% elif application.status == 'approved' %} background: #d1e7dd; color: #0f5132;
+                   {% elif application.status == 'Approved' and application.role_bucket == 'civilian' %} background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;
+                   {% elif application.status in ('approved', 'Approved') %} background: #d1e7dd; color: #0f5132;
                    {% elif application.status == 'rejected' %} background: #f8d7da; color: #721c24;
+                   {% elif application.status == 'Recommended for Approval' %} background: #fff3cd; color: #856404; border: 1px solid #ffeeba;
                    {% elif application.status == 'issued' %} background: #cfe2ff; color: #084298; {% endif %}">
           {% if application.status == "pending" %}
           <i class="ri-time-line"></i> Pending
-          {% elif application.status == "approved" %}
+          {% elif application.status == "Approved" and application.role_bucket == "civilian" %}
+          <i class="ri-checkbox-circle-line"></i> Approved (Awaiting Issuance)
+          {% elif application.status in ("approved", "Approved") %}
           <i class="ri-check-line"></i> Approved
           {% elif application.status == "rejected" %}
           <i class="ri-close-line"></i> Rejected
+          {% elif application.status == "Recommended for Approval" %}
+          <i class="ri-time-line"></i> Recommended for Approval
           {% elif application.status == "issued" %}
           <i class="ri-check-double-line"></i> Issued
           {% endif %}
@@ -1463,6 +1469,18 @@
   </script>
   {% endif %}
   <script src="{{ url_for('static', filename='js/app_notifications.js') }}"></script>
+  <!-- Socket.IO client library -->
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <script id="current-user-data" type="application/json">
+    {{ user | tojson }}
+  </script>
+  <script>
+    const CURRENT_USER = JSON.parse(
+      document.getElementById("current-user-data").textContent
+    );
+    window.CURRENT_USER = CURRENT_USER;
+  </script>
+  <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
 </body>
 
 </html>

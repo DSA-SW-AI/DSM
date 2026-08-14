@@ -630,7 +630,7 @@
 
                             <div class="details-grid">
                                 {% if role == 'registry' or role == 'director' or role == 'deputy_director' or role ==
-                                'civilian_head' or role == 'officer' %}
+                                'civilian_head' or role == 'civilian_head_cao' or role == 'officer' %}
                                 <div class="detail-item">
                                     <div class="detail-label"><i class="bi bi-tag"></i> Leave Type</div>
                                     <div class="detail-value highlight">
@@ -853,20 +853,21 @@
                                 {% set is_users_turn = false %}
                                 {% if user_step and user_step.status == "pending"
                                 and user_step.role not in ("registry", "so1_doa", "central_registry")
-                                and not user_step.get("is_final_approver") %}
+                                and (not user_step.get("is_final_approver") or application.status|lower == "pending") %}
                                 {% set ns2 = namespace(all_prev=true) %}
                                 {% for step in application.approvalChain %}
-                                {% if loop.index0 < user_index and step.status !="approved" %} {% set ns2.all_prev=false
-                                    %} {% endif %} {% endfor %} {% if ns2.all_prev %}{% set is_users_turn=true %}{%
-                                    endif %} {% endif %} {# ── Can registry acknowledge file? ── #} {% set
-                                    can_acknowledge=false %} {% if user_step and user_step.role=="registry" and not
-                                    user_step.get("acknowledged", false) and application.status in ("approved", "issued"
-                                    ) %} {% set can_acknowledge=true %} {% endif %} {# ── Can SO1-DOA / central_registry
-                                    / final_approver issue receipt? ── #} {% set can_issue_receipt=false %} {% if
+                                {% if loop.index0 < user_index and step.status not in
+                                    ("approved", "Recommended for Approval" ) %} {% set ns2.all_prev=false %} {% endif
+                                    %} {% endfor %} {% if ns2.all_prev %}{% set is_users_turn=true %}{% endif %} {%
+                                    endif %} {# ── Can registry acknowledge file? ── #} {% set can_acknowledge=false %}
+                                    {% if user_step and user_step.role=="registry" and not user_step.get("acknowledged",
+                                    false) and application.status|lower in ("approved", "issued" ) %} {% set
+                                    can_acknowledge=true %} {% endif %} {# ── Can SO1-DOA / central_registry /
+                                    final_approver issue receipt? ── #} {% set can_issue_receipt=false %} {% if
                                     user_step and (user_step.role in ("so1_doa", "central_registry" ) or
-                                    user_step.get("is_final_approver")==true) and application.status=="approved" and not
-                                    user_step.get("receipt") %} {% set can_issue_receipt=true %} {% endif %} {# ── CDSA
-                                    approve button ── #} {% if "cdsa" in user.roles and
+                                    user_step.get("is_final_approver")==true) and application.status|lower in
+                                    ("approved",) and not user_step.get("receipt") %} {% set can_issue_receipt=true %}
+                                    {% endif %} {# ── CDSA approve button ── #} {% if "cdsa" in user.roles and
                                     application.role_bucket=="director" and application.status=="pending" %} {% set
                                     ns3=namespace(cdsa_step=None) %} {% for step in application.approvalChain %} {% if
                                     step.role=="cdsa" and step.approverId|string==user.service_number|string %} {% set
@@ -889,7 +890,13 @@
                                     style="background-color: #218838; color: white; border: 1px solid #4eff74;"
                                     data-url="{{ url_for('approver_dashboard.approve', app_id=application._id|string) }}"
                                     onclick="openApproveModal(this)">
-                                    <i class="bi bi-check-circle"></i> Approve Leave/Pass Application
+                                    <i class="bi bi-check-circle"></i>
+                                    {% if application.role_bucket == "civilian" and user_step.role in
+                                    ("civilian_head_cao", "civilian_head", "so", "dd") %}
+                                    Recommend for Approval
+                                    {% else %}
+                                    Approve Leave/Pass Application
+                                    {% endif %}
                                 </button>
                                 <button class="btn btn-reject"
                                     style="background-color: #ffffff; color: #dc3545; border: 1px solid #dc3545;"
@@ -976,13 +983,13 @@
                                     <div class="timeline-header">
                                         <div>
                                             {# ── Human-readable role label ── #}
-                                            {% if step.role == "civilian_head" %}
-                                            <span class="timeline-role">Civilian Head</span>
-                                            {% elif step.role == "so2_officer" %}
+                                            {% if step.role in ("civilian_head_cao", "civilian_head") %}
+                                            <span class="timeline-role">Head Civilian Affairs</span>
+                                            {% elif step.is_so_officer == True %}
                                             <span class="timeline-role">Staff Officer</span>
-                                            {% elif step.role == "ad_officer" %}
+                                            {% elif step.is_ad_approver == True %}
                                             <span class="timeline-role">AD Officer</span>
-                                            {% elif step.role == "deputy_director" %}
+                                            {% elif step.is_dd_approver == True %}
                                             <span class="timeline-role">Deputy Director</span>
                                             {% elif step.role == "director" %}
                                             <span class="timeline-role">Director</span>
@@ -991,11 +998,11 @@
                                             {% elif step.role == "registry" %}
                                             <span class="timeline-role">Registry ({{ step.registry_type|title if
                                                 step.registry_type else 'Directorate' }})</span>
-                                            {% elif step.role == "so1_doa" %}
-                                            <span class="timeline-role">DOA Director — Leave/Pass Receipt</span>
+                                            {% elif step.is_final_approver == True %}
+                                            <span class="timeline-role">DOA Director — Leave/Pass Approval</span>
                                             {% elif step.role == "central_registry" %}
                                             <span class="timeline-role">Central Registry (CDSA) — Leave/Pass
-                                                Receipt</span>
+                                                Approval</span>
                                             {% else %}
                                             <span class="timeline-role">{{ step.role|replace('_',' ')|title }}</span>
                                             {% endif %}
@@ -1109,28 +1116,49 @@
     <div id="rejectModal" class="modal-overlay" style="display: none;">
         <div class="modal-box">
 
-            <h3>Reject Application</h3><br>
-            <p class="subtitle">Confirm your Rejection for this Leave/Pass request</p><br><br>
+            <h3>
+                {% if application.role_bucket == "civilian" and user_step and user_step.role in ("civilian_head_cao",
+                "civilian_head", "so", "dd") %}
+                Recommend Rejection
+                {% else %}
+                Reject Application
+                {% endif %}
+            </h3><br>
+            <p class="subtitle">
+                {% if application.role_bucket == "civilian" and user_step and user_step.role in ("civilian_head_cao",
+                "civilian_head", "so", "dd") %}
+                Confirm your recommendation to reject this leave/pass request
+                {% else %}
+                Confirm your rejection for this leave/pass request
+                {% endif %}
+            </p><br><br>
 
             <form id="rejectForm" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
-                    <label for="comments">Comments (required for rejection)</label>
-                    <input type="text" autocomplete="off" required id="comments" name="comments" placeholder="">
+                    <label for="reject_comments">Comments (required for rejection)</label>
+                    <input type="text" autocomplete="off" required id="reject_comments" name="comments" placeholder="">
                 </div>
                 <div class="form-group">
-                    <label for="Comments">Name/Signature</label>
-                    <input type="text" autocomplete="off" value="{{ user.name }}" id="signature_name"
+                    <label for="reject_signature_name">Name/Signature</label>
+                    <input type="text" autocomplete="off" value="{{ user.name }}" id="reject_signature_name"
                         name="signature_name" placeholder="">
                 </div>
                 <div class="form-group">
-                    <label for="Comments">Role</label>
-                    <input type="text" autocomplete="off" value="{{ user.role or '' }}" id="rank" name="rank"
+                    <label for="reject_rank">Role</label>
+                    <input type="text" autocomplete="off" value="{{ user.role or '' }}" id="reject_rank" name="rank"
                         placeholder="">
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" onclick="closeRejectModal()">Cancel</button>
-                    <button type="submit" class="continues-btn">Confirm Rejection</button>
+                    <button type="submit" class="continues-btn">
+                        {% if application.role_bucket == "civilian" and user_step and user_step.role in
+                        ("civilian_head_cao", "civilian_head", "so", "dd") %}
+                        Confirm Recommendation
+                        {% else %}
+                        Confirm Rejection
+                        {% endif %}
+                    </button>
                 </div>
             </form>
 
@@ -1142,28 +1170,49 @@
     <div id="approveModal" class="modal-overlay" style="display: none;">
         <div class="modal-box">
 
-            <h3>Approve Application</h3><br>
-            <p class="subtitle">Confirm your approval for this leave/pass request</p><br><br>
+            <h3>
+                {% if application.role_bucket == "civilian" and user_step and user_step.role in ("civilian_head_cao",
+                "civilian_head", "so", "dd") %}
+                Recommend Application
+                {% else %}
+                Approve Application
+                {% endif %}
+            </h3><br>
+            <p class="subtitle">
+                {% if application.role_bucket == "civilian" and user_step and user_step.role in ("civilian_head_cao",
+                "civilian_head", "so", "dd") %}
+                Confirm your recommendation for this leave/pass request
+                {% else %}
+                Confirm your approval for this leave/pass request
+                {% endif %}
+            </p><br><br>
 
             <form id="approveForm" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
-                    <label for="comments">Comments</label>
-                    <input type="text" autocomplete="off" id="comments" name="comments" placeholder="">
+                    <label for="approve_comments">Comments</label>
+                    <input type="text" autocomplete="off" id="approve_comments" name="comments" placeholder="">
                 </div>
                 <div class="form-group">
-                    <label for="Comments">Name/Signature</label>
-                    <input type="text" autocomplete="off" value="{{ user.name }}" id="signature_name"
+                    <label for="approve_signature_name">Name/Signature</label>
+                    <input type="text" autocomplete="off" value="{{ user.name }}" id="approve_signature_name"
                         name="signature_name" placeholder="">
                 </div>
                 <div class="form-group">
-                    <label for="Comments">Role</label>
-                    <input type="text" autocomplete="off" value="{{ user.role or '' }}" id="rank" name="rank"
+                    <label for="approve_rank">Role</label>
+                    <input type="text" autocomplete="off" value="{{ user.role or '' }}" id="approve_rank" name="rank"
                         placeholder="">
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" onclick="closeApproveModal()">Cancel</button>
-                    <button type="submit" class="continuess-btn">Confirm Approval</button>
+                    <button type="submit" class="continuess-btn">
+                        {% if application.role_bucket == "civilian" and user_step and user_step.role in
+                        ("civilian_head_cao", "civilian_head", "so", "dd") %}
+                        Confirm Recommendation
+                        {% else %}
+                        Confirm Approval
+                        {% endif %}
+                    </button>
                 </div>
             </form>
 
@@ -1259,7 +1308,7 @@
             rejectUrl = element.getAttribute("data-url");
             console.log("Reject URL set to:", rejectUrl);
 
-            const form = document.getElementById("rejectForm");      // ← now exists
+            const form = document.getElementById("rejectForm");
             if (form) {
                 form.action = rejectUrl;
                 form.method = "POST";
@@ -1268,7 +1317,6 @@
                 console.error("Reject form not found!");
             }
         }
-
 
         function closeRejectModal() {
             const modal = document.getElementById("rejectModal");
@@ -1279,11 +1327,11 @@
             const form = document.getElementById("rejectForm");
             if (form) {
                 form.action = "";
-                form.reset(); // Clear form fields
+                form.reset();
             }
         }
 
-        // Add this: Handle form submission
+        // ← ADD THIS: Handle form submission
         document.addEventListener('DOMContentLoaded', function () {
             const rejectForm = document.getElementById("rejectForm");
             if (rejectForm) {
@@ -1291,17 +1339,16 @@
                     e.preventDefault();
 
                     const comments = document.getElementById("comments").value.trim();
-                    console.log("Comments value:", comments);
 
+                    // Validate comments
                     if (!comments) {
-                        alert("Please enter comments for rejection");
-                        return false;
+                        alert("Comments are required for rejection.");
+                        return;
                     }
 
-                    console.log("Submitting to:", this.action);
-                    console.log("Form data:", new FormData(this));
+                    console.log("Submitting rejection with comments:", comments);
 
-                    // Actually submit the form
+                    // Submit the form
                     this.submit();
                 });
             }
@@ -1517,19 +1564,16 @@
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
 
-                const targetUrl = this.action || window.location.href;
-
-                // Close original action modal first
-                if (closeFnName && typeof window[closeFnName] === 'function') {
-                    window[closeFnName]();
-                } else {
-                    // fallbacks
-                    if (formId === 'approveForm') closeApproveModal();
-                    if (formId === 'rejectForm') closeRejectModal();
-                    if (formId === 'acknowledgementForm') closeAcknowledgementModal();
-                    if (formId === 'receiptForm') closeReceiptModal();
+                // Validation check for rejection comments
+                if (formId === 'rejectForm') {
+                    const commentsInput = document.getElementById('reject_comments');
+                    if (commentsInput && !commentsInput.value.trim()) {
+                        alert("Comments are required for rejection.");
+                        return;
+                    }
                 }
 
+                const targetUrl = this.action || window.location.href;
                 const formData = new FormData(this);
                 const submitBtn = this.querySelector('button[type="submit"]');
                 const originalHtml = submitBtn ? submitBtn.innerHTML : 'Confirm';
@@ -1542,19 +1586,33 @@
                 fetch(targetUrl, {
                     method: 'POST',
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
                     },
                     body: formData
                 })
                     .then(response => {
                         if (response.redirected) {
                             window.location.href = response.url;
-                            return;
+                            return null;
                         }
                         return response.json();
                     })
                     .then(data => {
+                        if (data === null) {
+                            return;
+                        }
                         if (data && data.success) {
+                            // Close original action modal only on success
+                            if (closeFnName && typeof window[closeFnName] === 'function') {
+                                window[closeFnName]();
+                            } else {
+                                // fallbacks
+                                if (formId === 'approveForm') closeApproveModal();
+                                if (formId === 'rejectForm') closeRejectModal();
+                                if (formId === 'acknowledgementForm') closeAcknowledgementModal();
+                                if (formId === 'receiptForm') closeReceiptModal();
+                            }
                             showActionSuccessModal(successTitle, data.message || successMsg, isRejection);
                         } else {
                             alert(data && data.message ? data.message : 'An error occurred. Please try again.');
@@ -1580,10 +1638,23 @@
             handleModalFormSubmit('approveForm', 'Approval Successful!', 'The request has been approved successfully.', false, 'closeApproveModal');
             handleModalFormSubmit('rejectForm', 'Application Rejected', 'The request has been rejected.', true, 'closeRejectModal');
             handleModalFormSubmit('acknowledgementForm', 'File Acknowledged!', 'The file has been documented in the registry.', false, 'closeAcknowledgementModal');
-            handleModalFormSubmit('receiptForm', 'Receipt Issued!', 'Leave/pass receipt has been generated successfully.', false, 'closeReceiptModal');
+            handleModalFormSubmit('receiptForm', 'Leave/Pass Issued!', 'Leave/pass receipt has been generated successfully.', false, 'closeReceiptModal');
         });
 
     </script>
+
+    <!-- Socket.IO client library -->
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script id="current-user-data" type="application/json">
+        {{ user | tojson }}
+    </script>
+    <script>
+        const CURRENT_USER = JSON.parse(
+            document.getElementById("current-user-data").textContent
+        );
+        window.CURRENT_USER = CURRENT_USER;
+    </script>
+    <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
 
 </body>
 

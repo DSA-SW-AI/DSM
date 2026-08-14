@@ -100,7 +100,7 @@ socket.on("new_notification", (data) => {
     playBeepSound();
 
     // Trigger browser native alert notification
-    let title = "DCS Paperless Notification";
+    let title = "DSM Paperless Notification";
     let body = data.message || "You have a new action item pending.";
     let clickUrl = "/";
 
@@ -116,7 +116,7 @@ socket.on("new_notification", (data) => {
     ) {
         title = "📋 Leave & Pass Action Required";
         const id = data._id || data.applicationId;
-        clickUrl = id ? `/view/${id}` : "/dashboard_main";
+        clickUrl = id ? `/view/${id}` : "/dashboard_leave_pass";
     } else if (data.type === "document") {
         title = "📄 New Document Forwarded";
         const id = data._id;
@@ -236,13 +236,11 @@ function showPendingApprovalModal(data) {
     document.getElementById("_leaveModalViewBtn").addEventListener("click", () => {
         const id = data._id || data.applicationId;
         sessionStorage.setItem("notificationHandled", "true");
-        window.location.href = id ? `/view/${id}` : "/dashboard_main";
+        window.location.href = id ? `/view/${id}` : "/dashboard_leave_pass";
     });
 
     document.getElementById("_leaveModalLaterBtn").addEventListener("click", () => {
-        // document.getElementById("pendingApprovalModal")?.remove();
-        sessionStorage.setItem("notificationHandled", "true");
-        window.location.href = "/dashboard_main";
+        document.getElementById("pendingApprovalModal")?.remove();
     });
 }
 

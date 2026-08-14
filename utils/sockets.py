@@ -1,13 +1,9 @@
-# sockets.py — single source of truth for ALL socket event handlers
-# Import this in your app factory (create_app) AFTER socketio.init_app(app)
-# e.g.  from sockets import *   OR   import sockets  (just needs to be imported)
-#
-# REMOVE all @socketio.on('connect'), @socketio.on('join_rooms'), @socketio.on('join')
-# from parade_state.py and approver_dashboard.py — they now live here only.
-
 from flask import request, session as flask_session
 from flask_socketio import emit, join_room
 from modules.extensions import socketio
+from datetime import datetime
+from pymongo import MongoClient
+import os
 
 
 @socketio.on('connect')
@@ -19,34 +15,43 @@ def handle_connect():
         print("❌ No service_number in session — socket connected but no room joined")
         return
 
-    directorate = flask_session.get("directorate")
-    roles = flask_session.get("roles", [])
-
     safe_sn = service_number.replace("/", "_")
     user_room = f"USER_{safe_sn}"
     join_room(user_room)
     print(f"✅ Joined room: {user_room}")
 
-    for role in roles:
-        if role == "so1_doa":
-            join_room(f"ROLE_{role}")
-            print(f"✅ Joined room: ROLE_{role}")
-        elif directorate:
-            dir_room = f"DIR_{directorate}_{role}"
-            join_room(dir_room)
-            print(f"✅ Joined room: {dir_room}")
+    # Join role‑based rooms so we can broadcast to all users of a certain role
+    # (useful if you ever want to notify all SOs, DDs, etc.)
+    if flask_session.get("is_so_approver"):
+        join_room("ROLE_so")
+        print("✅ Joined room: ROLE_so")
+    if flask_session.get("is_dd_approver"):
+        join_room("ROLE_dd")
+        print("✅ Joined room: ROLE_dd")
+    if flask_session.get("is_ad_approver"):
+        join_room("ROLE_ad")
+        print("✅ Joined room: ROLE_ad")
+    if flask_session.get("is_final_approver"):
+        join_room("ROLE_final_approver")
+        print("✅ Joined room: ROLE_final_approver")
+
+    # Also join a directorate‑specific room if needed
+    directorate = flask_session.get("directorate")
+    if directorate:
+        dir_room = f"DIR_{directorate}"
+        join_room(dir_room)
+        print(f"✅ Joined room: {dir_room}")
 
     emit('connected', {'status': 'connected', 'room': user_room}, room=request.sid)
 
-
 @socketio.on('join_rooms')
 def handle_join_rooms(data):
-    """Client-side explicit room join (called on socket connect in socket.js)."""
+    """Client‑side explicit room join (called from socket.js)."""
     service_number = data.get('service_number')
-    roles = data.get('roles', [])
+    role = data.get('role')
     directorate = data.get('directorate')
 
-    print(f"📡 join_rooms — service: {service_number}, roles: {roles}")
+    print(f"📡 join_rooms — service: {service_number}, role: {role}")
 
     if service_number:
         room = f"USER_{service_number}"
@@ -54,14 +59,14 @@ def handle_join_rooms(data):
         print(f"✅ Joined room: {room}")
         emit('room_joined', {'room': room}, room=request.sid)
 
-    for role in roles:
-        if role == "so1_doa":
-            join_room(f"ROLE_{role}")
-        elif directorate:
-            dir_room = f"DIR_{directorate}_{role}"
-            join_room(dir_room)
-            print(f"✅ Joined room: {dir_room}")
-
+    # Optionally join role rooms from the client data
+    if role:
+        join_room(f"ROLE_{role}")
+        print(f"✅ Joined room: ROLE_{role}")
+    if directorate:
+        dir_room = f"DIR_{directorate}"
+        join_room(dir_room)
+        print(f"✅ Joined room: {dir_room}")
 
 @socketio.on('join')
 def handle_join(data):
@@ -73,9 +78,7 @@ def handle_join(data):
         emit('room_joined', {'room': room}, room=request.sid)
 
 # ── Real-Time Messaging event handlers ──────────────────────────────────────
-from datetime import datetime
-from pymongo import MongoClient
-import os
+
 
 # Instantiate database access for socket events
 db_name = os.getenv("DATABASE_NAME", "DSM")

@@ -1594,11 +1594,18 @@ textarea.form-input {
 
 
 .continues-btn {
-    background: #d9534f;
+    padding: 10px 20px;
+    background: #dc3545;
     color: white;
-    padding: 8px 16px;
     border: none;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.continues-btn:hover {
+    background: #c82333;
 }
 
 .continuess-btn {

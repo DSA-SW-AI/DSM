@@ -316,13 +316,20 @@
                         <i class="ri-hashtag"></i> {{ reference_id }}
                     </div>
                 </div>
-                <div class="status-badge status-{{ application.status }}">
+                <div class="status-badge status-{{ application.status }}" style="
+                     {% if application.status == 'pending' %} background: #fff3cd; color: #856404;
+                     {% elif application.status in ('approved', 'Approved') %} background: #d1e7dd; color: #0f5132;
+                     {% elif application.status == 'rejected' %} background: #f8d7da; color: #721c24;
+                     {% elif application.status == 'Recommended for Approval' %} background: #fff3cd; color: #856404; border: 1px solid #ffeeba;
+                     {% elif application.status == 'issued' %} background: #cfe2ff; color: #084298; {% endif %}">
                     {% if application.status == "pending" %}
                     <i class="ri-time-line"></i> Pending
-                    {% elif application.status == "approved" %}
+                    {% elif application.status in ("approved", "Approved") %}
                     <i class="ri-check-line"></i> Approved
                     {% elif application.status == "rejected" %}
                     <i class="ri-close-line"></i> Rejected
+                    {% elif application.status == "Recommended for Approval" %}
+                    <i class="ri-time-line"></i> Recommended for Approval
                     {% elif application.status == "issued" %}
                     <i class="ri-check-double-line"></i> Issued
                     {% endif %}
