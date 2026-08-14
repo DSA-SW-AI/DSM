@@ -352,7 +352,8 @@ def dashboard():
         "appt": user_data.get("appt"),
         "directorate": user_dir_clean,
         "is_approval_role": session.get("is_approval_role", False),
-        "training_request_active": user_data.get("training_request_active", False)
+        "training_request_active": user_data.get("training_request_active", False),
+        "service_number": user_data.get("service_number") or session.get("service_number")
     }
 
     return render_template(

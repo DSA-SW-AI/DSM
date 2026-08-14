@@ -57,6 +57,12 @@
       color: #155724;
       border: 1px solid #c3e6cb;
     }
+
+    .status-pill.recommended {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
   </style>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   </head>
@@ -170,14 +176,14 @@
           <!-- Tab Navigation for different views -->
           <div class="table-tabs"
             style="display: flex; gap: 10px; border-bottom: 2px solid #e9ecef; margin-bottom: 20px;">
-            <button class="tab-btn active" onclick="switchTableTab('pending')" id="pending-tab-btn">
+            <button class="tab-btn active" style="border: 2px solid #ffe9a8;" onclick="switchTableTab('pending')" id="pending-tab-btn">
               <i class="ri-time-line"></i> Pending (<span id="pending-count">{{ pending_count }}</span>)
             </button>
-            <button class="tab-btn" onclick="switchTableTab('approved')" id="approved-tab-btn">
+            <button class="tab-btn" style="border: 2px solid #8dffa4;" onclick="switchTableTab('approved')" id="approved-tab-btn">
               <i class="ri-checkbox-circle-line"></i> Issued/Approved (<span id="approved-count">{{ approved_count
                 }}</span>)
             </button>
-            <button class="tab-btn" onclick="switchTableTab('rejected')" id="rejected-tab-btn">
+            <button class="tab-btn" style="border: 2px solid #ffb2a4;" onclick="switchTableTab('rejected')" id="rejected-tab-btn">
               <i class="ri-close-circle-line"></i> Rejected (<span id="rejected-count">{{ rejected_count }}</span>)
             </button>
           </div>
@@ -209,8 +215,7 @@
             </div>
 
             <div class="table-responsive">
-              {% set pending_apps = applications|selectattr('status', 'in', ['pending', 'awaiting_reliever',
-              'declined_by_reliever'])|list %}
+              {% set pending_apps = pending_applications %}
               {% if pending_apps %}
               <table class="documents-table" id="pending-table-body">
                 <thead>
@@ -316,7 +321,7 @@
             </div>
 
             <div class="table-responsive">
-              {% set approved_apps = applications|selectattr('status', 'in', ['issued', 'approved'])|list %}
+              {% set approved_apps = approved_applications %}
               {% if approved_apps %}
               <table class="documents-table" id="approved-table-body">
                 <thead>
@@ -347,7 +352,7 @@
                           <div class="status-dot"></div>
                           <span>Issued</span>
                         </div>
-                        {% else %}
+                        {% elif app.status in ("approved", "Approved") %}
                         <div class="status-pill approved">
                           <div class="status-dot"></div>
                           <span>Approved</span>
@@ -415,7 +420,7 @@
             </div>
 
             <div class="table-responsive">
-              {% set rejected_apps = applications|selectattr('status', 'equalto', 'rejected')|list %}
+              {% set rejected_apps = rejected_applications %}
               {% if rejected_apps %}
               <table class="documents-table" id="rejected-table-body">
                 <thead>
@@ -513,7 +518,12 @@
                 <td style="padding: 16px; color: #4a5568;">{{ app.numberOfDays }}</td>
                 <td style="padding: 16px;">
                   <div class="status-container">
-                    {% if app.status == 'approved' or app.status == 'issued' %}
+                    {% if app.status == 'Approved' and app.role_bucket == 'civilian' %}
+                    <div class="status-pill pending" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                      <div class="status-dot" style="background: #0284c7;"></div>
+                      <span>Awaiting Issuance</span>
+                    </div>
+                    {% elif app.status in ('approved', 'Approved', 'issued') %}
                     <div class="status-pill approved">
                       <div class="status-dot"></div>
                       <span>Approved</span>
@@ -522,6 +532,11 @@
                     <div class="status-pill rejected">
                       <div class="status-dot"></div>
                       <span>Rejected</span>
+                    </div>
+                    {% elif app.status == 'Recommended for Approval' %}
+                    <div class="status-pill recommended">
+                      <div class="status-dot"></div>
+                      <span>Recommended for Approval</span>
                     </div>
                     {% else %}
                     <div class="status-pill pending">
@@ -851,10 +866,10 @@
               if (app.status === 'rejected') {
                 borderColor = 'danger';
                 badgeColor = 'danger';
-              } else if (app.status === 'issued') {
+              } else if (app.status === 'issued' || app.status === 'Approved') {
                 borderColor = 'success';
                 badgeColor = 'success';
-              } else if (app.status === 'approved') {
+              } else if (app.status === 'approved' || app.status === 'Recommended for Approval') {
                 borderColor = 'info';
                 badgeColor = 'success';
               }
@@ -876,7 +891,7 @@
                   const approver = app.approvalChain[i];
                   const role = approver.role || 'Unknown';
 
-                  if (approver.status === 'approved') {
+                  if (approver.status === 'approved' || approver.status === 'Recommended for Approval') {
                     chainItems.push(`<span class="text-success fw-bold">${role}</span> ✓`);
                   } else if (approver.status === 'rejected') {
                     chainItems.push(`<span class="text-danger fw-bold">${role}</span> ✗`);
@@ -895,7 +910,7 @@
                 if (!isRejected && app.finalApproval) {
                   const finalStatus = app.finalApproval.status;
 
-                  if (app.status === 'issued' || finalStatus === 'approved' || finalStatus === 'issued') {
+                  if (app.status === 'issued' || finalStatus === 'approved' || finalStatus === 'issued' || app.status === 'Approved') {
                     chainItems.push(`<span class="text-success fw-bold">SO1-DOA</span> ✓`);
                   } else if (finalStatus === 'rejected') {
                     chainItems.push(`<span class="text-danger fw-bold">SO1-DOA</span> ✗`);
@@ -929,7 +944,7 @@
 
                 // ----- CHIEF CLERK FORWARDING STATUS -----
                 let pendingInfo = '';
-                if (app.status === 'pending' || app.status === 'approved') {
+                if (app.status === 'pending' || app.status === 'approved' || app.status === 'Recommended for Approval' || app.status === 'Approved') {
                   const chiefClerk = app.approvalChain.find(a => a.role === 'Chief Clerk');
                   if (chiefClerk && chiefClerk.status === 'pending') {
                     pendingInfo = `
@@ -945,7 +960,7 @@
 
                 // ----- ISSUED/APPROVED INFORMATION FROM FINALAPPROVAL -----
                 let approvedInfo = '';
-                if (app.status === 'issued' && app.finalApproval) {
+                if ((app.status === 'issued' || app.status === 'Approved') && app.finalApproval) {
                   const receipt = app.finalApproval.receipt || {};
                   const receiptNumber = receipt.receiptNumber || 'N/A';
                   const issuedDate = receipt.issuedDate || 'N/A';
@@ -959,7 +974,7 @@
                                     </small>
                                 </div>
                             `;
-                } else if (app.status === 'approved' && app.finalApproval) {
+                } else if ((app.status === 'approved' || app.status === 'Approved') && app.finalApproval) {
                   approvedInfo = `
                                 <div class="text-success mt-1">
                                     <small>
@@ -968,7 +983,7 @@
                                     </small>
                                 </div>
                             `;
-                } else if (app.finalApproval && app.finalApproval.status === 'approved' && app.status !== 'issued') {
+                } else if (app.finalApproval && (app.finalApproval.status === 'approved' || app.finalApproval.status === 'Approved') && app.status !== 'issued' && app.status !== 'Approved') {
                   // Fallback: if finalApproval shows approved but status not updated
                   approvedInfo = `
                                 <div class="text-success mt-1">

@@ -1269,18 +1269,22 @@
             fetch(this.action, {
                 method: 'POST',
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
                 body: formData
             })
             .then(response => {
                 if (response.redirected) {
                     window.location.href = response.url;
-                    return;
+                    return null;
                 }
                 return response.json();
             })
             .then(data => {
+                if (data === null) {
+                    return;
+                }
                 if (data && data.success) {
                     // Populate success modal values
                     document.getElementById('successRefIdValue').textContent = data.referenceId;

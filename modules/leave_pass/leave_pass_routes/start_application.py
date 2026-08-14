@@ -121,11 +121,21 @@ def notify_pending_approval(app, next_step, current_user):
     elif role == "dd":
         fallback_user = users_coll.find_one({"directorate": directorate, "is_dd_approver": True, "is_active": True})
     elif role == "director":
-        fallback_user = users_coll.find_one({"directorate": directorate, "roles": "director", "is_active": True})
-    elif role == "director":
-            fallback_user = users_coll.find_one({"directorate": directorate, "is_final_approver": True, "is_active": True})
-    elif role == "civilian_head":
-        fallback_user = users_coll.find_one({"directorate": directorate, "roles": "civilian_head", "is_active": True})
+        if next_step.get("is_final_approver") in (True, "true", "True"):
+            fallback_user = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}, "is_active": True})
+        else:
+            fallback_user = users_coll.find_one({"directorate": directorate, "role": "director", "is_active": True})
+    elif role == "central_registry":
+        fallback_user = users_coll.find_one({"directorate": "CDSA", "role": "central_registry", "is_active": True})
+        if not fallback_user:
+            fallback_user = users_coll.find_one({"directorate": "CDSA", "role": "registry", "is_active": True})
+        if not fallback_user:
+            fallback_user = users_coll.find_one({"is_cdsa_approver": {"$in": ["true", True]}, "is_active": True})
+    elif role in ("civilian_head_cao", "civilian_head"):
+        target_deputy = "deputy_civilian_head_cao" if role == "civilian_head_cao" else "deputy_civilian_head"
+        target_dir = "DOA" if role == "civilian_head_cao" else directorate
+        fallback_user = users_coll.find_one({"role": role, "directorate": target_dir, "is_active": True}) or \
+                        users_coll.find_one({"role": target_deputy, "directorate": target_dir, "is_active": True})
 
     if fallback_user and fallback_user.get("service_number"):
         fallback_id = fallback_user.get("service_number")
@@ -144,7 +154,8 @@ def notify_pending_approval(app, next_step, current_user):
 def ensure_applicant_metadata(applicant):
     if not applicant:
         return
-    if not applicant.get('rankOrGrade') or not applicant.get('designation'):
+    keys_to_check = ['rankOrGrade', 'designation', 'is_so_approver', 'is_ad_approver', 'is_dd_approver', 'is_final_approver']
+    if any(k not in applicant for k in keys_to_check):
         collections = get_db_collections()
         users_coll = collections.get('users')
         if users_coll is not None:
@@ -158,6 +169,10 @@ def ensure_applicant_metadata(applicant):
                 applicant['rankOrGrade'] = user_doc.get('rankOrGrade', '')
                 applicant['designation'] = user_doc.get('appt', '') or user_doc.get('designation', '')
                 applicant['gender'] = user_doc.get('onboarding_data', {}).get('step_5', {}).get('gender', '')
+                applicant['is_so_approver'] = user_doc.get('is_so_approver') in (True, "true", "True")
+                applicant['is_ad_approver'] = user_doc.get('is_ad_approver') in (True, "true", "True")
+                applicant['is_dd_approver'] = user_doc.get('is_dd_approver') in (True, "true", "True")
+                applicant['is_final_approver'] = user_doc.get('is_final_approver') in (True, "true", "True")
 
 @application_routes.route('/application_form', methods=['GET', 'POST'])
 def application_form():
@@ -168,11 +183,11 @@ def application_form():
             "name":            session.get("name"),
             "role":            session.get("role"),
             "directorate":     session.get("directorate"),
-            "designation":            session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
+            "designation":     session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
             "rankOrGrade":     session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
             "gender":          session.get("onboarding_data", {}).get("step_5", {}).get("gender"),
             "email":           session.get("email"),
-            "is_so_approver": session.get("is_so_approver", False),
+            "is_so_approver":  session.get("is_so_approver", False),
             "is_dd_approver":  session.get("is_dd_approver", False),
             "is_ad_approver":  session.get("is_ad_approver", False),
             "is_final_approver":  session.get("is_final_approver", False),
@@ -208,7 +223,7 @@ def application_form():
         if users_coll is not None and applicant_dir:
             potential_relievers = list(users_coll.find({
                 "directorate": {"$regex": f"^{applicant_dir}$", "$options": "i"},
-                "role": {"$in": ["civilian", "civilian_head"]},
+                "role": {"$in": ["civilian", "civilian_head_cao"]},
                 "email": {"$ne": applicant.get('email')},
                 "is_active": True
             }))
@@ -841,7 +856,7 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
     chain     = build_approval_chain(applicant, role_bucket, users_coll)
 
     # ─── SO1 DOA final approval ───────────────────────────────────────
-    director_doa = users_coll.find_one({"is_final_approver": "true"})
+    director_doa = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}})
     if not director_doa:
         flash("System error: Director DOA not found.", "error")
         return redirect(url_for(form_endpoint))
@@ -962,6 +977,23 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
             first_pending = next((s for s in chain if s['status'] == 'pending'), None)
             if first_pending:
                 notify_pending_approval(application, first_pending, applicant)
+                notifications_coll = current_app.notifications_collection
+                notifications_coll.insert_one({
+                    "type":          "action_required",
+                    "applicationId": result.inserted_id,
+                    "referenceId":   reference_id,
+                    "target":        {"type": "user", "userId": first_pending.get("approverId"), "role": first_pending.get("role")},
+                    "message":       f"Application {reference_id} from {applicant.get('fullName')} is awaiting your approval.",
+                    "status":        "unread",
+                    "readBy":        [],
+                    "meta": {
+                        "triggeredBy":     applicant.get("service_number"),
+                        "triggeredByName": applicant.get("fullName"),
+                        "role":            first_pending.get("role")
+                    },
+                    "createdAt": datetime.utcnow(),
+                    "isActive":  True,
+                })
 
         flash(f"Application submitted successfully! Reference ID: {reference_id}", "success")
         session['last_application_id'] = str(result.inserted_id)
@@ -1044,23 +1076,26 @@ def build_approval_chain(applicant, role_bucket, users_coll):
     # ─── CIVILIAN ─────────────────────────────────────────────────────
     if role_bucket == 'civilian':
 
-        # 1. Civilian head (exclude self, fallback to deputy_civilian_head)
+        # 1. Civilian head (exclude self, fallback to deputy civilian head)
+        target_role = "civilian_head_cao"
+        target_deputy = "deputy_civilian_head_cao"
+
         civ_head = users_coll.find_one({
-            "directorate": directorate,
-            "role": "civilian_head",
+            "directorate": "DOA",
+            "role": target_role,
             "service_number": {"$ne": sn}
         })
         if not civ_head:
             civ_head = users_coll.find_one({
-                "directorate": directorate,
-                "role": "deputy_civilian_head",
+                "directorate": "DOA",
+                "role": target_deputy,
                 "service_number": {"$ne": sn}
             })
-        step = create_step("civilian_head", civ_head)
+        step = create_step(target_role, civ_head)
         if step:
             chain.append(step)
         else:
-            flash(f"Warning: No Civilian Head found in {directorate}", "warning")
+            flash("Warning: No Civilian Head found in DOA", "warning")
 
         # 2. SO Approver (skip if applicant is the SO; matches role == ad and is_so_approver == true)
         so = users_coll.find_one({
@@ -1112,8 +1147,20 @@ def build_approval_chain(applicant, role_bucket, users_coll):
             "role": "director",
             "service_number": {"$ne": sn}
         })
+        
+        director_doa = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}})
+        
+        # Check if the director is also the final approver (same directorate)
+        is_director_same_as_final = False
+        if director and director_doa and director.get("service_number") == director_doa.get("service_number"):
+            is_director_same_as_final = True
+
         step = create_step("director", director)
         if step:
+            if is_director_same_as_final:
+                # If they are the same, this director step acts as the final approval step directly
+                step["is_final_approver"] = True
+                step["registry_type"] = "director_doa"
             chain.append(step)
         else:
             flash(f"Warning: No Director found in {directorate}", "warning")
@@ -1130,8 +1177,8 @@ def build_approval_chain(applicant, role_bucket, users_coll):
             flash(f"Warning: No Registry found in {directorate}", "warning")
 
         # 5b. Director DOA (Final Approval / Receipt)
-        director_doa = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}})
-        if director_doa:
+        # Only append this step if the final approver is NOT the same person as the director step
+        if director_doa and not is_director_same_as_final:
             director_doa_step = {
                 "role":                             "director",
                 "is_final_approver":                True,
@@ -1145,13 +1192,14 @@ def build_approval_chain(applicant, role_bucket, users_coll):
                 "registry_type":       "director_doa",
             }
             chain.append(director_doa_step)
-        else:
+        elif not director_doa:
             flash("Warning: Director-DOA not found", "warning")
 
     # ─── MILITARY: OFFICER / RATING / AIRMAN (role_bucket == 'officer') ───
     elif role_bucket == 'officer':
         is_so_applicant = (applicant.get('is_so_approver') == True)
         is_ad_applicant = (applicant.get('is_ad_approver') == True)
+        is_dd_applicant = (applicant.get('is_dd_approver') == True)
 
         # 1. SO Approver (skip if applicant is SO or AD)
         if not is_so_applicant and not is_ad_applicant:
@@ -1199,24 +1247,25 @@ def build_approval_chain(applicant, role_bucket, users_coll):
             else:
                 flash(f"Warning: No AD approver found in {directorate}", "warning")
 
-        # 3. DD Approver
-        dd = users_coll.find_one({
-            "directorate": directorate,
-            "role": "dd",
-            "is_dd_approver": True,
-            "service_number": {"$ne": sn}
-        })
-        if not dd:
+        # 3. DD Approver (skip if applicant is DD)
+        if not is_dd_applicant:
             dd = users_coll.find_one({
                 "directorate": directorate,
                 "role": "dd",
+                "is_dd_approver": True,
                 "service_number": {"$ne": sn}
             })
-        step = create_step("dd", dd)
-        if step:
-            chain.append(step)
-        else:
-            flash(f"Warning: No Deputy Director found in {directorate}", "warning")
+            if not dd:
+                dd = users_coll.find_one({
+                    "directorate": directorate,
+                    "role": "dd",
+                    "service_number": {"$ne": sn}
+                })
+            step = create_step("dd", dd)
+            if step:
+                chain.append(step)
+            else:
+                flash(f"Warning: No Deputy Director found in {directorate}", "warning")
 
         # 4. Director
         director = users_coll.find_one({
@@ -1476,6 +1525,23 @@ def reliever_action_accept(app_id):
                 "directorate": app_doc.get("directorate")
             }
             notify_pending_approval(app_doc, first_pending, applicant_user)
+            if notifications_coll is not None:
+                notifications_coll.insert_one({
+                    "type":          "action_required",
+                    "applicationId": app_doc["_id"],
+                    "referenceId":   app_doc.get("referenceId"),
+                    "target":        {"type": "user", "userId": first_pending.get("approverId"), "role": first_pending.get("role")},
+                    "message":       f"Application {app_doc.get('referenceId')} from {app_doc.get('applicantName')} is awaiting your approval.",
+                    "status":        "unread",
+                    "readBy":        [],
+                    "meta": {
+                        "triggeredBy":     app_doc.get("applicantId"),
+                        "triggeredByName": app_doc.get("applicantName"),
+                        "role":            first_pending.get("role")
+                    },
+                    "createdAt": datetime.utcnow(),
+                    "isActive":  True,
+                })
 
         flash("Reliever request accepted successfully! The application has now been submitted for approval.", "success")
     except Exception as e:

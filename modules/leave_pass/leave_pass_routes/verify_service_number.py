@@ -19,7 +19,7 @@ def resolve_role_bucket(user: dict) -> str:
         roles_list = [r.lower().strip() for r in role if isinstance(r, str)]
 
     # Civilian check
-    if category == 'civilian' or 'civilian' in roles_list or 'civilian_head' in roles_list:
+    if category == 'civilian' or 'civilian' in roles_list or 'civilian_head_cao' in roles_list or 'civilian_head' in roles_list:
         return 'civilian'
 
     # Check deputy director before director — order matters
@@ -29,7 +29,7 @@ def resolve_role_bucket(user: dict) -> str:
     if 'director' in roles_list:
         return 'director'
 
-    # Fallback to officer for AD, officer, personnel, civilian_head, registry, etc.
+    # Fallback to officer for AD, officer, personnel, civilian_head_cao, registry, etc.
     return 'officer'
 
 

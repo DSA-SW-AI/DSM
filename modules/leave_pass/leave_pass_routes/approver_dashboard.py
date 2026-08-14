@@ -67,11 +67,21 @@ def notify_pending_approval(app, next_step, current_user):
     elif role == "dd":
         fallback_user = users_coll.find_one({"directorate": directorate, "is_dd_approver": True, "is_active": True})
     elif role == "director":
-        fallback_user = users_coll.find_one({"directorate": directorate, "role": "director", "is_active": True})
-    elif role == "director":
-        fallback_user = users_coll.find_one({"directorate": directorate, "is_final_approver": True, "is_active": True})   
-    elif role == "civilian_head":
-        fallback_user = users_coll.find_one({"directorate": directorate, "role": "civilian_head", "is_active": True})
+        if next_step.get("is_final_approver") in (True, "true", "True"):
+            fallback_user = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}, "is_active": True})
+        else:
+            fallback_user = users_coll.find_one({"directorate": directorate, "role": "director", "is_active": True})
+    elif role == "central_registry":
+        fallback_user = users_coll.find_one({"directorate": "CDSA", "role": "central_registry", "is_active": True})
+        if not fallback_user:
+            fallback_user = users_coll.find_one({"directorate": "CDSA", "role": "registry", "is_active": True})
+        if not fallback_user:
+            fallback_user = users_coll.find_one({"is_cdsa_approver": {"$in": ["true", True]}, "is_active": True})
+    elif role in ("civilian_head_cao", "civilian_head"):
+        target_deputy = "deputy_civilian_head_cao" if role == "civilian_head_cao" else "deputy_civilian_head"
+        target_dir = "DOA" if role == "civilian_head_cao" else directorate
+        fallback_user = users_coll.find_one({"role": role, "directorate": target_dir, "is_active": True}) or \
+                        users_coll.find_one({"role": target_deputy, "directorate": target_dir, "is_active": True})
 
     if fallback_user and fallback_user.get("service_number"):
         fallback_id = fallback_user.get("service_number")
@@ -251,6 +261,7 @@ def dashboard_leave_pass():
     if 'user_email' not in session:
         return redirect(url_for('index'))
 
+    
     current_user = {
         "service_number":  session.get("service_number"),
         "fullName":        session.get("name"),
@@ -295,14 +306,14 @@ def dashboard_leave_pass():
     filter_date_to     = request.args.get('date_to', '')
 
     # Directorate scoping
-    if filter_directorate and (is_director_doa or is_cdsa):
+    if filter_directorate and (is_director_doa or is_cdsa or user_role in ('civilian_head_cao', 'civilian_head', 'deputy_civilian_head_cao', 'deputy_civilian_head')):
         filter_query['directorate'] = filter_directorate
     elif is_chief_clerk or is_director_doa:
         # registry and is_director_doa are scoped to their own directorate
 
         if is_chief_clerk:
             filter_query['directorate'] = user_directorate
-    elif not is_director_doa and not is_cdsa:
+    elif not is_director_doa and not is_cdsa and user_role not in ('civilian_head_cao', 'civilian_head', 'deputy_civilian_head_cao', 'deputy_civilian_head'):
         filter_query['directorate'] = user_directorate
 
     if filter_leave_type:
@@ -341,12 +352,12 @@ def dashboard_leave_pass():
         # Pending: Application approved (status="approved"), central_registry step not yet issued receipt
         # Don't filter by directorate for central registry - they see all
         pending_query = {
-            "status": "approved",
+            "status": {"$in": ["approved", "Approved"]},
             "approvalChain": {
                 "$elemMatch": {
                     "role": "central_registry",
                     "approverId": user_id,
-                    "status": "approved",
+                    "status": {"$in": ["approved", "Approved"]},
                     "receipt": {"$exists": False}
                 }
             }
@@ -368,7 +379,7 @@ def dashboard_leave_pass():
                 None
             )
             # Pending = approved but receipt not yet generated
-            if central_step and central_step.get("status") == "approved" \
+            if central_step and central_step.get("status", "").lower() == "approved" \
                     and not central_step.get("receipt"):
                 app_doc["_role_bucket"] = app_doc.get("role_bucket", "officer")
                 pending_applications.append(app_doc)
@@ -376,7 +387,7 @@ def dashboard_leave_pass():
 
         # Issued (receipt generated)
         issued_query = {
-            "status": "issued",
+            "status": {"$in": ["issued", "Issued"]},
             "approvalChain": {
                 "$elemMatch": {
                     "role": "central_registry",
@@ -415,10 +426,12 @@ def dashboard_leave_pass():
     #   - their director_doa chain step is pending (no receipt yet)
     # ══════════════════════════════════════════════════════════════════
     elif is_director_doa:
-        # Pending: Director approved, director_doa step not yet issued
+        # Pending: Either:
+        # 1. Civilian apps from other directorates (status == "approved") awaiting receipt/final approval
+        # 2. Civilian apps from own directorate (status == "pending") awaiting local Director approval
         pending_query = {
             "role_bucket": "civilian",
-            "status": "approved",
+            "status": {"$in": ["pending", "approved", "Approved"]},
             "approvalChain": {
                 "$elemMatch": {
                     "role":       "director",
@@ -431,24 +444,40 @@ def dashboard_leave_pass():
         }
         for app in applications_coll.find(pending_query).sort("updatedAt", -1).limit(200):
             chain = app.get("approvalChain", [])
-            director_doa_step = next(
-                (s for s in chain
-                 if s["role"] == "director" and s.get("is_final_approver") == True and s.get("approverId") == user_id),
-                None
-            )
-            # Pending = approved by director but final approval step still pending receipt
+            
+            # Find the user's step and index in the chain
+            user_step_index = None
+            director_doa_step = None
+            for idx, s in enumerate(chain):
+                if s["role"] == "director" and s.get("is_final_approver") == True and s.get("approverId") == user_id:
+                    director_doa_step = s
+                    user_step_index = idx
+                    break
+            
             if director_doa_step and director_doa_step.get("status") == "pending" \
                     and not director_doa_step.get("receipt"):
-                pending_applications.append(app)
+                
+                # Check if all previous steps in the chain are already approved/recommended
+                all_prev = True
+                if user_step_index is not None:
+                    all_prev = all(
+                        chain[i]["status"] in ("approved", "Recommended for Approval")
+                        for i in range(user_step_index)
+                    )
+                
+                if all_prev:
+                    pending_applications.append(app)
 
-        # Issued (receipt generated)
+        # Issued (receipt generated) or Approved (final step approved by final approver)
         issued_query = {
-            "status": "issued",
+            "role_bucket": "civilian",
+            "status": {"$in": ["Approved", "approved", "issued"]},
             "approvalChain": {
                 "$elemMatch": {
                     "role":       "director",
                     "is_final_approver": True,
                     "approverId": user_id,
+                    "status":     "approved",
                 }
             },
             **filter_query
@@ -558,7 +587,7 @@ def dashboard_leave_pass():
     elif is_chief_clerk:
         # Pending: Director approved (status="approved"), registry step not yet acknowledged
         pending_query = {
-            "status": {"$in": ["approved", "issued"]},       # Director / CDSA has approved / issued
+            "status": {"$in": ["approved", "Approved", "issued"]},       # Director / CDSA has approved / issued
             "approvalChain": {
                 "$elemMatch": {
                     "role":         "registry",
@@ -606,7 +635,7 @@ def dashboard_leave_pass():
             rejected_applications.append(app)
 
     # ══════════════════════════════════════════════════════════════════
-    # ALL OTHER APPROVERS (civilian_head, ad, dd, director)
+    # ALL OTHER APPROVERS (civilian_head_cao, ad, dd, director)
     # Pending = status "pending" AND it's their turn in chain
     # Approved = they approved it (regardless of overall status)
     # ══════════════════════════════════════════════════════════════════
@@ -663,24 +692,24 @@ def dashboard_leave_pass():
             user_step_status = user_step.get("status")
 
             # ── Classify into buckets ──────────────────────────────
-            if app_status in ("issued",):
+            if app_status in ("issued", "Approved"):
                 approved_applications.append(app)
 
-            elif app_status == "rejected":
+            elif app_status in ("rejected", "Rejected"):
                 rejected_applications.append(app)
 
-            elif user_step_status == "approved":
-                # They approved it — show in approved regardless of
+            elif user_step_status in ("approved", "Recommended for Approval"):
+                # They approved/recommended it — show in approved regardless of
                 # whether downstream steps are done
                 approved_applications.append(app)
 
-            elif user_step_status == "rejected":
+            elif user_step_status in ("rejected", "Rejected"):
                 rejected_applications.append(app)
 
-            elif user_step_status == "pending" and app_status == "pending":
-                # Only show as pending if ALL previous steps are approved
+            elif user_step_status == "pending" and app_status in ("pending", "Approved", "Recommended for Approval"):
+                # Only show as pending if ALL previous steps are approved/recommended
                 all_prev = all(
-                    chain[i]["status"] == "approved"
+                    chain[i]["status"] in ("approved", "Recommended for Approval")
                     for i in range(user_step_index)
                 )
                 if all_prev:
@@ -707,11 +736,11 @@ def dashboard_leave_pass():
     if session.get("is_approval_role"):
         for app in own_apps:
             app_status = app.get("status")
-            if app_status in ("pending", "awaiting_reliever", "declined_by_reliever"):
+            if app_status in ("pending", "awaiting_reliever", "declined_by_reliever", "Recommended for Approval"):
                 pending_applications.append(app)
-            elif app_status in ("approved", "issued"):
+            elif app_status in ("approved", "Approved", "issued"):
                 approved_applications.append(app)
-            elif app_status == "rejected":
+            elif app_status in ("rejected", "Rejected"):
                 rejected_applications.append(app)
 
     # ── Deduplicate & sort ─────────────────────────────────────────────
@@ -813,6 +842,17 @@ def dashboard_leave_pass():
     else:
         user_allowed_features = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS['civilian'])
 
+    with open("dashboard_debug.txt", "a", encoding="utf-8") as debug_f:
+        debug_f.write(f"is_director_doa: {is_director_doa}\n")
+        debug_f.write(f"is_chief_clerk: {is_chief_clerk}\n")
+        debug_f.write(f"is_approval_role: {is_approval_role}\n")
+        debug_f.write(f"pending_applications count: {len(pending_applications)}\n")
+        for app in pending_applications:
+            debug_f.write(f"  Pending App: {app.get('referenceId')} | Status: {app.get('status')}\n")
+        debug_f.write(f"approved_applications count: {len(approved_applications)}\n")
+        for app in approved_applications:
+            debug_f.write(f"  Approved App: {app.get('referenceId')} | Status: {app.get('status')}\n")
+
     return render_template(
         'dashboard_leave_pass.html',
         applications=unique_apps,
@@ -835,7 +875,10 @@ def dashboard_leave_pass():
         all_directorates=all_directorates,
         **filter_values,
         permissions=user_allowed_features,
-        active_page='leave_pass'
+        active_page='leave_pass',
+        pending_applications=pending_applications,
+        approved_applications=approved_applications,
+        rejected_applications=rejected_applications,
     )
 
 
@@ -874,7 +917,7 @@ def approve(app_id):
         flash("Application not found.", "error")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
-    if app.get("status") != "pending":
+    if app.get("status", "").lower() not in ("pending", "recommended for approval", "approved"):
         flash(f"Cannot approve: Application is already {app.get('status')}.", "error")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
@@ -926,21 +969,27 @@ def approve(app_id):
         flash("You cannot approve your own application.", "error")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
-    # Check previous steps are approved
+    # Check previous steps are approved/recommended
     for i in range(user_step_index):
-        if chain[i]["status"] != "approved":
+        if chain[i]["status"] not in ("approved", "Recommended for Approval"):
             flash("Cannot approve: Previous approvals are still pending.", "error")
             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
-    comments = request.form.get("comments", "").strip() or "Approved"
+    step_role = user_step.get("role")
+    is_civilian_recommendation = (app.get("role_bucket") == "civilian" and step_role in ("civilian_head_cao", "so", "dd"))
+
+    if is_civilian_recommendation:
+        default_comment = "Recommended for Approval"
+        step_status = "Recommended for Approval"
+    else:
+        default_comment = "Approved"
+        step_status = "approved"
+
+    comments = request.form.get("comments", "").strip() or default_comment
     chain[user_step_index].update({
-        "status":                "approved",
+        "status":                step_status,
         "comments":              comments,
-        "timestamp":             datetime.utcnow(),
-        "approvedBy":            user_id,
-        "approvedByName":        current_user.get("fullName") or current_user.get("name"),
-        "approvedByRank":        current_user.get("rankOrGrade"),
-        "approvedByDesignation": current_user.get("designation"),
+        "timestamp":             datetime.utcnow()
     })
 
     is_cdsa_step = (user_step.get("role") == "cdsa")
@@ -1000,6 +1049,33 @@ def approve(app_id):
             flash(f"❌ {deduction_result['message']}. Application rejected.", "error")
             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
+        # If this director step is also the final approval step (same directorate as final approver),
+        # issue receipt and finalize the approval immediately in one go.
+        if user_step.get("is_final_approver") == True:
+            receipt_number = _process_same_directorate_receipt_issuance(
+                app, chain, user_step_index, user_id, current_user, comments,
+                applications_coll, notifications_coll, deduction_result
+            )
+            try:
+                socketio.emit(
+                    "application_update",
+                    {
+                        "status":      "issued",
+                        "referenceId": app.get("referenceId"),
+                        "approved_by": current_user.get("fullName") or current_user.get("name"),
+                        "step":        "director",
+                        "timestamp":   datetime.utcnow().isoformat(),
+                    },
+                    room=f"APPLICATION_{app.get('referenceId')}"
+                )
+            except Exception as e:
+                print(f"Socket.IO emit failed: {e}")
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"success": True, "message": f"Application approved and receipt {receipt_number} issued successfully."})
+            flash(f"Application approved and receipt {receipt_number} issued successfully.", "success")
+            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
         # ══════════════════════════════════════════════════════════════════
         # AUTO-APPROVE DOWNSTREAM STEPS BASED ON APPLICANT TYPE
         # ══════════════════════════════════════════════════════════════════
@@ -1038,7 +1114,7 @@ def approve(app_id):
                 })
                 notified_steps.append(step)
 
-        update_op["$set"]["status"]          = "approved"
+        update_op["$set"]["status"]          = "Approved" if (role_bucket == "civilian") else "approved"
         update_op["$set"]["leaveDeductedAt"] = datetime.utcnow()
         update_op["$set"]["leaveDeductedBy"] = user_id
         update_op["$push"] = {
@@ -1334,6 +1410,194 @@ def _process_cdsa_receipt_issuance(app, chain, user_id, current_user, comments, 
     return receipt_number
 
 
+def _process_same_directorate_receipt_issuance(app, chain, user_step_index, user_id, current_user, comments, applications_coll, notifications_coll, deduction_result):
+    receipt_number = f"REC-{datetime.utcnow().strftime('%Y%m%d%H%M')}-{str(app['_id'])[-6:]}"
+    
+    # Update the user_step (which is the director step)
+    chain[user_step_index]["status"] = "approved"
+    chain[user_step_index]["timestamp"] = datetime.utcnow()
+    chain[user_step_index]["approvedBy"] = user_id
+    chain[user_step_index]["approvedByName"] = current_user.get("fullName") or current_user.get("name")
+    chain[user_step_index]["receipt"] = {
+        "receiptNumber": receipt_number,
+        "issuedDate":    datetime.utcnow(),
+        "issuedBy":      user_id,
+        "issuedByName":  current_user.get("fullName") or current_user.get("name"),
+        "comments":      comments or "Receipt issued",
+    }
+    chain[user_step_index]["acknowledged"] = True
+    chain[user_step_index]["acknowledgedAt"] = datetime.utcnow()
+    chain[user_step_index]["acknowledgedBy"] = user_id
+    chain[user_step_index]["acknowledgedByName"] = current_user.get("fullName") or current_user.get("name")
+    
+    # Auto-approve downstream steps (directorate registry)
+    notified_steps = []
+    for step in chain:
+        if step.get("status") == "pending":
+            if step.get("role") == "registry" and step.get("registry_type") == "directorate":
+                step.update({
+                    "status":       "approved",
+                    "comments":     "Automatically approved upon Director's approval",
+                    "timestamp":    datetime.utcnow(),
+                    "approvedBy":   user_id,
+                    "approvedByName": current_user.get("name"),
+                })
+                notified_steps.append(step)
+
+    # Prepare database update operation
+    update_op = {
+        "$set": {
+            "approvalChain":    chain,
+            "status":           "issued",
+            "receiptNumber":    receipt_number,
+            "leaveDeductedAt":  datetime.utcnow(),
+            "leaveDeductedBy":  user_id,
+            "updatedAt":        datetime.utcnow(),
+        },
+        "$push": {
+            "auditTrail": {
+                "$each": [
+                    {
+                        "action":    "leave_deducted",
+                        "by":        user_id,
+                        "byName":    current_user.get("fullName"),
+                        "timestamp": datetime.utcnow(),
+                        "details":   deduction_result.get("details", {}),
+                    },
+                    {
+                        "action":        "receipt_issued",
+                        "registry_type": "director_doa",
+                        "by":            user_id,
+                        "byName":        current_user.get("fullName") or current_user.get("name"),
+                        "timestamp":     datetime.utcnow(),
+                        "receiptNumber": receipt_number,
+                        "comments":      comments,
+                    }
+                ]
+            }
+        }
+    }
+    
+    # Update the application
+    applications_coll.update_one({"_id": app["_id"]}, update_op)
+
+    # Notify each auto-approved step (directorate registry)
+    for step in notified_steps:
+        msg = f"Application {app.get('referenceId')} approved by Director. Please acknowledge receipt of file."
+        notifications_coll.insert_one({
+            "type":          "action_required",
+            "applicationId": app["_id"],
+            "referenceId":   app.get("referenceId"),
+            "target":        {"type": "user", "userId": step.get("approverId"), "role": step.get("role")},
+            "message":       msg,
+            "status":        "unread",
+            "readBy":        [],
+            "meta": {
+                "triggeredBy":     user_id,
+                "triggeredByName": current_user.get("name"),
+                "role":            step.get("role"),
+                "is_receipt_step": False,
+            },
+            "createdAt": datetime.utcnow(),
+            "isActive":  True,
+        })
+
+    # Notify applicant about receipt issuance
+    notifications_coll.insert_one({
+        "type":          "receipt_issued",
+        "applicationId": app["_id"],
+        "referenceId":   app.get("referenceId"),
+        "applicantId":   app.get("applicantId"),
+        "target":        {"type": "user", "userId": app.get("applicantId")},
+        "message":       f"Your leave/pass receipt {receipt_number} has been issued. "
+                         f"Application {app.get('referenceId')} is fully approved.",
+        "status":        "unread",
+        "readBy":        [],
+        "meta":          {"receiptNumber": receipt_number, "issuedBy": user_id},
+        "createdAt":     datetime.utcnow(),
+        "isActive":      True,
+    })
+
+    # Forward receipt to registries
+    try:
+        users_coll = current_app.users_collection
+        applicant_dir = app.get("directorate")
+        if applicant_dir:
+            dir_registries = list(users_coll.find({
+                "directorate": {"$regex": f"^{applicant_dir.strip()}$", "$options": "i"},
+                "role": {"$in": ["registry", "central_registry"]}
+            }))
+            for reg in dir_registries:
+                if reg.get("service_number"):
+                    notifications_coll.insert_one({
+                        "type":          "receipt_forwarded",
+                        "applicationId": app["_id"],
+                        "referenceId":   app.get("referenceId"),
+                        "target":        {"type": "user", "userId": reg.get("service_number")},
+                        "message":       f"Leave receipt {receipt_number} for application {app.get('referenceId')} ({app.get('applicantName')}) has been forwarded to you for documentation.",
+                        "status":        "unread",
+                        "readBy":        [],
+                        "meta":          {"receiptNumber": receipt_number, "issuedBy": user_id, "directorate": applicant_dir},
+                        "createdAt":     datetime.utcnow(),
+                        "isActive":      True,
+                        "is_active":     True
+                    })
+        
+        final_dir = "DOA"
+        final_registries = list(users_coll.find({
+            "directorate": {"$regex": f"^{final_dir}$", "$options": "i"},
+            "role": {"$in": ["registry", "central_registry"]}
+        }))
+        for reg in final_registries:
+            if reg.get("service_number"):
+                notifications_coll.insert_one({
+                    "type":          "receipt_forwarded",
+                    "applicationId": app["_id"],
+                    "referenceId":   app.get("referenceId"),
+                    "target":        {"type": "user", "userId": reg.get("service_number")},
+                    "message":       f"Leave receipt {receipt_number} for application {app.get('referenceId')} ({app.get('applicantName')}) has been forwarded to you for documentation.",
+                    "status":        "unread",
+                    "readBy":        [],
+                    "meta":          {"receiptNumber": receipt_number, "issuedBy": user_id, "directorate": final_dir},
+                    "createdAt":     datetime.utcnow(),
+                    "isActive":      True,
+                    "is_active":     True
+                })
+    except Exception as e:
+        print(f"Failed to forward receipt notifications to registries: {e}")
+
+    # Send email receipt
+    try:
+        applicant = users_coll.find_one({"service_number": app.get("applicantId")})
+        if not applicant:
+            applicant = current_app.user_collection.find_one(
+                {"service_number": app.get("applicantId")}
+            )
+        if applicant and applicant.get("email"):
+            from utils.email_service import send_final_approval_email
+            send_final_approval_email(applicant, app, receipt_number)
+    except Exception as e:
+        print(f"Email send failed: {e}")
+
+    # Socket.io notification
+    try:
+        socketio.emit(
+            "new_notification",
+            {
+                "type":          "receipt_issued",
+                "referenceId":   app.get("referenceId"),
+                "receiptNumber": receipt_number,
+                "message":       f"Your receipt {receipt_number} is ready.",
+                "timestamp":     datetime.utcnow().isoformat(),
+            },
+            room=f"USER_{app.get('applicantId', '').replace('/', '_')}"
+        )
+    except Exception as e:
+        print(f"Socket.IO emit failed: {e}")
+
+    return receipt_number
+
+
 # ══════════════════════════════════════════════════════════════════════
 # CDSA APPROVE  — director forms only
 # ══════════════════════════════════════════════════════════════════════
@@ -1409,11 +1673,7 @@ def cdsa_approve(app_id):
     chain[cdsa_idx].update({
         "status":                "approved",
         "comments":              comments,
-        "timestamp":             datetime.utcnow(),
-        "approvedBy":            user_id,
-        "approvedByName":        current_user.get("fullName"),
-        "approvedByRank":        current_user.get("rankOrGrade"),
-        "approvedByDesignation": current_user.get("designation"),
+        "timestamp":             datetime.utcnow()
     })
 
     # Perform automated receipt generation, registry documentation and email generation
@@ -1478,7 +1738,7 @@ def issue_receipt(app_id):
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
     # Only allow receipt issuance for approved applications
-    if app.get("status") not in ("approved",):
+    if app.get("status", "").lower() not in ("approved",):
         flash(f"Cannot issue receipt: Application status is '{app.get('status')}'. Only approved applications can receive a receipt.", "error")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
@@ -1718,8 +1978,9 @@ def acknowledge(app_id):
         flash("Invalid application ID.", "error")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
-    # Only allow acknowledgement for approved or issued applications
-    if app.get("status") not in ("approved", "issued"):
+    # Only allow acknowledgement for approved or issued applications (case-insensitive check)
+    app_status = app.get("status", "").lower()
+    if app_status not in ("approved", "issued"):
         flash(f"Cannot acknowledge: Application status is '{app.get('status')}'. Only approved or issued applications can be acknowledged.", "error")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
@@ -1743,8 +2004,8 @@ def acknowledge(app_id):
         flash("File has already been acknowledged.", "warning")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
     
-    # Check if status is approved (should be, but double-check)
-    if user_step.get("status") != "approved":
+    # Check if status is approved (should be, but double-check, case-insensitive)
+    if user_step.get("status", "").lower() != "approved":
         flash(f"Cannot acknowledge: Step status is '{user_step.get('status')}'.", "error")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
@@ -1787,310 +2048,260 @@ def acknowledge(app_id):
 
 
 
-# @approver_dashboard.route('/reject/<string:app_id>', methods=['GET', 'POST'])
-# def reject(app_id):
-#     """Reject a pending application by an approver in the chain"""
-
-#     current_user = {
-#         "service_number": session.get("service_number"),
-#         "fullName": session.get("name"),
-#         "directorate": session.get("directorate"),
-#         "role":           session.get("role"),
-#         "designation":     session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
-#         "rankOrGrade":     session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
-#         "email": session.get("email"),
-#         "is_so_approver":  session.get("is_so_approver", False),
-#         "is_dd_approver":  session.get("is_dd_approver", False),
-#         "is_ad_approver":  session.get("is_ad_approver", False),
-#         "is_final_approver": session.get("is_final_approver", False),
-#     }
-
-#     if not current_user.get("service_number"):
-#         flash("Session expired.", "error")
-#         return redirect(url_for('login'))
-
-#     applications_coll = current_app.applications_collection
-#     users_coll = current_app.users_collection 
-
-#     try:
-#         app = applications_coll.find_one({"_id": ObjectId(app_id)})
-#         if not app:
-#             flash("Application not found.", "error")
-#             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-#     except:
-#         flash("Invalid application ID.", "error")
-#         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#     # Check if application is still pending
-#     if app.get("status") != "pending":
-#         flash(f"Cannot reject: Application is already {app.get('status')}.", "error")
-#         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#     user_id = current_user['service_number']
-    
-#     # Find user's position in chain
-#     chain = app.get("approvalChain", [])
-#     user_index = None
-#     user_step = None
-
-#     is_so_approver = current_user["is_so_approver"]
-#     is_ad_approver   = current_user["is_ad_approver"]
-#     is_dd_approver = current_user["is_dd_approver"]
-
-#     # Find user's position in chain
-#     for i, step in enumerate(chain):
-#         # NORMAL FIXED APPROVER
-#         if step.get("approverId") == user_id and step.get("status") == "pending":
-#             # Verify permission based on role
-#             if step.get("role") == "so" and not is_so_approver:
-#                 flash("You are not authorized as SO approver.", "error")
-#                 return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-#             if step.get("role") == "ad" and not is_ad_approver:
-#                 flash("You are not authorized as SO approver.", "error")
-#                 return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-#             if step.get("role") == "dd" and not is_dd_approver:
-#                 flash("You are not authorized as DD approver.", "error")
-#                 return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-#             user_index = i
-#             user_step = step
-#             break
-
-#         # DYNAMIC SO2 STAGE
-#         if (is_so_approver and 
-#             step.get("role") == "so" and 
-#             step.get("is_so_stage") is True and 
-#             step.get("status") == "pending" and
-#             app.get("directorate") == current_user.get("directorate")):
-#             user_index = i
-#             user_step = step
-#             break
-
-#         if (is_ad_approver and 
-#             step.get("role") == "so" and 
-#             step.get("is_so_stage") is True and 
-#             step.get("status") == "pending" and
-#             app.get("directorate") == current_user.get("directorate")):
-#             user_index = i
-#             user_step = step
-#             break
-
-#         # DYNAMIC DD STAGE
-#         if (is_dd_approver and 
-#             step.get("role") == "deputy_director" and 
-#             step.get("is_dd_stage") is True and 
-#             step.get("status") == "pending" and
-#             app.get("directorate") == current_user.get("directorate")):
-#             user_index = i
-#             user_step = step
-#             break
-    
-#     if user_index is None:
-#         flash("This application is not waiting for your action.", "error")
-#         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#     if request.method == 'POST':
-#         comments = request.form.get('comments', '').strip()
-
-#         if not comments:
-#             flash("Comments are required for rejection.", "error")
-#             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#         # ============ ADD REFUND FUNCTION ============
-#         # Check if balance was already deducted (status would be 'issued')
-
-#         is_leave_deducted = (
-#             app.get("status") == "issued" or 
-#             app.get("finalApproval", {}).get("status") == "approved"
-#         )
-
-#         if is_leave_deducted:
-#             print(f"⚠️ WARNING: Rejecting after leave was deducted for {app.get('referenceId')}")
-#             print(f"   Status: {app.get('status')}, FinalApproval: {app.get('finalApproval', {}).get('status')}")
-
-#             try:
-#                 from .leave_helper import refund_leave_balance
-#                 refund_success = refund_leave_balance(
-#                     service_number=app.get("applicantId"),
-#                     application=app
-#                 )
-#                 if refund_success:
-#                     print(f"✓ Leave balance refunded for {app.get('applicantId')}")
-
-#                 else:
-#                     print(f"⚠️ Failed to refund leave balance for {app.get('applicantId')}")
-                    
-#             except Exception as e:
-#                 print(f"ERROR refunding leave balance: {e}")
-#                 flash("Error processing leave balance refund. Please check manually.", "error")
-#         else:
-#             print(f"ℹ️ No leave balance to refund for {app.get('referenceId')} - rejection at early stage")
-#         # =============================================
-
-#         updated = False
-
-#         for step in chain:
-#             can_reject = False
-
-#             # NORMAL FIXED APPROVER
-#             if (
-#                 step.get("approverId") == current_user['service_number']
-#                 and step.get("status") == "pending"
-#             ):
-#                 can_reject = True
-            
-#             # DYNAMIC SO2 STAGE
-#             if (
-#                 is_so_approver
-#                 and step.get("role") == "so"
-#                 and step.get("is_so_stage") is True
-#                 and step.get("status") == "pending"
-#                 and app.get("directorate") == current_user.get("directorate")
-#             ):
-#                 can_reject = True
-
-#             if (
-#                 is_ad_approver
-#                 and step.get("role") == "so"
-#                 and step.get("is_so_stage") is True
-#                 and step.get("status") == "pending"
-#                 and app.get("directorate") == current_user.get("directorate")
-#             ):
-#                 can_reject = True
-
-#             if (
-#                 is_dd_approver
-#                 and step.get("role") == "dd"
-#                 and step.get("is_dd_stage") is True
-#                 and step.get("status") == "pending"
-#                 and app.get("directorate") == current_user.get("directorate")
-#             ):
-#                 can_reject = True
-
-#             if can_reject:
-
-#                 step["status"] = "rejected"
-#                 step["comments"] = comments
-#                 step["timestamp"] = datetime.utcnow()
-
-#                 step["approvedBy"] = current_user['service_number']
-#                 step["approvedByName"] = current_user.get('name')
-#                 step["approvedByRank"] = current_user.get('rankOrGrade', '')
-#                 step["approvedByDesignation"] = current_user.get('appt', '')
-
-#                 if not step.get("approverName"):
-#                     step["approverName"] = current_user.get('name')
-#                 if not step.get("approverRank"):
-#                     step["approverRank"] = current_user.get('rankOrGrade', '')
-#                 if not step.get("approverDesignation"):
-#                     step["approverDesignation"] = current_user.get('appt', '')
-
-#                 updated = True
-#                 break
-
-#         if not updated:
-#             flash("You are not authorized to reject this application or it has already been processed.", "error")
-#             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+import logging
 
 
+logger = logging.getLogger(__name__)
 
-#         # Set overall status to rejected
-#         update_data = {
-#             "approvalChain": chain,
-#             "status": "rejected",
-#             "updatedAt": datetime.utcnow()
-#         }
+@approver_dashboard.route('/reject/<string:app_id>', methods=['GET', 'POST'])
+def reject(app_id):
+    """Reject a pending application by an approver in the chain"""
+
+    # ── 1. Build current user from session ──────────────────────────
+    current_user = {
+        "service_number": session.get("service_number"),
+        "fullName": session.get("name"),
+        "directorate": session.get("directorate"),
+        "role": session.get("role"),
+        "designation": session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
+        "rankOrGrade": session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
+        "email": session.get("email"),
+        "is_so_approver": session.get("is_so_approver", False),
+        "is_dd_approver": session.get("is_dd_approver", False),
+        "is_ad_approver": session.get("is_ad_approver", False),
+        "is_final_approver": session.get("is_final_approver", False),
+    }
+
+    print("\n🔍 [REJECT] Current user:", current_user)   # DEBUG
+
+    if not current_user.get("service_number"):
+        flash("Session expired.", "error")
+        return redirect(url_for('login'))
+
+    applications_coll = current_app.applications_collection
+    users_coll = current_app.users_collection
+    notifications_coll = current_app.notifications_collection
+
+    # ── 2. Fetch application ──────────────────────────────────────────
+    try:
+        app = applications_coll.find_one({"_id": ObjectId(app_id)})
+        if not app:
+            flash("Application not found.", "error")
+            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+    except Exception as e:
+        print(f"❌ Invalid ObjectId: {e}")
+        flash("Invalid application ID.", "error")
+        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
+    print(f"📄 [REJECT] App status: {app.get('status')}, directorate: {app.get('directorate')}")
+
+    # ── 3. Get approval chain (CRITICAL FIX) ──────────────────────
+    chain = app.get("approvalChain", [])
+    if not chain:
+        flash("Application has no approval chain.", "error")
+        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
+    # ── 4. Validate overall status ───────────────────────────────────
+    if app.get("status") != "pending":
+        flash(f"Cannot reject: Application is already {app.get('status')}.", "error")
+        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
+    user_id = current_user["service_number"]
+    user_directorate = current_user["directorate"]
+    is_so_approver = current_user["is_so_approver"]
+    is_ad_approver = current_user["is_ad_approver"]
+    is_dd_approver = current_user["is_dd_approver"]
+
+    # ── 5. Find the user's pending step ──────────────────────────────
+    def find_user_step(chain, user, app):
+        """Return (index, step) or (None, None)"""
+        for i, step in enumerate(chain):
+            if step.get("status") != "pending":
+                continue
+
+            # Direct match by approverId (highest priority)
+            if step.get("approverId") == user["service_number"]:
+                print(f"✅ Direct match: approverId = {step.get('approverId')}")
+                return i, step
+
+            # Role‑based matching (only for roles with flags)
+            if is_so_approver and step.get("role") == "so" and app.get("directorate") == user["directorate"]:
+                print(f"✅ SO role match: {step.get('role')}")
+                return i, step
+            if is_ad_approver and step.get("role") == "ad" and app.get("directorate") == user["directorate"]:
+                print(f"✅ AD role match: {step.get('role')}")
+                return i, step
+            if is_dd_approver and step.get("role") == "dd" and app.get("directorate") == user["directorate"]:
+                print(f"✅ DD role match: {step.get('role')}")
+                return i, step
+
+        return None, None
+
+    user_step_index, user_step = find_user_step(chain, current_user, app)
+    print(f"🔎 user_step_index = {user_step_index}, user_step = {user_step}")
+
+    if user_step_index is None:
+        flash("This application is not waiting for your action.", "error")
+        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
+    # ── 6. Ensure all previous steps are approved/recommended ──────
+    for i in range(user_step_index):
+        if chain[i]["status"] not in ("approved", "Recommended for Approval"):
+            flash("Cannot reject: Previous approvals are still pending.", "error")
+            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
+    # ── 7. Handle POST (actual rejection) ─────────────────────────
+    if request.method == 'POST':
+        comments = request.form.get('comments', '').strip()
+        print(f"🔍 DEBUG: Received comments = '{comments}' (length: {len(comments)})")
+
+        if not comments:
+            flash("Comments are required for rejection.", "error")  # ← Better error message
+            return redirect(url_for('approver_dashboard.view_application', app_id=app_id))
+
+        # ── Check if leave was already deducted (case‑insensitive) ──
+        current_status = app.get("status", "").lower()
+        is_leave_deducted = current_status in ("issued", "approved")
+        print(f"💰 is_leave_deducted = {is_leave_deducted} (status = {current_status})")
+
+        if is_leave_deducted:
+            print(f"⚠️ Rejecting after leave deducted for {app.get('referenceId')}")
+            try:
+                from .leave_helper import refund_leave_balance
+                refund_success = refund_leave_balance(
+                    service_number=app.get("applicantId"),
+                    application=app
+                )
+                if refund_success:
+                    print(f"✅ Leave balance refunded for {app.get('applicantId')}")
+                else:
+                    print(f"⚠️ Failed to refund leave balance for {app.get('applicantId')}")
+            except Exception as e:
+                print(f"❌ Error refunding leave balance: {e}")
+                flash("Error processing leave balance refund. Please check manually.", "error")
+
+        # ── Update the step in the chain ──────────────────────────────
+        chain[user_step_index].update({
+            "status": "rejected",
+            "comments": comments,
+            "timestamp": datetime.utcnow()
+        })
+
+        # Ensure approver properties are set
+        if not chain[user_step_index].get("approverId"):
+            chain[user_step_index]["approverId"] = user_id
+        if not chain[user_step_index].get("approverName"):
+            chain[user_step_index]["approverName"] = current_user.get("fullName") or current_user.get("name")
+        if not chain[user_step_index].get("approverRank"):
+            chain[user_step_index]["approverRank"] = current_user.get("rankOrGrade")
+        if not chain[user_step_index].get("approverDesignation"):
+            chain[user_step_index]["approverDesignation"] = current_user.get("designation")
+
+        # ── Update whole application ──────────────────────────────────
         
-#         # Update finalApproval if it exists
-#         if app.get("finalApproval"):
-#             update_data["finalApproval.status"] = "rejected"
-#             update_data["finalApproval.comments"] = comments
-#             update_data["finalApproval.timestamp"] = datetime.utcnow()
+        
+        result = applications_coll.update_one(
+            {"_id": ObjectId(app_id)},
+            {"$set": {
+                "approvalChain": chain,
+                "status": "rejected",
+                "updatedAt": datetime.utcnow()
+            }}
+        )
+        print(f"📝 Update result: matched={result.matched_count}, modified={result.modified_count}")
 
-#         applications_coll.update_one(
-#             {"_id": ObjectId(app_id)},
-#             {"$set": update_data}
-#         )
+        if result.modified_count == 0:
+            flash("Failed to update application. Please try again.", "error")
+            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
-#         # TRIGGER REJECTION NOTIFICATION EMAIL TO APPLICANT 
-#         users_coll = current_app.users_collection
+        print(f"✅ Application {app.get('referenceId')} rejected by {user_id}")
 
-#         applicant = users_coll.find_one(
-#             {"service_number": app.get("applicantId")}
-#         )
+        # ── Send rejection email ──────────────────────────────────────
+        applicant = users_coll.find_one({"service_number": app.get("applicantId")})
+        if applicant and applicant.get("email"):
+            try:
+                from utils.email_service import send_rejection_email
+                send_rejection_email(
+                    applicant_email=applicant["email"],
+                    applicant_name=applicant.get("fullName"),
+                    application=app,
+                    rejected_by=current_user.get("name"),
+                    comments=comments
+                )
+            except Exception as e:
+                print(f"❌ Email sending failed: {e}")
 
-#         if applicant and applicant.get("email"):
-#             try:
-#                 from utils.email_service import send_rejection_email
-#                 send_rejection_email(
-#                     applicant_email=applicant["email"],
-#                     applicant_name=applicant.get("fullName"),
-#                     application=app,
-#                     rejected_by=current_user.get("name"),
-#                     comments=comments
-#                 )
-#             except Exception as e:
-#                 print("Email sending failed:", e)
-#         # Emit Socket.IO notification to applicant room
-#         try:
-#             current_app.socketio.emit(
-#                 "application_update",
-#                 {
-#                     "status": "rejected", 
-#                     "comments": comments, 
-#                     "referenceId": app.get("referenceId"),
-#                     "rejected_by": current_user.get("name"),
-#                     "rejected_step": step.get("role"),
-#                     "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-#                 },
-#                 room=f"APPLICATION_{app.get('referenceId')}"
-#             )
-#         except Exception as e:
-#             print(f"Socket.IO emit failed: {e}")
+        # ── Socket.IO event ───────────────────────────────────────────
+        try:
+            current_app.socketio.emit(
+                "application_update",
+                {
+                    "status": "rejected",
+                    "comments": comments,
+                    "referenceId": app.get("referenceId"),
+                    "rejected_by": current_user.get("name"),
+                    "rejected_step": user_step.get("role"),
+                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                },
+                room=f"APPLICATION_{app.get('referenceId')}"
+            )
+        except Exception as e:
+            print(f"❌ Socket.IO emit failed: {e}")
 
-#         # 3. Create notification in database for applicant
-#         notifications_coll = current_app.notifications_collection
-#         notification = {
-#             "type": "application_rejected",
-#             "applicationId": app["_id"],
-#             "referenceId": app.get("referenceId"),
-#             "applicantId": app.get("applicantId"),
-#             "target": {
-#                 "type": "user",
-#                 "userId": app.get("applicantId")
-#             },
-#             "message": f"Your application {app.get('referenceId')} has been rejected by {current_user.get('name')}. Reason: {comments}",
-#             "status": "unread",
-#             "readBy": [],
-#             "meta": {
-#                 "rejectedBy": current_user["service_number"],
-#                 "rejectedByName": current_user.get("name"),
-#                 "rejectedAt": datetime.utcnow(),
-#                 "rejectedStep": step.get("role"),
-#                 "comments": comments,
-#                 "leaveRefunded": is_leave_deducted
-#             },
-#             "createdAt": datetime.utcnow(),
-#             "isActive": True
-#         }
-#         notifications_coll.insert_one(notification)
+        # ── In‑app notification for applicant ────────────────────────
+        notification = {
+            "type": "application_rejected",
+            "applicationId": app["_id"],
+            "referenceId": app.get("referenceId"),
+            "applicantId": app.get("applicantId"),
+            "target": {
+                "type": "user",
+                "userId": app.get("applicantId")
+            },
+            "message": f"Your application {app.get('referenceId')} has been rejected by {current_user.get('name')}. Reason: {comments}",
+            "status": "unread",
+            "readBy": [],
+            "meta": {
+                "rejectedBy": user_id,
+                "rejectedByName": current_user.get("name"),
+                "rejectedAt": datetime.utcnow(),
+                "rejectedStep": user_step.get("role"),
+                "comments": comments,
+                "leaveRefunded": is_leave_deducted
+            },
+            "createdAt": datetime.utcnow(),
+            "isActive": True
+        }
+        notifications_coll.insert_one(notification)
 
-#         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-#             msg = "Application rejected. Leave balance has been refunded." if is_leave_deducted else "Application rejected."
-#             return jsonify({"success": True, "message": msg})
+        # ── Return response ────────────────────────────────────────────
+        # ── Return response ────────────────────────────────────────────────
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            msg = "Application rejected. Leave balance has been refunded." if is_leave_deducted else "Application rejected."
+            return jsonify({"success": True, "message": msg})
 
-#         if is_leave_deducted:
-#             flash("Application rejected. Leave balance has been refunded.", "info")
-#         else:
-#             flash("Application rejected.", "info")
+        flash("Application rejected." + (" Leave balance refunded." if is_leave_deducted else ""), "info")
+        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
-#         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+    # ── 8. GET request – show a confirmation page or redirect ──────
+    flash("Please use the form to submit rejection comments.", "warning")
+    return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
-#     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-#         return jsonify({"success": False, "message": "Method not allowed."})
-#     return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2103,359 +2314,6 @@ def calendar_days_between(start_date, end_date):
     if isinstance(end_date, dict) and "$date" in end_date:
         end_date = datetime.fromisoformat(end_date["$date"].replace("Z", "+00:00"))
     return (end_date - start_date).days + 1
-
-
-
-# @approver_dashboard.route('/reject/<string:app_id>', methods=['GET', 'POST'])
-# def reject(app_id):
-#     """Reject a pending application by an approver in the chain"""
-
-#     current_user = {
-#         "service_number": session.get("service_number"),
-#         "fullName": session.get("name"),
-#         "directorate": session.get("directorate"),
-#         "role": session.get("role"),
-#         "designation": session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
-#         "rankOrGrade": session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
-#         "email": session.get("email"),
-#         "is_so_approver": session.get("is_so_approver", False),
-#         "is_dd_approver": session.get("is_dd_approver", False),
-#         "is_ad_approver": session.get("is_ad_approver", False),
-#         "is_final_approver": session.get("is_final_approver", False),
-#     }
-
-#     if not current_user.get("service_number"):
-#         flash("Session expired.", "error")
-#         return redirect(url_for('login'))
-
-#     applications_coll = current_app.applications_collection
-#     users_coll = current_app.users_collection 
-
-#     try:
-#         app = applications_coll.find_one({"_id": ObjectId(app_id)})
-#         if not app:
-#             flash("Application not found.", "error")
-#             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-#     except:
-#         flash("Invalid application ID.", "error")
-#         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#     # Check if application is still pending
-#     if app.get("status") != "pending":
-#         flash(f"Cannot reject: Application is already {app.get('status')}.", "error")
-#         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#     user_id = current_user['service_number']
-    
-#     # Find user's position in chain
-#     chain = app.get("approvalChain", [])
-#     user_index = None
-#     user_step = None
-
-#     is_so_approver = current_user["is_so_approver"]
-#     is_ad_approver = current_user["is_ad_approver"]
-#     is_dd_approver = current_user["is_dd_approver"]
-
-#     # Find user's position in chain
-#     for i, step in enumerate(chain):
-#         # NORMAL FIXED APPROVER
-#         if step.get("approverId") == user_id and step.get("status") == "pending":
-#             # Verify permission based on role
-#             if step.get("role") == "so" and not is_so_approver:
-#                 flash("You are not authorized as SO approver.", "error")
-#                 return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-#             if step.get("role") == "ad" and not is_ad_approver:
-#                 flash("You are not authorized as AD approver.", "error")
-#                 return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-#             if step.get("role") == "dd" and not is_dd_approver:
-#                 flash("You are not authorized as DD approver.", "error")
-#                 return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-#             user_index = i
-#             user_step = step
-#             break
-
-#         # DYNAMIC SO2 STAGE
-#         if (is_so_approver and 
-#             step.get("role") == "so" and 
-#             step.get("is_so_stage") is True and 
-#             step.get("status") == "pending" and
-#             app.get("directorate") == current_user.get("directorate")):
-#             user_index = i
-#             user_step = step
-#             break
-
-#         if (is_ad_approver and 
-#             step.get("role") == "ad" and 
-#             step.get("is_ad_stage") is True and 
-#             step.get("status") == "pending" and
-#             app.get("directorate") == current_user.get("directorate")):
-#             user_index = i
-#             user_step = step
-#             break
-
-#         # DYNAMIC DD STAGE
-#         if (is_dd_approver and 
-#             step.get("role") == "dd" and 
-#             step.get("is_dd_stage") is True and 
-#             step.get("status") == "pending" and
-#             app.get("directorate") == current_user.get("directorate")):
-#             user_index = i
-#             user_step = step
-#             break
-    
-#     if user_index is None:
-#         flash("This application is not waiting for your action.", "error")
-#         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#     if request.method == 'POST':
-#         comments = request.form.get('comments', '').strip()
-
-#         if not comments:
-#             flash("Comments are required for rejection.", "error")
-#             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#         print(f"🔍 DEBUG: Starting rejection for app {app_id}")
-#         print(f"🔍 Current user: {current_user}")
-#         print(f"🔍 Comments: {comments}")
-
-#         # ============ ADD REFUND FUNCTION ============
-#         # Check if balance was already deducted (status would be 'issued')
-
-#         is_leave_deducted = (
-#             app.get("status") == "issued" or 
-#             app.get("finalApproval", {}).get("status") == "approved"
-#         )
-
-#         if is_leave_deducted:
-#             print(f"⚠️ WARNING: Rejecting after leave was deducted for {app.get('referenceId')}")
-#             print(f"   Status: {app.get('status')}, FinalApproval: {app.get('finalApproval', {}).get('status')}")
-#             print(f"⚠️ Attempting refund for {app.get('applicantId')}")
-
-
-#             try:
-#                 from .leave_helper import refund_leave_balance
-#                 refund_success = refund_leave_balance(
-#                     service_number=app.get("applicantId"),
-#                     application=app
-#                 )
-
-#                 print(f"✓ Refund result: {refund_success}")
-
-#                 if refund_success:
-#                     print(f"✓ Leave balance refunded for {app.get('applicantId')}")
-
-#                 else:
-#                     print(f"⚠️ Failed to refund leave balance for {app.get('applicantId')}")
-                    
-#             except Exception as e:
-#                 print(f"❌ Refund error: {e}")
-#                 import traceback
-#                 traceback.print_exc()
-#                 print(f"ERROR refunding leave balance: {e}")
-#                 flash("Error processing leave balance refund. Please check manually.", "error")
-#         else:
-#             print(f"ℹ️ No leave balance to refund for {app.get('referenceId')} - rejection at early stage")
-#         # =============================================
-
-#         updated = False
-
-#         for step in chain:
-#             can_reject = False
-
-#             # NORMAL FIXED APPROVER
-#             if (
-#                 step.get("approverId") == current_user['service_number']
-#                 and step.get("status") == "pending"
-#             ):
-#                 can_reject = True
-
-#             elif (is_so_approver and step.get("role") == "so" and 
-#                   step.get("is_so_stage") is True and 
-#                   step.get("status") == "pending" and
-#                   app.get("directorate") == current_user.get("directorate")):
-#                 can_reject = True
-
-#             if can_reject:
-#                 print(f"🔍 Updating step: {step.get('role')}")
-#                 step["status"] = "rejected"
-#                 step["comments"] = comments
-#                 step["timestamp"] = datetime.utcnow()
-#                 step["approvedBy"] = current_user['service_number']
-#                 step["approvedByName"] = current_user.get('fullName') or 'Unknown'
-#                 step["approvedByRank"] = current_user.get('rankOrGrade', 'N/A')
-#                 step["approvedByDesignation"] = current_user.get('designation', 'N/A')
-
-#                 updated = True
-#                 break
-            
-#             # DYNAMIC SO2 STAGE
-#             # if (
-#             #     is_so_approver
-#             #     and step.get("role") == "so"
-#             #     and step.get("is_so_stage") is True
-#             #     and step.get("status") == "pending"
-#             #     and app.get("directorate") == current_user.get("directorate")
-#             # ):
-#             #     can_reject = True
-
-#             if (
-#                 is_ad_approver
-#                 and step.get("role") == "ad"
-#                 and step.get("is_ad_stage") is True
-#                 and step.get("status") == "pending"
-#                 and app.get("directorate") == current_user.get("directorate")
-#             ):
-#                 can_reject = True
-
-#             if (
-#                 is_dd_approver
-#                 and step.get("role") == "dd"
-#                 and step.get("is_dd_stage") is True
-#                 and step.get("status") == "pending"
-#                 and app.get("directorate") == current_user.get("directorate")
-#             ):
-#                 can_reject = True
-
-#             if can_reject:
-
-#                 step["status"] = "rejected"
-#                 step["comments"] = comments
-#                 step["timestamp"] = datetime.utcnow()
-
-#                 step["approvedBy"] = current_user['service_number']
-#                 # ✅ FIXED: Use 'fullName' instead of 'name'
-#                 step["approvedByName"] = current_user.get('name')
-#                 # ✅ FIXED: Use 'rankOrGrade' key
-#                 step["approvedByRank"] = current_user.get('rankOrGrade', '')
-#                 # ✅ FIXED: Use 'designation' key instead of 'appt'
-#                 step["approvedByDesignation"] = current_user.get('appt', '')
-
-#                 if not step.get("approverName"):
-#                     # ✅ FIXED: Use 'fullName' instead of 'name'
-#                     step["approverName"] = current_user.get('name')
-#                 if not step.get("approverRank"):
-#                     # ✅ FIXED: Use 'rankOrGrade' key
-#                     step["approverRank"] = current_user.get('rankOrGrade', '')
-#                 if not step.get("approverDesignation"):
-#                     # ✅ FIXED: Use 'designation' key instead of 'appt'
-#                     step["approverDesignation"] = current_user.get('appt', '')
-
-#                 updated = True
-#                 break
-
-#         # if not updated:
-#         #     flash("You are not authorized to reject this application or it has already been processed.", "error")
-#         #     return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#         if not updated:
-#             print(f"❌ No step found to reject")
-#             flash("You are not authorized to reject this application.", "error")
-#             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-
-#         # Set overall status to rejected
-#         update_data = {
-#             "approvalChain": chain,
-#             "status": "rejected",
-#             "updatedAt": datetime.utcnow()
-#         }
-        
-#         # Update finalApproval if it exists
-#         if app.get("finalApproval"):
-#             update_data["finalApproval.status"] = "rejected"
-#             update_data["finalApproval.comments"] = comments
-#             update_data["finalApproval.timestamp"] = datetime.utcnow()
-
-#         applications_coll.update_one(
-#             {"_id": ObjectId(app_id)},
-#             {"$set": update_data}
-#         )
-
-#         # TRIGGER REJECTION NOTIFICATION EMAIL TO APPLICANT 
-#         users_coll = current_app.users_collection
-
-#         applicant = users_coll.find_one(
-#             {"service_number": app.get("applicantId")}
-#         )
-
-#         if applicant and applicant.get("email"):
-#             try:
-#                 from utils.email_service import send_rejection_email
-#                 send_rejection_email(
-#                     applicant_email=applicant["email"],
-#                     applicant_name=applicant.get("fullName"),
-#                     application=app,
-#                     rejected_by=current_user.get("fullName"),  # ✅ FIXED: Use 'fullName'
-#                     comments=comments
-#                 )
-#             except Exception as e:
-#                 print("Email sending failed:", e)
-        
-#         # Emit Socket.IO notification to applicant room
-#         try:
-#             current_app.socketio.emit(
-#                 "application_update",
-#                 {
-#                     "status": "rejected", 
-#                     "comments": comments, 
-#                     "referenceId": app.get("referenceId"),
-#                     "rejected_by": current_user.get("fullName"),  # ✅ FIXED: Use 'fullName'
-#                     "rejected_step": step.get("role"),
-#                     "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-#                 },
-#                 room=f"APPLICATION_{app.get('referenceId')}"
-#             )
-#         except Exception as e:
-#             print(f"Socket.IO emit failed: {e}")
-
-#         # 3. Create notification in database for applicant
-#         notifications_coll = current_app.notifications_collection
-#         notification = {
-#             "type": "application_rejected",
-#             "applicationId": app["_id"],
-#             "referenceId": app.get("referenceId"),
-#             "applicantId": app.get("applicantId"),
-#             "target": {
-#                 "type": "user",
-#                 "userId": app.get("applicantId")
-#             },
-#             "message": f"Your application {app.get('referenceId')} has been rejected by {current_user.get('fullName')}. Reason: {comments}",
-#             "status": "unread",
-#             "readBy": [],
-#             "meta": {
-#                 "rejectedBy": current_user["service_number"],
-#                 "rejectedByName": current_user.get("fullName"),  # ✅ FIXED: Use 'fullName'
-#                 "rejectedAt": datetime.utcnow(),
-#                 "rejectedStep": step.get("role"),
-#                 "comments": comments,
-#                 "leaveRefunded": is_leave_deducted
-#             },
-#             "createdAt": datetime.utcnow(),
-#             "isActive": True
-#         }
-#         notifications_coll.insert_one(notification)
-
-#         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-#             msg = "Application rejected. Leave balance has been refunded." if is_leave_deducted else "Application rejected."
-#             return jsonify({"success": True, "message": msg})
-
-#         if is_leave_deducted:
-#             flash("Application rejected. Leave balance has been refunded.", "info")
-#         else:
-#             flash("Application rejected.", "info")
-
-#         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-#     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-#         return jsonify({"success": False, "message": "Method not allowed."})
-#     return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-
-
-
 
 
 
@@ -2539,371 +2397,6 @@ def view_application(app_id):
                            active_page=came_from
                            )
 
-
-# simplier
-@approver_dashboard.route('/reject/<string:app_id>', methods=['GET', 'POST'])
-def reject(app_id):
-    """Reject a pending application by an approver in the chain"""
-
-    current_user = {
-        "service_number": session.get("service_number"),
-        "fullName": session.get("name"),
-        "directorate": session.get("directorate"),
-        "role": session.get("role"),
-        "designation": session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
-        "rankOrGrade": session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
-        "email": session.get("email"),
-        "is_so_approver": session.get("is_so_approver", False),
-        "is_dd_approver": session.get("is_dd_approver", False),
-        "is_ad_approver": session.get("is_ad_approver", False),
-        "is_final_approver": session.get("is_final_approver", False),
-    }
-
-    if not current_user.get("service_number"):
-        flash("Session expired.", "error")
-        return redirect(url_for('login'))
-
-    applications_coll = current_app.applications_collection
-    users_coll = current_app.users_collection 
-
-    print(f"\n{'='*70}")
-    print(f"REJECT ROUTE CALLED")
-    print(f"{'='*70}")
-    print(f"App ID: {app_id}")
-    print(f"Current User Service Number: {current_user.get('service_number')}")
-    print(f"Current User Full Name: {current_user.get('fullName')}")
-    print(f"Current User Role: {current_user.get('role')}")
-    print(f"Is SO Approver: {current_user.get('is_so_approver')}")
-    print(f"Is DD Approver: {current_user.get('is_dd_approver')}")
-    print(f"Is AD Approver: {current_user.get('is_ad_approver')}")
-
-    try:
-        app = applications_coll.find_one({"_id": ObjectId(app_id)})
-        if not app:
-            print(f"❌ Application not found with ID: {app_id}")
-            flash("Application not found.", "error")
-            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-        print(f"✓ Application found: {app.get('referenceId')}")
-    except Exception as e:
-        print(f"❌ Error finding application: {e}")
-        flash("Invalid application ID.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-    # Check if application is still pending
-    app_status = app.get("status")
-    print(f"Application Status: {app_status}")
-    if app_status != "pending":
-        print(f"❌ Application is not pending, it's: {app_status}")
-        flash(f"Cannot reject: Application is already {app_status}.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-    user_id = current_user['service_number']
-    chain = app.get("approvalChain", [])
-    
-    print(f"\n--- APPROVAL CHAIN ---")
-    for i, step in enumerate(chain):
-        print(f"[{i}] Role: {step.get('role'):20} | ApproverId: {step.get('approverId'):15} | Status: {step.get('status')}")
-
-    user_index = None
-    user_step = None
-
-    is_so_approver = current_user["is_so_approver"]
-    is_ad_approver = current_user["is_ad_approver"]
-    is_dd_approver = current_user["is_dd_approver"]
-
-    # Find user's position in chain
-    print(f"\n--- FINDING USER IN CHAIN ---")
-    for i, step in enumerate(chain):
-        # NORMAL FIXED APPROVER
-        if step.get("approverId") == user_id and step.get("status") == "pending":
-            print(f"✓ Found at position [{i}] as FIXED APPROVER")
-            print(f"  Role: {step.get('role')}")
-            
-            # Verify permission based on role
-            if step.get("role") == "so" and not is_so_approver:
-                print(f"❌ User claims to be SO but is_so_approver=False")
-                flash("You are not authorized as SO approver.", "error")
-                return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-            if step.get("role") == "ad" and not is_ad_approver:
-                print(f"❌ User claims to be AD but is_ad_approver=False")
-                flash("You are not authorized as AD approver.", "error")
-                return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-            if step.get("role") == "dd" and not is_dd_approver:
-                print(f"❌ User claims to be DD but is_dd_approver=False")
-                flash("You are not authorized as DD approver.", "error")
-                return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-            
-            user_index = i
-            user_step = step
-            break
-
-        # DYNAMIC SO STAGE
-        if (is_so_approver and 
-            step.get("role") == "so" and 
-            step.get("is_so_stage") is True and 
-            step.get("status") == "pending" and
-            app.get("directorate") == current_user.get("directorate")):
-            print(f"✓ Found at position [{i}] as DYNAMIC SO APPROVER")
-            user_index = i
-            user_step = step
-            break
-
-        # DYNAMIC AD STAGE
-        if (is_ad_approver and 
-            step.get("role") == "so" and 
-            step.get("is_so_stage") is True and 
-            step.get("status") == "pending" and
-            app.get("directorate") == current_user.get("directorate")):
-            print(f"✓ Found at position [{i}] as DYNAMIC AD APPROVER")
-            user_index = i
-            user_step = step
-            break
-
-        # DYNAMIC DD STAGE
-        if (is_dd_approver and 
-            step.get("role") == "deputy_director" and 
-            step.get("is_dd_stage") is True and 
-            step.get("status") == "pending" and
-            app.get("directorate") == current_user.get("directorate")):
-            print(f"✓ Found at position [{i}] as DYNAMIC DD APPROVER")
-            user_index = i
-            user_step = step
-            break
-    
-    if user_index is None:
-        print(f"❌ User not found in approval chain")
-        print(f"   User ID: {user_id}")
-        print(f"   Is SO Approver: {is_so_approver}")
-        print(f"   Is AD Approver: {is_ad_approver}")
-        print(f"   Is DD Approver: {is_dd_approver}")
-        flash("This application is not waiting for your action.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-    print(f"✓ User found at index: {user_index}")
-
-    if request.method == 'POST':
-        print(f"\n--- POST REQUEST ---")
-        comments = request.form.get('comments', '').strip()
-        print(f"Comments received: {comments[:50] if comments else 'EMPTY'}")
-
-        if not comments:
-            print(f"❌ No comments provided")
-            flash("Comments are required for rejection.", "error")
-            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-        # ============ REFUND LOGIC ============
-        is_leave_deducted = (
-            app.get("status") == "issued" or 
-            app.get("finalApproval", {}).get("status") == "approved"
-        )
-        print(f"Is leave deducted: {is_leave_deducted}")
-
-        if is_leave_deducted:
-            print(f"⚠️ Attempting leave refund...")
-            try:
-                from .leave_helper import refund_leave_balance
-                refund_success = refund_leave_balance(
-                    service_number=app.get("applicantId"),
-                    application=app
-                )
-                print(f"✓ Refund result: {refund_success}")
-            except Exception as e:
-                print(f"❌ Refund error: {e}")
-                import traceback
-                traceback.print_exc()
-
-        # ============ UPDATE CHAIN ============
-        print(f"\n--- UPDATING CHAIN ---")
-        updated = False
-
-        for step in chain:
-            can_reject = False
-
-            # NORMAL FIXED APPROVER
-            if (step.get("approverId") == current_user['service_number'] and 
-                step.get("status") == "pending"):
-                can_reject = True
-                print(f"✓ Can reject (fixed approver match)")
-            
-            # DYNAMIC SO2 STAGE
-            if (is_so_approver and step.get("role") == "so" and 
-                step.get("is_so_stage") is True and 
-                step.get("status") == "pending" and
-                app.get("directorate") == current_user.get("directorate")):
-                can_reject = True
-                print(f"✓ Can reject (dynamic SO match)")
-
-            # DYNAMIC AD STAGE
-            if (is_ad_approver and step.get("role") == "so" and 
-                step.get("is_so_stage") is True and 
-                step.get("status") == "pending" and
-                app.get("directorate") == current_user.get("directorate")):
-                can_reject = True
-                print(f"✓ Can reject (dynamic AD match)")
-
-            # DYNAMIC DD STAGE
-            if (is_dd_approver and step.get("role") == "dd" and 
-                step.get("is_dd_stage") is True and 
-                step.get("status") == "pending" and
-                app.get("directorate") == current_user.get("directorate")):
-                can_reject = True
-                print(f"✓ Can reject (dynamic DD match)")
-
-            if can_reject:
-                print(f"\n--- UPDATING STEP ---")
-                print(f"Step role: {step.get('role')}")
-                print(f"Setting status to: rejected")
-                
-                step["status"] = "rejected"
-                step["comments"] = comments
-                step["timestamp"] = datetime.utcnow()
-                step["approvedBy"] = current_user['service_number']
-                step["approvedByName"] = current_user.get('fullName') or 'Unknown'
-                step["approvedByRank"] = current_user.get('rankOrGrade', 'N/A')
-                step["approvedByDesignation"] = current_user.get('designation', 'N/A')
-
-                if not step.get("approverName"):
-                    step["approverName"] = current_user.get('fullName')
-                if not step.get("approverRank"):
-                    step["approverRank"] = current_user.get('rankOrGrade', 'N/A')
-                if not step.get("approverDesignation"):
-                    step["approverDesignation"] = current_user.get('designation', 'N/A')
-
-                updated = True
-                print(f"✓ Step updated successfully")
-                break
-
-        if not updated:
-            print(f"❌ No step was updated")
-            flash("You are not authorized to reject this application or it has already been processed.", "error")
-            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-        # ============ DATABASE UPDATE ============
-        print(f"\n--- DATABASE UPDATE ---")
-        update_data = {
-            "approvalChain": chain,
-            "status": "rejected",
-            "updatedAt": datetime.utcnow()
-        }
-        
-        if app.get("finalApproval"):
-            update_data["finalApproval.status"] = "rejected"
-            update_data["finalApproval.comments"] = comments
-            update_data["finalApproval.timestamp"] = datetime.utcnow()
-
-        try:
-            result = applications_coll.update_one(
-                {"_id": ObjectId(app_id)},
-                {"$set": update_data}
-            )
-            print(f"✓ DB update: matched={result.matched_count}, modified={result.modified_count}")
-        except Exception as e:
-            print(f"❌ DB update error: {e}")
-            import traceback
-            traceback.print_exc()
-            flash(f"Database error: {str(e)}", "error")
-            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-        # ============ NOTIFICATIONS ============
-        print(f"\n--- SENDING NOTIFICATIONS ---")
-        try:
-            applicant = users_coll.find_one({"service_number": app.get("applicantId")})
-            if applicant:
-                print(f"✓ Found applicant: {applicant.get('fullName')}")
-                if applicant.get("email"):
-                    print(f"  Email: {applicant.get('email')}")
-            else:
-                print(f"⚠️ Applicant not found")
-
-            # Create notification
-            notifications_coll = current_app.notifications_collection
-            notification = {
-                "type": "application_rejected",
-                "applicationId": app["_id"],
-                "referenceId": app.get("referenceId"),
-                "applicantId": app.get("applicantId"),
-                "target": {"type": "user", "userId": app.get("applicantId")},
-                "message": f"Your application {app.get('referenceId')} has been rejected by {current_user.get('fullName')}. Reason: {comments}",
-                "status": "unread",
-                "readBy": [],
-                "meta": {
-                    "rejectedBy": current_user["service_number"],
-                    "rejectedByName": current_user.get("fullName"),
-                    "rejectedAt": datetime.utcnow(),
-                    "rejectedStep": user_step.get("role"),
-                    "comments": comments,
-                    "leaveRefunded": is_leave_deducted
-                },
-                "createdAt": datetime.utcnow(),
-                "isActive": True
-            }
-            notifications_coll.insert_one(notification)
-            print(f"✓ Notification created")
-        except Exception as e:
-            print(f"⚠️ Notification error (non-critical): {e}")
-
-        print(f"\n{'='*70}")
-        print(f"✅ REJECTION COMPLETED SUCCESSFULLY")
-        print(f"{'='*70}\n")
-
-        flash("Application rejected successfully.", "success")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-    return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-
-
-
-
-
-
-
-@approver_dashboard.route('/debug/reject/<string:app_id>')
-def debug_reject(app_id):
-    """Debug endpoint to see why rejection is failing"""
-    current_user = {
-        "service_number": session.get("service_number"),
-        "fullName": session.get("name"),
-    }
-    
-    try:
-        app = current_app.applications_collection.find_one({"_id": ObjectId(app_id)})
-        if not app:
-            return jsonify({"error": "Application not found"}), 404
-        
-        chain = app.get("approvalChain", [])
-        user_id = current_user['service_number']
-        
-        print(f"\n=== DEBUG REJECTION ===")
-        print(f"Current user service_number: {user_id}")
-        print(f"Application status: {app.get('status')}")
-        print(f"\nApproval Chain:")
-        for i, step in enumerate(chain):
-            match = "✓ MATCH" if step.get("approverId") == user_id and step.get("status") == "pending" else ""
-            print(f"  [{i}] {step.get('role'):20} | approverId: {step.get('approverId'):15} | status: {step.get('status'):10} {match}")
-        
-        # Check if user can reject
-        can_reject_any = False
-        for step in chain:
-            if step.get("approverId") == user_id and step.get("status") == "pending":
-                can_reject_any = True
-                break
-        
-        print(f"\nCan user reject? {can_reject_any}")
-        print(f"=== END DEBUG ===\n")
-        
-        return jsonify({
-            "user_id": user_id,
-            "app_status": app.get('status'),
-            "can_reject": can_reject_any,
-            "chain": chain
-        })
-    except Exception as e:
-        print(f"DEBUG ERROR: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
 
 
 # serve/download the attachment
@@ -3123,6 +2616,7 @@ def view_receipt(app_id):
                 if step.get('is_final_approver') == True:
                     receipt_step = step
                     receipt_info = step.get('receipt')
+                    director_step = step
                 else:
                     director_step = step
             elif step.get('role') in ('so1_doa', 'central_registry') and step.get('receipt'):
@@ -3208,6 +2702,7 @@ def download_receipt(app_id):
                 if step.get('is_final_approver') == True:
                     receipt_step = step
                     receipt_info = step.get('receipt')
+                    director_step = step
                 else:
                     director_step = step
             elif step.get('role') in ('so1_doa', 'central_registry') and step.get('receipt'):
@@ -3288,7 +2783,7 @@ def download_receipt(app_id):
         
         # Header
         story.append(Paragraph("DIRECTORATE OF ADMINISTRATION (DOA)", title_style))
-        story.append(Paragraph("LEAVE/PASS APPROVAL RECEIPT", subtitle_style))
+        story.append(Paragraph("LEAVE/PASS APPROVAL", subtitle_style))
         
         # Receipt number box
         receipt_number = receipt_info.get('receiptNumber', 'N/A')
@@ -3389,9 +2884,9 @@ def download_receipt(app_id):
             ["Approving Authority:", "Director"],
             ["Approval Date:", format_datetime(final_approval_date)],
             ["", ""],
-            ["Receipt Issued By:", f"{receipt_issuer_name} ({receipt_issuer_rank})" if receipt_issuer_rank != 'N/A' else receipt_issuer_name],
+            ["Leave/Pass Issued By:", f"{receipt_issuer_name} ({receipt_issuer_rank})" if receipt_issuer_rank != 'N/A' else receipt_issuer_name],
             ["Issuing Authority:", "Director"],
-            ["Receipt Issue Date:", format_datetime(receipt_issue_date)],
+            ["Issue Date:", format_datetime(receipt_issue_date)],
         ]
         
         approval_table = Table(approval_data, colWidths=[1.5*inch, 4*inch])

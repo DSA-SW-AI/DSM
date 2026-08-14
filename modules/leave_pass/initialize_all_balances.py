@@ -671,12 +671,12 @@ def initialize_all_staff_balances(delete_existing: bool = False, year: int = Non
 
 
         # OLD (fails when values are None):
-        #gender = staff.get("onboarding_data", {}).get("step_5", {}).get("gender", "").lower().strip()
+        gender = staff.get("onboarding_data", {}).get("step_5", {}).get("gender", "").lower().strip()
 
         # NEW (handles None values):
-        onboarding_data = staff.get("onboarding_data") or {}  # Convert None to {}
-        step_5 = onboarding_data.get("step_5") or {}          # Convert None to {}
-        gender = step_5.get("gender", "").lower().strip()
+        # onboarding_data = staff.get("onboarding_data") or {}  # Convert None to {}
+        # step_5 = onboarding_data.get("step_5") or {}          # Convert None to {}
+        # gender = step_5.get("gender", "").lower().strip()
 
         
         if gender == 'female':
