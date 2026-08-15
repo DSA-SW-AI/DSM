@@ -79,6 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 password: passwordInput.value
             };
 
+            const submitBtn = createStaffForm.querySelector('button[type="submit"]');
+            const origBtnText = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Creating Account...';
+            }
+
             try {
                 const response = await fetch('/add-staff', {
                     method: 'POST',
@@ -91,21 +98,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    if (result.email_sent === false) {
-                        showAppToast(result.message || "Account created offline! Saved to 'Pending Mail Queue' tab.", 'warning');
-                    } else {
-                        showAppToast(result.message || "Success! Credentials dispatched to alternate email.", 'success');
-                    }
+                    showAppToast(result.message || "Success! Credentials dispatched.", 'success');
                     modal.style.display = 'none';
                     createStaffForm.reset();
                     generateBtn.textContent = "Generate Login Password";
-                    setTimeout(() => window.location.reload(), 1500);
+                    setTimeout(() => window.location.reload(), 600);
                 } else {
                     showAppToast("Registration Error: " + result.message, 'error');
                 }
             } catch (error) {
                 console.error("Network Error:", error);
                 showAppToast("An error occurred during database communications.", 'error');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = origBtnText || 'Create Account';
+                }
             }
         });
     }

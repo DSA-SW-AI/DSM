@@ -8,9 +8,9 @@
   <title>DSA Paperless - Verification Pending</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
-  </head>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+</head>
 
 <body style="
       display: flex;
@@ -68,13 +68,14 @@
 
       {% if user.status == 'Rejected' %}
       Your onboarding registration has been <span style="color: #e50000; font-weight: 700">rejected</span>.
-      Your file has been routed back to the <span style="color: #e50000; font-weight: 700">CDSA / DCDSA Directorate</span>
+      Your file has been routed back to the <span style="color: #e50000; font-weight: 700">CDSA / DCDSA
+        Directorate</span>
       and you are currently awaiting directorate reassignment or further instructions.
       {% else %}
       Your multi-step onboarding registration records have been securely
       logged into the system. Your file is currently routing to the
       <span style="color: #e50000; font-weight: 700">CDSA & DCDSA Directorate</span>
-      for final approval or directorate assignment.
+      for final approval.
       {% endif %}
     </p>
 

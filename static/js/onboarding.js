@@ -5,25 +5,24 @@ let completedSteps = { 1: false, 2: false, 3: false, 4: false, 5: false };
 
 // 2. Track which specific form block is currently active on the viewport canvas
 let currentActiveStep = 0;
+let lastSubmittedStep = 0;
 
 /**
  * Automatically generates offEmail from surname, middleName, and firstName inputs.
  */
 function generateOfficialEmail() {
-    const surname = document.getElementById('surname')?.value.trim().toLowerCase() || '';
-    const middleName = document.getElementById('middleName')?.value.trim().toLowerCase() || '';
-    const firstName = document.getElementById('firstName')?.value.trim().toLowerCase() || '';
+    const surname = (document.getElementById('surname')?.value || '').trim().toLowerCase();
+    const firstName = (document.getElementById('firstName')?.value || '').trim().toLowerCase();
     const offEmailInput = document.getElementById('offEmail');
 
     if (offEmailInput) {
-        if (surname) {
-            let localPart = surname;
-            if (middleName) {
-                localPart += `.${middleName}`;
-            } else if (firstName) {
-                localPart += `.${firstName}`;
-            }
+        if (firstName && surname) {
+            const localPart = `${firstName}.${surname}`.replace(/\s+/g, '');
             offEmailInput.value = `${localPart}@dsa.mil.ng`;
+        } else if (firstName) {
+            offEmailInput.value = `${firstName.replace(/\s+/g, '')}@dsa.mil.ng`;
+        } else if (surname) {
+            offEmailInput.value = `${surname.replace(/\s+/g, '')}@dsa.mil.ng`;
         } else {
             offEmailInput.value = '';
         }
@@ -41,12 +40,14 @@ function dismissSuccessAndRoute() {
 
     const activeCategory = document.getElementById('userCategory')?.value || '';
     const isSpecialRole = (activeCategory === 'it' || activeCategory === 'nysc');
+    const isMilitary = (activeCategory === 'military');
+    const stepToAdvance = lastSubmittedStep || currentActiveStep || 1;
 
-    if (currentActiveStep === 5 || (currentActiveStep === 4 && isSpecialRole)) {
+    if (stepToAdvance === 5 || (stepToAdvance === 4 && isSpecialRole)) {
         window.location.href = '/onboarding';
     } else {
-        if (isSpecialRole && currentActiveStep === 1) goToStep(3);
-        else goToStep(currentActiveStep + 1);
+        if ((isSpecialRole || isMilitary) && stepToAdvance === 1) goToStep(3);
+        else goToStep(stepToAdvance + 1);
     }
 }
 
@@ -115,9 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
 function goToStep(stepNumber) {
     const activeCategory = document.getElementById('userCategory')?.value || '';
     const isSpecialRole = (activeCategory === 'it' || activeCategory === 'nysc');
+    const isMilitary = (activeCategory === 'military');
 
-    // Intercept sidebar or programmatic navigations for IT and NYSC forms
-    if (isSpecialRole && stepNumber === 2 && currentActiveStep === 3) {
+    // Intercept sidebar or programmatic navigations for IT, NYSC, and Military users to skip Step 2
+    if ((isSpecialRole || isMilitary) && stepNumber === 2) {
         stepNumber = 1;
     }
 
@@ -174,6 +176,8 @@ function goToStep(stepNumber) {
  */
 async function submitStepForm(stepNumber) {
     console.log(`Processing submission request block for Step: ${stepNumber}`);
+    currentActiveStep = stepNumber;
+    lastSubmittedStep = stepNumber;
 
     let submissionBody;
     let headers = {
@@ -187,16 +191,17 @@ async function submitStepForm(stepNumber) {
         // Only scan required elements contained STRICTLY within the current active form
         if (formElement) {
             const fieldsToValidate = formElement.querySelectorAll('input[required], select[required], textarea[required]');
-            let isFormValid = true;
+            let firstInvalidField = null;
 
             fieldsToValidate.forEach(field => {
                 if (!field.value.trim()) {
-                    isFormValid = false;
-                    field.reportValidity(); // Flags browser warning pop-ups on empty items
+                    if (!firstInvalidField) firstInvalidField = field;
                 }
             });
 
-            if (!isFormValid) {
+            if (firstInvalidField) {
+                firstInvalidField.reportValidity();
+                firstInvalidField.focus();
                 console.warn(`Validation block triggered for form_step_${stepNumber}. Post stalled.`);
                 return;
             }

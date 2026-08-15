@@ -888,3 +888,101 @@ is_chief_clerk: False
 is_approval_role: False
 pending_applications count: 0
 approved_applications count: 0
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: False
+pending_applications count: 0
+approved_applications count: 0
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: True
+pending_applications count: 1
+  Pending App: DSA-DCS-2026-051620 | Status: pending
+approved_applications count: 7
+  Approved App: DSA-DCS-2026-432788 | Status: issued
+  Approved App: DSA-DCS-2026-585058 | Status: issued
+  Approved App: DSA-DCS-2026-379055 | Status: issued
+  Approved App: DSA-DCS-2026-230574 | Status: issued
+  Approved App: DSA-DCS-2026-482045 | Status: issued
+  Approved App: DSA-DCS-2026-815845 | Status: issued
+  Approved App: DSA-DCS-2026-298510 | Status: issued
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: True
+pending_applications count: 0
+approved_applications count: 8
+  Approved App: DSA-DCS-2026-051620 | Status: pending
+  Approved App: DSA-DCS-2026-432788 | Status: issued
+  Approved App: DSA-DCS-2026-585058 | Status: issued
+  Approved App: DSA-DCS-2026-379055 | Status: issued
+  Approved App: DSA-DCS-2026-230574 | Status: issued
+  Approved App: DSA-DCS-2026-482045 | Status: issued
+  Approved App: DSA-DCS-2026-815845 | Status: issued
+  Approved App: DSA-DCS-2026-298510 | Status: issued
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: False
+pending_applications count: 0
+approved_applications count: 0
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: True
+pending_applications count: 1
+  Pending App: DSA-DCS-2026-051620 | Status: pending
+approved_applications count: 7
+  Approved App: DSA-DCS-2026-432788 | Status: issued
+  Approved App: DSA-DCS-2026-585058 | Status: issued
+  Approved App: DSA-DCS-2026-379055 | Status: issued
+  Approved App: DSA-DCS-2026-230574 | Status: issued
+  Approved App: DSA-DCS-2026-482045 | Status: issued
+  Approved App: DSA-DCS-2026-815845 | Status: issued
+  Approved App: DSA-DCS-2026-298510 | Status: issued
+is_director_doa: True
+is_chief_clerk: False
+is_approval_role: True
+pending_applications count: 0
+approved_applications count: 7
+  Approved App: DSA-DCS-2026-432788 | Status: issued
+  Approved App: DSA-DCS-2026-585058 | Status: issued
+  Approved App: DSA-DCS-2026-379055 | Status: issued
+  Approved App: DSA-DCS-2026-230574 | Status: issued
+  Approved App: DSA-DCS-2026-482045 | Status: issued
+  Approved App: DSA-DCS-2026-815845 | Status: issued
+  Approved App: DSA-DCS-2026-298510 | Status: issued
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: True
+pending_applications count: 1
+  Pending App: DSA-DCS-2026-051620 | Status: pending
+approved_applications count: 7
+  Approved App: DSA-DCS-2026-432788 | Status: issued
+  Approved App: DSA-DCS-2026-585058 | Status: issued
+  Approved App: DSA-DCS-2026-379055 | Status: issued
+  Approved App: DSA-DCS-2026-230574 | Status: issued
+  Approved App: DSA-DCS-2026-482045 | Status: issued
+  Approved App: DSA-DCS-2026-815845 | Status: issued
+  Approved App: DSA-DCS-2026-298510 | Status: issued
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: True
+pending_applications count: 1
+  Pending App: DSA-DCS-2026-051620 | Status: pending
+approved_applications count: 7
+  Approved App: DSA-DCS-2026-432788 | Status: issued
+  Approved App: DSA-DCS-2026-585058 | Status: issued
+  Approved App: DSA-DCS-2026-379055 | Status: issued
+  Approved App: DSA-DCS-2026-230574 | Status: issued
+  Approved App: DSA-DCS-2026-482045 | Status: issued
+  Approved App: DSA-DCS-2026-815845 | Status: issued
+  Approved App: DSA-DCS-2026-298510 | Status: issued
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: False
+pending_applications count: 0
+approved_applications count: 0
+is_director_doa: False
+is_chief_clerk: False
+is_approval_role: True
+pending_applications count: 1
+  Pending App: DSA-DCS-2026-903999 | Status: pending
+approved_applications count: 0

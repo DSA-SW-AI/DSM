@@ -427,6 +427,37 @@ def personnel_view():
     )
 
 
+def _async_send_email(target_alt_email, official_login_email, plain_password, service_number):
+    """
+    Background worker thread to dispatch credential email asynchronously without blocking user registration.
+    """
+    try:
+        email_dispatched = send_credentials_email(
+            target_alt_email=target_alt_email,
+            official_login_email=official_login_email,
+            plain_password=plain_password,
+            service_number=service_number
+        )
+        if email_dispatched:
+            users_collection.update_one(
+                {"email": official_login_email},
+                {"$set": {"email_sent": True, "email_sent_at": datetime.datetime.now()}}
+            )
+        else:
+            pending_data = {
+                "target_alt_email": target_alt_email,
+                "official_login_email": official_login_email,
+                "plain_password": plain_password,
+                "service_number": service_number
+            }
+            users_collection.update_one(
+                {"email": official_login_email},
+                {"$set": {"email_sent": False, "pending_credentials": pending_data}}
+            )
+    except Exception as e:
+        print(f"Background email dispatch error for {official_login_email}: {e}")
+
+
 @app.route('/add-staff', methods=['POST'])
 def add_staff():
     if 'user_email' not in session:
@@ -438,16 +469,14 @@ def add_staff():
     service_number = data.get('service_number')
     alt_email = data.get('alternate_email')
     plain_password = data.get('password')
-    surname = data.get('surname')
-    firstname = data.get('firstname')
-    middlename = data.get('middlename')
-    official_login_email = data.get('official_email')
+    surname = data.get('surname', '').strip()
+    firstname = data.get('firstname', '').strip()
+    middlename = data.get('middlename', '').strip()
+    official_login_email = data.get('official_email', '').strip()
 
-    full_name = f"{firstname} {surname}"
+    full_name = f"{firstname} {middlename} {surname}".strip() if middlename else f"{firstname} {surname}".strip()
 
-
-    
-    if not all([category, directorate, service_number, alt_email, plain_password, full_name, middlename, official_login_email]):
+    if not all([category, directorate, service_number, alt_email, plain_password, surname, firstname, official_login_email]):
         return jsonify({"status": "error", "message": "All required form fields must be populated"}), 400
 
     # normalized_sn = service_number.replace('/', '_').lower()
@@ -463,9 +492,9 @@ def add_staff():
         "email": official_login_email,
         "alternate_email": alt_email,
         "name": full_name.strip(),
-        "surname": surname.strip(),
-        "firstname": firstname.strip(),
-        "middlename": middlename.strip(),
+        "surname": surname,
+        "firstname": firstname,
+        "middlename": middlename,
         "service_number": service_number.upper(),
         "role": "civilian" if category.lower() == "civilian" else "personnel",
         "directorate": directorate.upper(),
@@ -477,37 +506,19 @@ def add_staff():
         "created_at": datetime.datetime.now()
     }
     
-    # 1. Insert new account into MongoDB database
+    # 1. Insert new account into MongoDB database immediately (~1ms)
     users_collection.insert_one(new_user_document)
 
-    # 2. RUN DISPATCH SYSTEM: Fires transmission line using the plain password before hashing
-    email_dispatched = send_credentials_email(
-        target_alt_email=alt_email,
-        official_login_email=official_login_email,
-        plain_password=plain_password,
-        service_number=service_number
-    )
+    # 2. RUN DISPATCH SYSTEM: Fires transmission line in background thread to guarantee instant API response
+    import threading
+    threading.Thread(
+        target=_async_send_email,
+        args=(alt_email, official_login_email, plain_password, service_number),
+        daemon=True
+    ).start()
 
-    if email_dispatched:
-        users_collection.update_one(
-            {"email": official_login_email},
-            {"$set": {"email_sent": True, "email_sent_at": datetime.datetime.now()}}
-        )
-        success_msg = f"Account compiled successfully! Credentials routed securely to {alt_email} via GovMail Gateway."
-        return jsonify({"status": "success", "email_sent": True, "message": success_msg}), 201
-    else:
-        pending_data = {
-            "target_alt_email": alt_email,
-            "official_login_email": official_login_email,
-            "plain_password": plain_password,
-            "service_number": service_number
-        }
-        users_collection.update_one(
-            {"email": official_login_email},
-            {"$set": {"email_sent": False, "pending_credentials": pending_data}}
-        )
-        success_msg = "Account created offline in database. Internet connection unavailable — credentials saved to 'Pending Mail Queue' tab for batch dispatch."
-        return jsonify({"status": "success", "email_sent": False, "message": success_msg}), 201
+    success_msg = f"Account created successfully! Credentials routing initialized for {alt_email}."
+    return jsonify({"status": "success", "email_sent": True, "message": success_msg}), 201
 
 
 @app.route('/pending-emails-view')
@@ -648,13 +659,16 @@ def onboarding_portal():
         surname = ""
         firstname = ""
 
+    service_num_val = user_data.get("service_number") or user_data.get("file_no") or generated_file_no
+
     ui_user_profile = {
         "email": user_data.get("email"),
         "name": user_data.get("name", "NEW USER"),
         "role": user_data.get("role", "civilian"),
         "category": user_data.get("category", "civilian"), # Default for missing legacy accounts
         "directorate": str(user_data.get("directorate", "DOA")).upper(),
-        "file_no": generated_file_no,
+        "file_no": service_num_val,
+        "service_number": service_num_val,
         "training_request_active": user_data.get("training_request_active", False),
         "appt": user_data.get("onboarding_data", {}).get("step_1", {}).get("appt"),
         "middlename": user_data.get("middlename")

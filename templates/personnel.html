@@ -255,7 +255,7 @@
             <input type="text" id="surName" placeholder="e.g. Alabi" required autocomplete="off" />
           </div>
           <div class="modal-form-group">
-            <label>Middle Name <span class="required-star">*</span></label>
+            <label>Middle Name <span style="color: #64748b; font-weight: normal; font-size: 12px;">(Optional)</span></label>
             <input type="text" id="middleName" placeholder="e.g. Chinedu" autocomplete="off" />
           </div>
           <div class="modal-form-group">
@@ -267,7 +267,7 @@
         <div class="modal-form-group">
           <label>Official Email
             <span class="required">(Auto-Generated)</span></label>
-          <input type="email" id="offEmail" placeholder="surname.middlename@dsa.mil.ng" required readonly style="
+          <input type="email" id="offEmail" placeholder="firstname.surname@dsa.mil.ng" required readonly style="
                       background-color: #e2e8f0;
                       font-weight: 600;
                       color: #4a5568;
@@ -667,6 +667,13 @@
             password: passwordInput.value,
           };
 
+          const submitBtn = createStaffForm.querySelector('button[type="submit"]');
+          const origBtnText = submitBtn ? submitBtn.textContent : '';
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating Account...';
+          }
+
           try {
             const response = await fetch("/add-staff", {
               method: "POST",
@@ -680,20 +687,21 @@
             const result = await response.json();
 
             if (response.ok) {
-              if (result.email_sent === false) {
-                showAppToast(result.message || "Account created offline in database! Credentials saved to 'Pending Mail Queue' tab.", 'warning', 'Offline Registration');
-              } else {
-                showAppToast(result.message || "Account created successfully! Login credentials dispatched to alternate email.", 'success', 'Registration Success');
-              }
+              showAppToast(result.message || "Account created successfully! Login credentials dispatched.", 'success', 'Registration Success');
               modal.style.display = "none";
               createStaffForm.reset();
               generateBtn.textContent = "Generate Login Password";
-              setTimeout(() => window.location.reload(), 1500);
+              setTimeout(() => window.location.reload(), 600);
             } else {
               showAppToast("Registration Error: " + result.message, 'error');
             }
           } catch (error) {
             showAppToast("An error occurred during database communications.", 'error');
+          } finally {
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = origBtnText || 'Create Account';
+            }
           }
         });
       }
@@ -1026,20 +1034,18 @@
     // GENERATE OFFICIAL EMAIL FUNCTION
 
     function generateOfficialEmail() {
-      const surname = document.getElementById('surName')?.value.trim().toLowerCase() || '';
-      const middleName = document.getElementById('middleName')?.value.trim().toLowerCase() || '';
-      const firstName = document.getElementById('firstName')?.value.trim().toLowerCase() || '';
+      const surname = (document.getElementById('surName')?.value || document.getElementById('surname')?.value || '').trim().toLowerCase();
+      const firstName = (document.getElementById('firstName')?.value || '').trim().toLowerCase();
       const offEmailInput = document.getElementById('offEmail');
 
       if (offEmailInput) {
-        if (surname) {
-          let localPart = surname;
-          if (middleName) {
-            localPart += `.${middleName}`;
-          } else if (firstName) {
-            localPart += `.${firstName}`;
-          }
+        if (firstName && surname) {
+          const localPart = `${firstName}.${surname}`.replace(/\s+/g, '');
           offEmailInput.value = `${localPart}@dsa.mil.ng`;
+        } else if (firstName) {
+          offEmailInput.value = `${firstName.replace(/\s+/g, '')}@dsa.mil.ng`;
+        } else if (surname) {
+          offEmailInput.value = `${surname.replace(/\s+/g, '')}@dsa.mil.ng`;
         } else {
           offEmailInput.value = '';
         }

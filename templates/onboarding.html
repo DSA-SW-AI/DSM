@@ -9,9 +9,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding.css') }}" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
-  </head>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+</head>
 
 <body>
   <div class="dashboard-wrapper">
@@ -63,7 +63,8 @@
         <div class="onboarding-controls-bar" style="margin: 25px;">
           <span class="orange-status-badge">Onboarding</span>
         </div>
-        <div class="onboarding-portal-card" style="margin: 25px; padding: 30px; border-radius: 12px; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <div class="onboarding-portal-card"
+          style="margin: 25px; padding: 30px; border-radius: 12px; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
           <h2>New Staff/Personnel Onboarding Portal</h2>
           <p class="subtitle-text">
             Complete the following steps to fully onboard this staff.
@@ -72,11 +73,12 @@
             <div class="step-row-item cursor-pointer" onclick="goToStep(1)">
               <div class="step-status-icon number-icon" id="chk_1">1</div>
               <div class="step-meta-info">
-                <h3>{% if user.category == 'military' %}Military Personnel Information Form{% else %}Civilian Staff Registration Form{% endif %}</h3>
+                <h3>{% if user.category == 'military' %}Military Personnel Information Form{% else %}Civilian Staff
+                  Registration Form{% endif %}</h3>
                 <p>Fill the employee information form</p>
               </div>
             </div>
-            {% if user.category not in ['it', 'nysc'] %}
+            {% if user.category not in ['it', 'nysc', 'military'] %}
             <div class="step-row-item cursor-pointer" onclick="goToStep(2)">
               <div class="step-status-icon number-icon" id="chk_2">2</div>
               <div class="step-meta-info">
@@ -86,14 +88,14 @@
             </div>
             {% endif %}
             <div class="step-row-item cursor-pointer" onclick="goToStep(3)">
-              <div class="step-status-icon number-icon" id="chk_3">3</div>
+              <div class="step-status-icon number-icon" id="chk_3">{% if user.category in ['it', 'nysc', 'military'] %}2{% else %}3{% endif %}</div>
               <div class="step-meta-info">
                 <h3>ID Card</h3>
                 <p>Generate and print ID card</p>
               </div>
             </div>
             <div class="step-row-item cursor-pointer" onclick="goToStep(4)">
-              <div class="step-status-icon number-icon" id="chk_4">4</div>
+              <div class="step-status-icon number-icon" id="chk_4">{% if user.category in ['it', 'nysc', 'military'] %}3{% else %}4{% endif %}</div>
               <div class="step-meta-info">
                 <h3>DSA Personnel Emolument Record</h3>
                 <p>Provide your salary account details</p>
@@ -101,9 +103,10 @@
             </div>
             {% if user.category not in ['it', 'nysc'] %}
             <div class="step-row-item cursor-pointer" onclick="goToStep(5)">
-              <div class="step-status-icon number-icon" id="chk_5">5</div>
+              <div class="step-status-icon number-icon" id="chk_5">{% if user.category == 'military' %}4{% else %}5{% endif %}</div>
               <div class="step-meta-info">
-                <h3>{% if user.category == 'military' %}REGISTRATION FORM FOR DSA MILITARY PERSONNEL{% else %}DSA Civilian Staff Registration Form{% endif %}</h3>
+                <h3>{% if user.category == 'military' %}REGISTRATION FORM FOR DSA MILITARY PERSONNEL{% else %}DSA
+                  Civilian Staff Registration Form{% endif %}</h3>
                 <p>Fill the official {% if user.category == 'military' %}military {% endif %}record sheet</p>
               </div>
             </div>
@@ -140,11 +143,14 @@
         {% endif %}
 
         <!-- Main Card Body Container Frame -->
-        <div class="form-container-card" style="margin: 25px; padding: 30px; border-radius: 12px; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-          <h2 class="form-title-header">{% if user.category == 'military' %}Military Personnel Information Form{% else %}Employee Information Form{% endif %}</h2>
+        <div class="form-container-card"
+          style="margin: 25px; padding: 30px; border-radius: 12px; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+          <h2 class="form-title-header">{% if user.category == 'military' %}Military Personnel Information Form{% else
+            %}Employee Information Form{% endif %}</h2>
           <p class="form-subtitle">
             {% if user.category == 'military' %}
-            Fill the form below to provide basic account details and verify posting letter & service experience credentials.
+            Fill the form below to provide basic account details and verify posting letter & service experience
+            credentials.
             {% else %}
             Fill the form below to provide basic account details and verify academic credentials.
             {% endif %}
@@ -168,15 +174,18 @@
             <div class="form-row-grid tri-grid">
               <div class="field-group">
                 <label>Surname <span class="required">*</span></label>
-                <input type="text" id="surname" value="{{ surname }}" placeholder="e.g. Alabi" required autocomplete="off" />
+                <input type="text" id="surname" value="{{ surname }}" placeholder="e.g. Alabi" required
+                  autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>Middle Name</label>
-                <input type="text" id="middleName" value="{{ user.middlename }}" placeholder="e.g. Chinedu" autocomplete="off" />
+                <input type="text" id="middleName" value="{{ user.middlename }}" placeholder="e.g. Chinedu"
+                  autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>First Name <span class="required">*</span></label>
-                <input type="text" id="firstName" value="{{ firstname }}" placeholder="e.g. Musa" required autocomplete="off" />
+                <input type="text" id="firstName" value="{{ firstname }}" placeholder="e.g. Musa" required
+                  autocomplete="off" />
               </div>
             </div>
 
@@ -188,7 +197,8 @@
               <div class="field-group">
                 <label>Official Email
                   <span class="required">(Auto-Generated)</span></label>
-                <input type="email" id="offEmail" value="{{ user.email }}" placeholder="surname.middlename@dsa.mil.ng" required readonly style="
+                <input type="email" id="offEmail" value="{{ user.email }}" placeholder="firstname.surname@dsa.mil.ng"
+                  required readonly style="
                       background-color: #e2e8f0;
                       font-weight: 600;
                       color: #4a5568;
@@ -203,7 +213,8 @@
               </div>
               <div class="field-group">
                 <label>{% if user.category == 'military' %}Rank / Grade{% else %}Grade Level{% endif %}</label>
-                <input type="text" id="rankOrGrade" placeholder="{% if user.category == 'military' %}e.g. Lt Col / Wg Cdr / Cdr{% else %}e.g. Grade Level 8{% endif %}" />
+                <input type="text" id="rankOrGrade"
+                  placeholder="{% if user.category == 'military' %}e.g. Lt Col / Wg Cdr / Cdr{% else %}e.g. Grade Level 8{% endif %}" />
               </div>
             </div>
 
@@ -271,7 +282,8 @@
                 <input type="file" id="doc_experiences" accept=".pdf, image/*" required />
               </div>
               <div class="field-group">
-                <label>Certificates <span style="color: #64748b; font-weight: normal; font-size: 12px;">(Optional / If need be)</span></label>
+                <label>Certificates <span style="color: #64748b; font-weight: normal; font-size: 12px;">(Optional / If
+                    need be)</span></label>
                 <input type="file" id="doc_certificate" accept=".pdf, image/*" />
               </div>
             </div>
@@ -576,7 +588,7 @@
       <!-- ================= STEP 3: ID CARD INFORMATION GENERATOR ================= -->
       <div id="stepView_3" class="onboarding-view-wrapper" style="display: none">
         <div class="onboarding-controls-bar" style="margin: 25px;">
-          <button type="button" class="round-back-btn" onclick="goToStep(2)">
+          <button type="button" class="round-back-btn" onclick="goToStep({% if user.category in ['it', 'nysc', 'military'] %}1{% else %}2{% endif %})">
             ←
           </button>
           <button type="button" class="save-changes-btn" onclick="submitStepForm(3)">
@@ -627,7 +639,7 @@
                   <strong>Directorate:</strong> {{ user.directorate | upper }}
                 </p>
                 <p style="margin: 3px 0; font-size: 13px; color: #4a5568">
-                  <strong>File Number:</strong> {{ user.file_no }}
+                  <strong>File Number:</strong> {{ user.service_number }}
                 </p>
                 <p id="idCardAppointmentDisplay" style="margin: 3px 0; font-size: 13px; color: #4a5568">
                   <strong>Appointment:</strong> {{ user.appt }}
@@ -716,8 +728,11 @@
         <!-- ================= REGISTRATION FORM FOR DSA MILITARY PERSONNEL ================= -->
         <div class="form-container-card" style="margin: 25px;">
           <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
-            <span style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #64748b; text-transform: uppercase;">STAFF IN CONFIDENCE</span>
-            <h2 class="form-title-header" style="margin-top: 5px; color: #0f172a; font-weight: 800;">REGISTRATION FORM FOR DSA MILITARY PERSONNEL</h2>
+            <span
+              style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #64748b; text-transform: uppercase;">STAFF
+              IN CONFIDENCE</span>
+            <h2 class="form-title-header" style="margin-top: 5px; color: #0f172a; font-weight: 800;">REGISTRATION FORM
+              FOR DSA MILITARY PERSONNEL</h2>
             <p class="form-subtitle" style="margin-top: 4px; color: #64748b;">
               Official Registration Record for Military Personnel attached to Defence Space Administration.
             </p>
@@ -725,14 +740,16 @@
 
           <form id="form_step_5" onsubmit="event.preventDefault()">
             <!-- SECTION A: Personal & Service Profile -->
-            <h3 class="inner-section-heading" style="font-size: 15px; color: #e50000; margin: 20px 0 15px 0; font-weight: 700; text-transform: uppercase;">
+            <h3 class="inner-section-heading"
+              style="font-size: 15px; color: #e50000; margin: 20px 0 15px 0; font-weight: 700; text-transform: uppercase;">
               Section A: Personal Details & Service Profile
             </h3>
 
             <div class="form-row-grid tri-grid" style="text-align: left">
               <div class="field-group">
                 <label>a. Service No. <span class="required">*</span></label>
-                <input type="text" id="serviceNo" value="{{ user.file_no }}" required readonly style="background-color: #f1f5f9; font-weight: 600;" />
+                <input type="text" id="serviceNo" value="{{ user.file_no }}" required readonly
+                  style="background-color: #f1f5f9; font-weight: 600;" />
               </div>
               <div class="field-group">
                 <label>b. Rank <span class="required">*</span></label>
@@ -772,7 +789,8 @@
             <div class="form-row-grid tri-grid" style="text-align: left">
               <div class="field-group">
                 <label>g. Name of Spouse</label>
-                <input type="text" id="milSpouseName" placeholder="Full name of spouse (if married)" autocomplete="off" />
+                <input type="text" id="milSpouseName" placeholder="Full name of spouse (if married)"
+                  autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>h. Children (Male)</label>
@@ -787,7 +805,8 @@
             <div class="form-row-grid tri-grid" style="text-align: left">
               <div class="field-group">
                 <label>i. Religion <span class="required">*</span></label>
-                <input type="text" id="milReligion" placeholder="e.g. Christianity / Islam" required autocomplete="off" />
+                <input type="text" id="milReligion" placeholder="e.g. Christianity / Islam" required
+                  autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>j. Blood Group <span class="required">*</span></label>
@@ -821,19 +840,23 @@
             </div>
 
             <div class="field-group" style="margin-bottom: 20px; text-align: left;">
-              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px; display: block;">m. Permanent Home Address (Not PO Box) <span class="required">*</span></label>
-              <textarea id="milHomeAddress" rows="2" required placeholder="Permanent residential home address" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px; display: block;">m.
+                Permanent Home Address (Not PO Box) <span class="required">*</span></label>
+              <textarea id="milHomeAddress" rows="2" required placeholder="Permanent residential home address"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
             </div>
 
             <!-- SECTION B: COMMISSION & SERVICE HISTORY -->
-            <h3 class="inner-section-heading" style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
+            <h3 class="inner-section-heading"
+              style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
               Section B: Commission & Service History
             </h3>
 
             <div class="form-row-grid tri-grid" style="text-align: left">
               <div class="field-group">
                 <label>n. Date & Type of Commission <span class="required">*</span></label>
-                <input type="text" id="milCommissionDateType" placeholder="e.g. 15 Sep 2012 (Direct Regular)" required autocomplete="off" />
+                <input type="text" id="milCommissionDateType" placeholder="e.g. 15 Sep 2012 (Direct Regular)" required
+                  autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>o. Date of Enlistment <span class="required">*</span></label>
@@ -848,7 +871,8 @@
             <div class="form-row-grid tri-grid" style="text-align: left">
               <div class="field-group">
                 <label>q. Corps / Branch / Service <span class="required">*</span></label>
-                <input type="text" id="milCorpsBranch" placeholder="e.g. NAF / NA / NN / Signals" required autocomplete="off" />
+                <input type="text" id="milCorpsBranch" placeholder="e.g. NAF / NA / NN / Signals" required
+                  autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>r. Former Unit <span class="required">*</span></label>
@@ -863,7 +887,8 @@
             <div class="form-row-grid tri-grid" style="text-align: left">
               <div class="field-group">
                 <label>t. Present Unit <span class="required">*</span></label>
-                <input type="text" id="milPresentUnit" placeholder="e.g. Defence Space Administration" required autocomplete="off" />
+                <input type="text" id="milPresentUnit" placeholder="e.g. Defence Space Administration" required
+                  autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>u. DSA Appointment <span class="required">*</span></label>
@@ -878,7 +903,8 @@
             <div class="form-row-grid tri-grid" style="text-align: left">
               <div class="field-group">
                 <label>w. Directorate / Office <span class="required">*</span></label>
-                <input type="text" id="milDirectorate" value="{{ user.directorate | upper }}" required style="background-color: #f1f5f9; font-weight: 600;" readonly />
+                <input type="text" id="milDirectorate" value="{{ user.directorate | upper }}" required
+                  style="background-color: #f1f5f9; font-weight: 600;" readonly />
               </div>
               <div class="field-group">
                 <label>ac. Year of Service <span class="required">*</span></label>
@@ -886,7 +912,8 @@
               </div>
               <div class="field-group">
                 <label>ad. Military ID Card Number <span class="required">*</span></label>
-                <input type="text" id="milIdCardNo" placeholder="Official Military ID Card No" required autocomplete="off" />
+                <input type="text" id="milIdCardNo" placeholder="Official Military ID Card No" required
+                  autocomplete="off" />
               </div>
             </div>
 
@@ -906,42 +933,66 @@
             </div>
 
             <!-- SECTION C: COURSES, PROMOTIONS & MEDALS -->
-            <h3 class="inner-section-heading" style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
+            <h3 class="inner-section-heading"
+              style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
               Section C: Courses, Unit History & Medals
             </h3>
 
-            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
-              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">x. Military Courses Attended (Serial, Course, Institution, Period, Remarks)</label>
-              <textarea id="milMilitaryCourses" rows="3" placeholder="e.g.&#10;1. Junior Staff Course - AFCSC Jaji (2018) - Passed&#10;2. Young Officers Course - NASME (2014) - Distinction" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            <div class="field-group"
+              style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">x. Military Courses
+                Attended (Serial, Course, Institution, Period, Remarks)</label>
+              <textarea id="milMilitaryCourses" rows="3"
+                placeholder="e.g.&#10;1. Junior Staff Course - AFCSC Jaji (2018) - Passed&#10;2. Young Officers Course - NASME (2014) - Distinction"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
             </div>
 
-            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
-              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">y. Civil Courses Attended (Serial, Course, Institution, Period, Remarks)</label>
-              <textarea id="milCivilCourses" rows="3" placeholder="e.g.&#10;1. B.Sc Cybersecurity - NDA Kaduna (2008-2013)&#10;2. M.Sc Information Security - ABU Zaria (2020-2022)" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            <div class="field-group"
+              style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">y. Civil Courses
+                Attended (Serial, Course, Institution, Period, Remarks)</label>
+              <textarea id="milCivilCourses" rows="3"
+                placeholder="e.g.&#10;1. B.Sc Cybersecurity - NDA Kaduna (2008-2013)&#10;2. M.Sc Information Security - ABU Zaria (2020-2022)"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
             </div>
 
-            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
-              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">z. Last 3 Units Served (Serial, Unit, Appointment, Period, Remarks)</label>
-              <textarea id="milLast3UnitsServed" rows="3" placeholder="e.g.&#10;1. 101 Special Forces Battalion - CO - 2021 to 2023&#10;2. HQ NACWC - SO2 Training - 2019 to 2021&#10;3. 81 Division Garrison - Platoon Commander - 2016 to 2019" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            <div class="field-group"
+              style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">z. Last 3 Units
+                Served (Serial, Unit, Appointment, Period, Remarks)</label>
+              <textarea id="milLast3UnitsServed" rows="3"
+                placeholder="e.g.&#10;1. 101 Special Forces Battalion - CO - 2021 to 2023&#10;2. HQ NACWC - SO2 Training - 2019 to 2021&#10;3. 81 Division Garrison - Platoon Commander - 2016 to 2019"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
             </div>
 
-            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
-              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">aa. Promotion History with Dates</label>
-              <textarea id="milPromotionHistory" rows="3" placeholder="e.g.&#10;1. Lieutenant Colonel - 01 Oct 2022&#10;2. Major - 01 Oct 2017&#10;3. Captain - 15 Sep 2012" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            <div class="field-group"
+              style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">aa. Promotion
+                History with Dates</label>
+              <textarea id="milPromotionHistory" rows="3"
+                placeholder="e.g.&#10;1. Lieutenant Colonel - 01 Oct 2022&#10;2. Major - 01 Oct 2017&#10;3. Captain - 15 Sep 2012"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
             </div>
 
-            <div class="field-group" style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
-              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">ab. Medals and Awards</label>
-              <textarea id="milMedalsAwards" rows="2" placeholder="e.g.&#10;1. General Service Medal (GSM)&#10;2. Pass Staff Course (psc)&#10;3. Forces Service Star (FSS)" style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
+            <div class="field-group"
+              style="display: flex; flex-direction: column; margin-bottom: 20px; text-align: left;">
+              <label style="font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">ab. Medals and
+                Awards</label>
+              <textarea id="milMedalsAwards" rows="2"
+                placeholder="e.g.&#10;1. General Service Medal (GSM)&#10;2. Pass Staff Course (psc)&#10;3. Forces Service Star (FSS)"
+                style="width: 100%; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none;"></textarea>
             </div>
 
             <!-- SECTION D: NEXT OF KIN & CLOSE ASSOCIATES -->
-            <h3 class="inner-section-heading" style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
+            <h3 class="inner-section-heading"
+              style="font-size: 15px; color: #e50000; margin: 30px 0 15px 0; font-weight: 700; text-transform: uppercase;">
               Section D: Next of Kin & Close Associates
             </h3>
 
-            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
-              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">1st Next of Kin (1st NOK)</h4>
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">1st
+                Next of Kin (1st NOK)</h4>
               <div class="form-row-grid tri-grid" style="text-align: left">
                 <div class="field-group">
                   <label>af. Name <span class="required">*</span></label>
@@ -958,8 +1009,10 @@
               </div>
             </div>
 
-            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
-              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">2nd Next of Kin (2nd NOK)</h4>
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">2nd
+                Next of Kin (2nd NOK)</h4>
               <div class="form-row-grid tri-grid" style="text-align: left">
                 <div class="field-group">
                   <label>ai. Name <span class="required">*</span></label>
@@ -976,8 +1029,10 @@
               </div>
             </div>
 
-            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
-              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">1st Close Associate</h4>
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">1st
+                Close Associate</h4>
               <div class="form-row-grid tri-grid" style="text-align: left">
                 <div class="field-group">
                   <label>al. Name <span class="required">*</span></label>
@@ -994,8 +1049,10 @@
               </div>
             </div>
 
-            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
-              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">2nd Close Associate</h4>
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">2nd
+                Close Associate</h4>
               <div class="form-row-grid tri-grid" style="text-align: left">
                 <div class="field-group">
                   <label>ao. Name <span class="required">*</span></label>
@@ -1012,8 +1069,10 @@
               </div>
             </div>
 
-            <div style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
-              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">3rd Close Associate</h4>
+            <div
+              style="border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fafbfc;">
+              <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; text-align: left; color: #2d3748;">3rd
+                Close Associate</h4>
               <div class="form-row-grid tri-grid" style="text-align: left">
                 <div class="field-group">
                   <label>ar. Name <span class="required">*</span></label>
@@ -1030,8 +1089,10 @@
               </div>
             </div>
 
-            <div style="text-align: center; margin-top: 30px; padding: 15px; background: #fff5f5; border: 1px dashed #feb2b2; border-radius: 8px; color: #c53030; font-size: 12px; font-weight: 700; letter-spacing: 0.5px;">
-              "Unauthorized disclosure, transmission, reproduction or retention of information on this sheet violates the Official Secrets Act CAP O3 (LFN) 2004"
+            <div
+              style="text-align: center; margin-top: 30px; padding: 15px; background: #fff5f5; border: 1px dashed #feb2b2; border-radius: 8px; color: #c53030; font-size: 12px; font-weight: 700; letter-spacing: 0.5px;">
+              "Unauthorized disclosure, transmission, reproduction or retention of information on this sheet violates
+              the Official Secrets Act CAP O3 (LFN) 2004"
             </div>
           </form>
         </div>
@@ -1360,8 +1421,10 @@
             placeholder="e.g. Sep 2020 - July 2022">
         </div>
         <div style="margin-bottom: 25px;">
-          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Upload Certificate <span style="color: #718096; font-weight: normal; font-size: 12px;">(Optional / If available)</span></label>
-          <input type="file" name="trainingFile" accept=".pdf,image/*" style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Upload Certificate <span
+              style="color: #718096; font-weight: normal; font-size: 12px;">(Optional / If available)</span></label>
+          <input type="file" name="trainingFile" accept=".pdf,image/*"
+            style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
         </div>
         <button type="submit"
           style="width: 100%; padding: 12px; background-color: #38A169; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px;">Submit
@@ -1376,7 +1439,7 @@
       const form = e.target;
       const submitBtn = form.querySelector('button[type="submit"]');
       const originalText = submitBtn.textContent;
-      
+
       submitBtn.disabled = true;
       submitBtn.textContent = "Submitting...";
 
@@ -1386,7 +1449,7 @@
           method: 'POST',
           body: formData
         });
-        
+
         const result = await response.json();
         if (response.ok) {
           showAppToast(result.message || "Training record appended successfully!", 'success');
@@ -1408,7 +1471,7 @@
 
   {% if user.training_request_active %}
   <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function () {
       const modal = document.getElementById('extraDocModal');
       if (modal) {
         modal.style.display = 'flex';
