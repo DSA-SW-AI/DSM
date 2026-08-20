@@ -184,8 +184,8 @@
             {% set staff_cat = raw_cat %}
             {% endif %}
 
-            {% set rank_val = staff.rankOrGrade or (staff.onboarding_data.step_1.rankOrGrade if (staff.onboarding_data and staff.onboarding_data.step_1) else '') %}
-            {% set appt_val = staff.appt or staff.appointment or (staff.onboarding_data.step_1.appt if (staff.onboarding_data and staff.onboarding_data.step_1) else '') or (staff.onboarding_data.step_1.appointment if (staff.onboarding_data and staff.onboarding_data.step_1) else '') %}
+{% set rank_val = staff.rankOrGrade or (staff.onboarding_data.step_1.rankOrGrade if (staff.onboarding_data and staff.onboarding_data.step_1) else '') %}
+{% set appt_val = staff.appt or staff.appointment or (staff.onboarding_data.step_1.appt if (staff.onboarding_data and staff.onboarding_data.step_1) else '') or (staff.onboarding_data.step_1.appointment if (staff.onboarding_data and staff.onboarding_data.step_1) else '') %}
             {% set cur_status = staff.get('status', 'Pending Onboarding') %}
             {% set search_data = (staff.service_number or '') ~ ' ' ~ (staff.name or '') ~ ' ' ~ (staff.email or '') ~ '
             ' ~ (staff.directorate or '') ~ ' ' ~ staff_cat ~ ' ' ~ rank_val ~ ' ' ~ appt_val ~ ' ' ~ cur_status %}
@@ -221,7 +221,7 @@
                   {% if (user.role in ['cdsa', 'dcdsa', 'registry']) or status_clean == 'rejected' %}
                   <button type="button" class="reassign-btn" data-email="{{ staff.email }}" data-name="{{ staff.name }}"
                     data-id="{{ staff.email.split('@') | first | replace('_', '/') | upper }}"
-                    data-title="{{ staff.onboarding_data.step_1.staffTitle if staff.onboarding_data else 'Civilian' }}">
+                    data-title="{{ staff.onboarding_data.step_1.staffTitle if (staff.onboarding_data and staff.onboarding_data.step_1) else 'Civilian' }}">
                     🔄 Pick / Re-assign Directorate
                   </button>
                   {% endif %}

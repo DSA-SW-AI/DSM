@@ -551,30 +551,41 @@ def super_admin_bulk_upload():
             users_coll.insert_one(new_user)
             
             # Send plain password and email details via credentials email
-            email_dispatched = send_credentials_email(
-                target_alt_email=alternate_email,
-                official_login_email=official_email,
-                plain_password=plain_password,
-                service_number=service_number
+            # Pre-save pending credentials state so password is saved if offline
+            pending_data = {
+                "target_alt_email": alternate_email,
+                "official_login_email": official_email,
+                "plain_password": plain_password,
+                "service_number": service_number
+            }
+            users_coll.update_one(
+                {"email": official_email},
+                {"$set": {"email_sent": False, "pending_credentials": pending_data}}
             )
 
-            if email_dispatched:
-                users_coll.update_one(
-                    {"email": official_email},
-                    {"$set": {"email_sent": True, "email_sent_at": datetime.now()}}
-                )
-            else:
-                pending_data = {
-                    "target_alt_email": alternate_email,
-                    "official_login_email": official_email,
-                    "plain_password": plain_password,
-                    "service_number": service_number
-                }
-                users_coll.update_one(
-                    {"email": official_email},
-                    {"$set": {"email_sent": False, "pending_credentials": pending_data}}
-                )
+            # Dispatch credentials email in background thread without blocking bulk upload loop
+            def _async_bulk_email(target_alt, official_login, pwd, sn):
+                try:
+                    dispatched = send_credentials_email(
+                        target_alt_email=target_alt,
+                        official_login_email=official_login,
+                        plain_password=pwd,
+                        service_number=sn
+                    )
+                    if dispatched:
+                        users_coll.update_one(
+                            {"email": official_login},
+                            {"$set": {"email_sent": True, "email_sent_at": datetime.now()}}
+                        )
+                except Exception as ex:
+                    print(f"Bulk import async email error for {official_login}: {ex}")
 
+            import threading
+            threading.Thread(
+                target=_async_bulk_email,
+                args=(alternate_email, official_email, plain_password, service_number),
+                daemon=True
+            ).start()
             success_count += 1
         except Exception as e:
             errors.append(f"Row {idx}: Error saving to database: {str(e)}")
