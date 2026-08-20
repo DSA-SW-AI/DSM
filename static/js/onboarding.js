@@ -10,20 +10,17 @@ let currentActiveStep = 0;
  * Automatically generates offEmail from surname, middleName, and firstName inputs.
  */
 function generateOfficialEmail() {
-    const surname = document.getElementById('surname')?.value.trim().toLowerCase() || '';
-    const middleName = document.getElementById('middleName')?.value.trim().toLowerCase() || '';
-    const firstName = document.getElementById('firstName')?.value.trim().toLowerCase() || '';
+    const surname = document.getElementById('surname')?.value.trim().toLowerCase().replace(/\s+/g, '') || '';
+    const firstName = document.getElementById('firstName')?.value.trim().toLowerCase().replace(/\s+/g, '') || '';
     const offEmailInput = document.getElementById('offEmail');
 
     if (offEmailInput) {
-        if (surname) {
-            let localPart = surname;
-            if (middleName) {
-                localPart += `.${middleName}`;
-            } else if (firstName) {
-                localPart += `.${firstName}`;
-            }
-            offEmailInput.value = `${localPart}@dsa.mil.ng`;
+        if (firstName && surname) {
+            offEmailInput.value = `${firstName}.${surname}@dsa.mil.ng`;
+        } else if (firstName) {
+            offEmailInput.value = `${firstName}@dsa.mil.ng`;
+        } else if (surname) {
+            offEmailInput.value = `${surname}@dsa.mil.ng`;
         } else {
             offEmailInput.value = '';
         }

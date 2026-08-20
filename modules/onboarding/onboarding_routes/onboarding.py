@@ -79,28 +79,32 @@ def add_staff():
     if 'user_email' not in session:
         return jsonify({"status": "error", "message": "Unauthorized terminal session"}), 401
         
-    data = request.get_json()
+    data = request.get_json() or {}
     category = data.get('category')
     cat_role = data.get('cat_role')
     directorate = data.get('directorate')
     service_number = data.get('service_number')
     alt_email = data.get('alternate_email')
     plain_password = data.get('password')
-    surname = data.get('surname')
-    firstname = data.get('firstname')
-    middlename = data.get('middlename')
-    official_login_email = data.get('official_email')
+    surname = (data.get('surname') or '').strip()
+    firstname = (data.get('firstname') or '').strip()
+    middlename = (data.get('middlename') or '').strip()
 
-    full_name = f"{firstname} {surname}"
-
-
+    # Formulate official email as firstname.surname@dsa.mil.ng
+    fn_clean = "".join(firstname.lower().split())
+    sn_clean = "".join(surname.lower().split())
+    cat_lower = (category or '').lower().strip()
     
-    if not all([category, directorate, service_number, alt_email, plain_password, full_name, middlename, official_login_email]):
-        return jsonify({"status": "error", "message": "All required form fields must be populated"}), 400
+    if cat_lower in ['it', 'nysc']:
+        official_login_email = f"{fn_clean}.{sn_clean}_{cat_lower}@dsa.mil.ng"
+    else:
+        official_login_email = f"{fn_clean}.{sn_clean}@dsa.mil.ng"
 
-    # normalized_sn = service_number.replace('/', '_').lower()
-    # official_login_email = f"{normalized_sn}@dsa.mil.ng"
+    full_name = f"{firstname} {middlename} {surname}".strip() if middlename else f"{firstname} {surname}".strip()
 
+    # Middle name is optional and no longer required
+    if not all([category, directorate, service_number, alt_email, plain_password, firstname, surname, official_login_email]):
+        return jsonify({"status": "error", "message": "All required form fields must be populated (First Name, Surname, Directorate, Service Number, Alternate Email)"}), 400
 
     existing_user = db.users.find_one({"email": official_login_email})
     if existing_user:

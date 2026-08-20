@@ -906,7 +906,7 @@
 
         <div class="modal-form-group">
           <label>Official Email <span class="required">(Auto-Generated)</span></label>
-          <input type="email" id="offEmail" placeholder="surname.middlename@dsa.mil.ng" required readonly style="background-color: #e2e8f0; font-weight: 600; color: #4a5568;" />
+          <input type="email" id="offEmail" placeholder="firstname.surname@dsa.mil.ng" required readonly style="background-color: #e2e8f0; font-weight: 600; color: #4a5568;" />
         </div>
 
         <div class="modal-form-group">
@@ -1219,11 +1219,7 @@
         if (category === 'it' || category === 'nysc') {
           emailBase = `${firstname}.${surname}_${category}`;
         } else {
-          if (middlename) {
-            emailBase = `${firstname}.${middlename}.${surname}`;
-          } else {
-            emailBase = `${firstname}.${surname}`;
-          }
+          emailBase = `${firstname}.${surname}`;
         }
         document.getElementById('offEmail').value = `${emailBase}@dsa.mil.ng`;
       } else if (serviceNumber) {
