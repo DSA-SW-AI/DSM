@@ -947,6 +947,13 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
         "tacosCompliance": None,
         "notifications":   [],
         "auditTrail":      [],
+        "leave_pass_returned": {
+            "returned_from_leave": False,
+            "actual_returned_date": None,
+            "expected_returned_date": end_date + timedelta(days=1) if isinstance(end_date, datetime) else None,
+            "returnedresult": None,
+            "returned_status": "not_submitted"
+        },
     }
 
     try:
@@ -973,6 +980,21 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
                 "isActive": True,
                 "is_active": True
             })
+            
+            # Emit Socket.IO notification to reliever
+            try:
+                payload = {
+                    "type": "reliever_request",
+                    "applicationId": str(result.inserted_id),
+                    "referenceId": reference_id,
+                    "message": f"{applicant['fullName']} has requested you to stand as a reliever for their leave application.",
+                    "createdAt": datetime.utcnow().isoformat(),
+                    "acceptUrl": f"/reliever-action/{str(result.inserted_id)}/accept",
+                    "declineUrl": f"/reliever-action/{str(result.inserted_id)}/decline"
+                }
+                socketio.emit("new_notification", payload, room=f"USER_{reliever_email.lower().strip()}")
+            except Exception as e:
+                print(f"[SOCKET] Error emitting reliever request notification: {e}")
         else:
             first_pending = next((s for s in chain if s['status'] == 'pending'), None)
             if first_pending:
@@ -1511,6 +1533,43 @@ def reliever_action_accept(app_id):
                 {"$set": {"status": "read", "is_active": False}}
             )
 
+        # Store notification for applicant that reliever has accepted
+        if notifications_coll is not None:
+            notifications_coll.insert_one({
+                "type": "reliever_accepted",
+                "applicationId": ObjectId(app_id),
+                "referenceId": app_doc.get("referenceId"),
+                "target": {
+                    "type": "user",
+                    "userId": app_doc.get("applicantId")
+                },
+                "message": f"{reliever_name} has accepted to stand as your reliever for application {app_doc.get('referenceId')}.",
+                "status": "unread",
+                "isActive": True,
+                "is_active": True,
+                "createdAt": datetime.utcnow()
+            })
+            
+            # Emit Socket.IO notification to applicant
+            try:
+                applicant_id = app_doc.get("applicantId")
+                if "@" in str(applicant_id):
+                    applicant_room = f"USER_{applicant_id.lower().strip()}"
+                else:
+                    safe_applicant_id = str(applicant_id).replace("/", "_")
+                    applicant_room = f"USER_{safe_applicant_id}"
+                
+                payload = {
+                    "type": "reliever_accepted",
+                    "applicationId": str(app_doc["_id"]),
+                    "referenceId": app_doc.get("referenceId"),
+                    "message": f"{reliever_name} has accepted to stand as your reliever for application {app_doc.get('referenceId')}.",
+                    "createdAt": datetime.utcnow().isoformat()
+                }
+                socketio.emit("new_notification", payload, room=applicant_room)
+            except Exception as e:
+                print(f"[SOCKET] Error emitting reliever accepted notification: {e}")
+
         # Reload updated doc to pass to notification builder
         app_doc = apps_coll.find_one({"_id": ObjectId(app_id)})
 
@@ -1591,6 +1650,44 @@ def reliever_action_decline(app_id):
                 {"$set": {"status": "read", "is_active": False}}
             )
 
+        # Store notification for applicant that reliever has declined
+        if notifications_coll is not None:
+            reliever_display_name = session.get('name', 'Your reliever')
+            notifications_coll.insert_one({
+                "type": "reliever_declined",
+                "applicationId": ObjectId(app_id),
+                "referenceId": app_doc.get("referenceId"),
+                "target": {
+                    "type": "user",
+                    "userId": app_doc.get("applicantId")
+                },
+                "message": f"{reliever_display_name} has declined to stand as your reliever for application {app_doc.get('referenceId')}.",
+                "status": "unread",
+                "isActive": True,
+                "is_active": True,
+                "createdAt": datetime.utcnow()
+            })
+            
+            # Emit Socket.IO notification to applicant
+            try:
+                applicant_id = app_doc.get("applicantId")
+                if "@" in str(applicant_id):
+                    applicant_room = f"USER_{applicant_id.lower().strip()}"
+                else:
+                    safe_applicant_id = str(applicant_id).replace("/", "_")
+                    applicant_room = f"USER_{safe_applicant_id}"
+                
+                payload = {
+                    "type": "reliever_declined",
+                    "applicationId": str(app_doc["_id"]),
+                    "referenceId": app_doc.get("referenceId"),
+                    "message": f"{reliever_display_name} has declined to stand as your reliever for application {app_doc.get('referenceId')}.",
+                    "createdAt": datetime.utcnow().isoformat()
+                }
+                socketio.emit("new_notification", payload, room=applicant_room)
+            except Exception as e:
+                print(f"[SOCKET] Error emitting reliever declined notification: {e}")
+
         flash("Reliever request declined.", "info")
     except Exception as e:
         flash(f"Error declining reliever request: {str(e)}", "error")
@@ -1662,6 +1759,20 @@ def api_reliever_request_send():
             "isActive": True,
             "is_active": True
         })
+
+    # Emit Socket.IO notification to reliever
+    try:
+        payload = {
+            "type": "reliever_request",
+            "applicationId": request_id,
+            "message": f"{applicant['fullName']} has requested you to stand as a reliever for their leave application.",
+            "createdAt": datetime.utcnow().isoformat(),
+            "acceptUrl": f"/api/reliever-request/action/{request_id}/accept",
+            "declineUrl": f"/api/reliever-request/action/{request_id}/decline"
+        }
+        socketio.emit("new_notification", payload, room=f"USER_{reliever_email.lower().strip()}")
+    except Exception as e:
+        print(f"[SOCKET] Error emitting API reliever request notification: {e}")
 
     return jsonify({"success": True, "request_id": request_id})
 

@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    .settings-container {
+      padding: 25px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .settings-header {
+      margin-bottom: 25px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 15px;
+    }
+
+    .settings-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #111827;
+      margin: 0;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 30px;
+    }
+
+    .settings-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .settings-nav-btn {
+      background: none;
+      border: none;
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #4b5563;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .settings-nav-btn:hover {
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .settings-nav-btn.active {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .settings-panel {
+      display: none;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .settings-panel.active {
+      display: block;
+    }
+
+    .panel-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #111827;
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+
+    .panel-desc {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 0;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    .form-control:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .form-control:disabled {
+      background: #f9fafb;
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .toggle-group:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .toggle-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .toggle-desc {
+      font-size: 0.78rem;
+      color: #6b7280;
+    }
+
+    /* Switch styling */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: #3b82f6;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(20px);
+    }
+
+    .settings-btn-save {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .settings-btn-save:hover {
+      background: #2563eb;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 99px;
+      margin-bottom: 18px;
+    }
+
+    .badge-set {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-not-set {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Signature Canvas Layout */
+    #sigCanvas {
+      border: 2px dashed #d1d5db;
+      border-radius: 8px;
+      background: #f9fafb;
+      cursor: crosshair;
+      display: block;
+      width: 100%;
+      touch-action: none;
+    }
+
+    .canvas-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #374151;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+  </style>
+</head>
+
+<body data-active-page="settings">
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>{{ user.directorate }}</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+
+        {% if user.role == 'super_admin' %}
+        <div class="menu-section-label">ADMINISTRATION</div>
+        <a href="/super-admin-dashboard" class="menu-item">🔑 Super Admin</a>
+        {% endif %}
+
+        <div class="menu-section-label">REGISTRY</div>
+        {% if "documents" in permissions.sidebar %}
+        <a href="/documents-view" class="menu-item">📁 Documents</a>
+        {% endif %} {% if "incoming" in permissions.sidebar %}
+        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+        {% endif %} {% if "outgoing" in permissions.sidebar %}
+        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+        {% endif %}
+
+        <div class="menu-section-label">HR MANAGEMENT</div>
+        {% if "civilian_personnel" in permissions.sidebar %}
+        <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+        <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+        {% endif %} {% if "leave_pass" in permissions.sidebar %}
+        <a href="/dashboard_leave_pass" class="menu-item active">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+
+        <!-- {% if user.role == 'super_admin' or user.is_approval_role or session.get('role') in ['cdsa', 'dcdsa',
+        'director', 'dd', 'ad', 'so', 'registry'] %}
+        <a href="/switch-view" class="menu-item"
+          style="background: rgba(21, 101, 216, 0.1); border: 1px dashed var(--blue); color: var(--blue); margin-top: 15px; text-align: center; justify-content: center; font-weight: 600;">
+          {% if session.get('is_approval_role') %}
+          🔄 Switch to Personal Account
+          {% else %}
+          🔄 Switch to Approval Account
+          {% endif %}
+        </a>
+        {% endif %} -->
+
+        <!-- Permanently Locked Footer Segment -->
+        <div class="sidebar-footer">
+          <div class="menu-section-label">General</div>
+          {% if "support" in permissions.sidebar %}
+          <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+          {% endif %} {% if "notification" in permissions.sidebar %}
+          <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+          {% endif %} {% if "setting" in permissions.sidebar %}
+          <a href="/setting" class="menu-item">📅 Setting</a>
+          {% endif %}
+          <a href="{{ url_for('logout') }}" class="logout-btn">
+            🚪 Sign out
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      {% include "base.html" %}
+
+      <div class="settings-container">
+        <div class="settings-header">
+          <h1 class="settings-title">Account Settings</h1>
+        </div>
+
+        <div class="settings-grid">
+          <!-- Settings Navigation -->
+          <div class="settings-nav">
+            <button class="settings-nav-btn active" id="nav-profile" onclick="switchPanel('profile')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              My Profile
+            </button>
+            <button class="settings-nav-btn" id="nav-preferences" onclick="switchPanel('preferences')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+                </path>
+              </svg>
+              Preferences
+            </button>
+            <button class="settings-nav-btn" id="nav-security" onclick="switchPanel('security')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              Security & Password
+            </button>
+            <button class="settings-nav-btn" id="nav-signing" onclick="switchPanel('signing')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              Signing Password
+            </button>
+            <button class="settings-nav-btn" id="nav-signature" onclick="switchPanel('signature')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+              My Signature
+            </button>
+            {% if user_detail.role in ['cdsa', 'director'] %}
+            <button class="settings-nav-btn" id="nav-delegation" onclick="switchPanel('delegation')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="8.5" cy="7" r="4.5"></circle>
+                <line x1="18" y1="8" x2="23" y2="13"></line>
+                <line x1="23" y1="8" x2="18" y2="13"></line>
+              </svg>
+              Delegation / Out of Office
+            </button>
+            {% endif %}
+          </div>
+
+          <!-- Settings Panels -->
+          <div>
+            <!-- Panel 1: Profile -->
+            <div class="settings-panel active" id="panel-profile">
+              <h2 class="panel-title">My Profile</h2>
+              <p class="panel-desc">Manage your basic profile details and system credentials. Account credentials are
+                managed by administrator.</p>
+
+              <form action="/setting/profile" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" class="form-control" value="{{ user_detail.name }}" disabled>
+                  </div>
+                  <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" class="form-control" value="{{ user_detail.email }}" disabled>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Service Number</label>
+                    <input type="text" class="form-control" value="{{ user_detail.service_number }}" disabled>
+                  </div>
+                  <div class="form-group">
+                    <label>Directorate</label>
+                    <input type="text" class="form-control" value="{{ user_detail.directorate }}"
+                      style="text-transform:uppercase;" disabled>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Rank/Grade</label>
+                    <input type="text" name="rank" class="form-control" value="{{ user_detail.rank or '' }}"
+                      placeholder="e.g. Captain, Director">
+                  </div>
+                  <div class="form-group">
+                    <label>Designation/Appointment</label>
+                    <input type="text" name="appt" class="form-control" value="{{ user_detail.appt or '' }}"
+                      placeholder="e.g. SO2 J6, Chief Clerk">
+                  </div>
+                </div>
+
+                <button type="submit" class="settings-btn-save">Save Profile Details</button>
+              </form>
+            </div>
+
+            <!-- Panel 2: Preferences -->
+            <div class="settings-panel" id="panel-preferences">
+              <h2 class="panel-title">System Preferences</h2>
+              <p class="panel-desc">Customize how you interact with the portal, signature stamps, and email alerts.</p>
+
+              <form action="/setting/preferences" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {% set prefs = user_detail.get('preferences', {}) %}
+
+                <div class="form-group">
+                  <label>Default Landing Page</label>
+                  <select name="default_landing" class="form-control">
+                    <option value="/dashboard" {{ 'selected' if prefs.get('default_landing')=='/dashboard' else '' }}>
+                      Dashboard / Overview</option>
+                    <option value="/subject_matter_filing" {{ 'selected' if
+                      prefs.get('default_landing')=='/subject_matter_filing' else '' }}>Filing Cabinet</option>
+                    <option value="/support" {{ 'selected' if prefs.get('default_landing')=='/support' else '' }}>
+                      Support Center</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Custom Signature Text Stamp</label>
+                  <input type="text" name="signature_text" class="form-control"
+                    value="{{ prefs.get('signature_text') or user_detail.name }}"
+                    placeholder="e.g. SIGNED BY {{ user_detail.name }}">
+                </div>
+
+                <div style="margin-top: 15px; margin-bottom: 25px;">
+                  <div class="toggle-group">
+                    <div class="toggle-info">
+                      <span class="toggle-label">Email Notifications</span>
+                      <span class="toggle-desc">Receive email alerts when new documents require your signature or
+                        review.</span>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" name="email_notifications" {{ 'checked' if prefs.get('email_notifications',
+                        True) else '' }}>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="toggle-group">
+                    <div class="toggle-info">
+                      <span class="toggle-label">Daily Operations Digest</span>
+                      <span class="toggle-desc">Receive a daily morning report summarizing leaves, passes, and parade
+                        states in your directorate.</span>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" name="daily_digest" {{ 'checked' if prefs.get('daily_digest', False)
+                        else '' }}>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <button type="submit" class="settings-btn-save">Save System Preferences</button>
+              </form>
+            </div>
+
+            <!-- Panel 3: Security -->
+            <div class="settings-panel" id="panel-security">
+              <h2 class="panel-title">Change Password</h2>
+              <p class="panel-desc">Update your portal access password. Choose a strong password containing at least 6
+                characters.</p>
+
+              <form action="/setting/password" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                  <label>Current Password</label>
+                  <input type="password" name="current_password" class="form-control" required
+                    placeholder="Enter current login password">
+                </div>
+
+                <div class="form-group">
+                  <label>New Password</label>
+                  <input type="password" name="new_password" class="form-control" required minlength="6"
+                    placeholder="Enter new password (min. 6 characters)">
+                </div>
+
+                <div class="form-group">
+                  <label>Confirm New Password</label>
+                  <input type="password" name="confirm_password" class="form-control" required minlength="6"
+                    placeholder="Re-enter new password">
+                </div>
+
+                <button type="submit" class="settings-btn-save">Update Password</button>
+              </form>
+            </div>
+
+            <!-- Panel 4: Signing Password -->
+            <div class="settings-panel" id="panel-signing">
+              <h2 class="panel-title">🔐 Signing Password</h2>
+              <p class="panel-desc">This password is required every time you sign and forward a document. It is separate
+                from your login password.</p>
+
+              {% if has_signing_password %}
+              <span class="status-badge badge-set">✔ Signing password is set</span>
+              {% else %}
+              <span class="status-badge badge-not-set">✘ No signing password set yet</span>
+              {% endif %}
+
+              <form action="{{ url_for('setting_routes.set_signing_password') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                  <label>Confirm Login Password</label>
+                  <input type="password" name="current_password" class="form-control" required
+                    placeholder="Enter your current login password">
+                </div>
+
+                <div class="form-group">
+                  <label>New Signature Password</label>
+                  <input type="password" name="new_signing_password" class="form-control" required
+                    placeholder="Min. 4 characters">
+                </div>
+
+                <div class="form-group">
+                  <label>Confirm Signature Password</label>
+                  <input type="password" name="confirm_signing_password" class="form-control" required
+                    placeholder="Re-enter new signature password">
+                </div>
+
+                <button type="submit" class="settings-btn-save">
+                  {{ 'Update Signing Password' if has_signing_password else 'Set Signing Password' }}
+                </button>
+              </form>
+            </div>
+
+            <!-- Panel 5: My Signature -->
+            <div class="settings-panel" id="panel-signature">
+              <h2 class="panel-title">✍️ My Signature</h2>
+              <p class="panel-desc">Draw your signature below or import a signature image. It will be saved and
+                automatically used when you sign documents.</p>
+
+              {% if has_signature %}
+              <span class="status-badge badge-set">✔ Signature saved</span>
+              {% else %}
+              <span class="status-badge badge-not-set">✘ No signature saved yet</span>
+              {% endif %}
+
+              {% if has_signature %}
+              <div style="margin-bottom: 20px;">
+                <p style="font-size:0.82rem; color:#6b7280; margin-bottom:8px;">Current saved signature:</p>
+                <img id="savedSigPreview" src="{{ user_detail.signature_image }}"
+                  style="border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; max-width:300px; height:80px; object-fit:contain;" />
+              </div>
+              {% endif %}
+
+              <canvas id="sigCanvas" width="700" height="160"></canvas>
+
+              <div class="form-group" style="margin-top:20px;">
+                <label>Confirm Signing Password</label>
+                <input type="password" id="signaturePassword" class="form-control"
+                  placeholder="Enter your signing password to confirm before saving">
+                <p id="signaturePasswordError" style="display:none; color:#dc2626; font-size:0.8rem; margin-top:6px;">
+                </p>
+              </div>
+
+              <div class="canvas-controls">
+                <button type="button" class="btn-secondary" onclick="clearCanvas()">Clear</button>
+                <button type="button" class="btn-secondary"
+                  onclick="document.getElementById('signatureUpload').click()">Import Signature</button>
+                <button type="button" class="settings-btn-save" onclick="saveSignature()">Save Signature</button>
+                <input type="file" id="signatureUpload" accept="image/png,image/jpeg,image/jpg" style="display:none;" />
+              </div>
+
+              <p id="sig-save-msg"
+                style="font-size:0.82rem; margin-top:15px; color: #059669; display:none; font-weight:600;">Signature
+                saved successfully!</p>
+            </div>
+
+            <!-- Panel 6: Delegation -->
+            {% if user_detail.role in ['cdsa', 'director', 'deputy_director'] %}
+            <div class="settings-panel" id="panel-delegation">
+              <h2 class="panel-title">Delegation & Out of Office Settings</h2>
+              <p class="panel-desc">Assign a delegate officer to receive and approve documents in your queue while you
+                are away or on official duty outside.</p>
+
+              <form action="/setting/delegation" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {% set delegation = user_detail.get('delegation', {}) %}
+
+                <div style="margin-top: 15px; margin-bottom: 25px;">
+                  <div class="toggle-group">
+                    <div class="toggle-info">
+                      <span class="toggle-label">Enable Temporary Delegation</span>
+                      <span class="toggle-desc">When active, all incoming correspondences and approvals are auto-routed
+                        to your selected delegate.</span>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" name="active" {{ 'checked' if delegation.get('active', False) else '' }}>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Select Delegate Officer</label>
+                  <select name="delegate_email" class="form-control">
+                    <option value="">-- Choose Delegate --</option>
+                    {% for u in system_users %}
+                    <option value="{{ u.email }}" {{ 'selected' if delegation.get('delegate_email')==u.email else '' }}>
+                      {{ u.name }} ( {{ (u.role or '') | replace('_', ' ') | title }} - {{ u.directorate }})
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <button type="submit" class="settings-btn-save">Save Delegation Configuration</button>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
+  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Development version -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- Production version -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script>
+    function switchPanel(panelId) {
+      // Toggle nav buttons active style
+      document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.getElementById(`nav-${panelId}`).classList.add('active');
+
+      // Toggle content panels
+      document.querySelectorAll('.settings-panel').forEach(panel => {
+        panel.classList.remove('active');
+      });
+      document.getElementById(`panel-${panelId}`).classList.add('active');
+    }
+
+    // ── Canvas Signature Drawing Logic ──
+    const canvas = document.getElementById('sigCanvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+    let drawing = false;
+    let lastX = 0, lastY = 0;
+
+    if (canvas && ctx) {
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        if (e.touches) {
+          return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+        }
+        return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+      }
+
+      canvas.addEventListener('mousedown', (e) => { drawing = true; const p = getPos(e);[lastX, lastY] = [p.x, p.y]; });
+      canvas.addEventListener('mouseup', () => drawing = false);
+      canvas.addEventListener('mouseleave', () => drawing = false);
+      canvas.addEventListener('mousemove', draw);
+
+      canvas.addEventListener('touchstart', (e) => { e.preventDefault(); drawing = true; const p = getPos(e);[lastX, lastY] = [p.x, p.y]; });
+      canvas.addEventListener('touchend', () => drawing = false);
+      canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+
+      function draw(e) {
+        if (!drawing) return;
+        const p = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(p.x, p.y);
+        ctx.strokeStyle = '#1f2937';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        [lastX, lastY] = [p.x, p.y];
+      }
+
+      // Clear Canvas
+      window.clearCanvas = function () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Save Signature
+      window.saveSignature = async function () {
+        const passwordInput = document.getElementById('signaturePassword');
+        const passwordError = document.getElementById('signaturePasswordError');
+        const password = passwordInput.value.trim();
+
+        // Reset styles
+        passwordInput.style.borderColor = '#d1d5db';
+        passwordError.style.display = 'none';
+        passwordError.textContent = '';
+
+        if (!password) {
+          passwordInput.style.borderColor = '#dc2626';
+          passwordError.textContent = 'Please enter your signing password.';
+          passwordError.style.display = 'block';
+          passwordInput.focus();
+          return;
+        }
+
+        // Check if canvas is not empty
+        const isEmpty = !ctx
+          .getImageData(0, 0, canvas.width, canvas.height)
+          .data.some(channel => channel !== 0);
+
+        if (isEmpty) {
+          passwordError.textContent = 'Please draw your signature first.';
+          passwordError.style.display = 'block';
+          return;
+        }
+
+        const dataURL = canvas.toDataURL('image/png');
+
+        try {
+          const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+
+          const resp = await fetch('/save_signature', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+              signature_data: dataURL,
+              password: password
+            })
+          });
+
+          let result;
+          const contentType = resp.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            result = await resp.json();
+          } else {
+            result = { status: 'error', message: `Server error (${resp.status})` };
+          }
+
+          if (result.status === 'success') {
+            const preview = document.getElementById('savedSigPreview');
+            if (preview) {
+              preview.src = dataURL;
+            } else {
+              window.location.reload();
+            }
+
+            document.getElementById('sig-save-msg').style.display = 'block';
+            passwordInput.value = '';
+            setTimeout(() => {
+              document.getElementById('sig-save-msg').style.display = 'none';
+              window.location.reload(); // Reload page to sync signature badges
+            }, 1500);
+
+          } else {
+            passwordInput.style.borderColor = '#dc2626';
+            passwordError.textContent = result.message || 'Incorrect signing password or save failed.';
+            passwordError.style.display = 'block';
+          }
+
+        } catch (err) {
+          console.error('Save signature error:', err);
+          passwordError.textContent = 'Network error. Please try again.';
+          passwordError.style.display = 'block';
+        }
+      }
+
+      // Import signature image upload logic
+      const uploader = document.getElementById('signatureUpload');
+      if (uploader) {
+        uploader.addEventListener('change', function (event) {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          if (!file.type.startsWith('image/')) {
+            alert('Please select a valid image file.');
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const img = new Image();
+            img.onload = function () {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+              const scale = Math.min(
+                canvas.width / img.width,
+                canvas.height / img.height
+              );
+
+              const width = img.width * scale;
+              const height = img.height * scale;
+              const x = (canvas.width - width) / 2;
+              const y = (canvas.height - height) / 2;
+
+              ctx.drawImage(img, x, y, width, height);
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    }
+  </script>
+</body>
+
+</html>

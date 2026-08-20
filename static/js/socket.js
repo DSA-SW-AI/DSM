@@ -54,7 +54,7 @@ function showBrowserNotification(title, message, clickUrl = null) {
         };
         const notification = new Notification(title, options);
         if (clickUrl) {
-            notification.onclick = function(event) {
+            notification.onclick = function (event) {
                 event.preventDefault();
                 window.focus();
                 window.location.href = clickUrl;
@@ -81,8 +81,14 @@ socket.on("connect", () => {
 
         socket.emit("join", { room: `USER_${safeId}` });
     } else {
-        console.warn("[socket.js] No user data — socket connected but no room joined");
+        console.warn("[socket.js] No user service number data — skipping service room join");
     }
+
+    const email = (user && user.email) || window.currentUserEmail;
+    if (email) {
+        socket.emit("join", { room: `USER_${email.toLowerCase()}` });
+    }
+
 });
 
 socket.on("room_joined", (data) => console.log("📌 Joined room:", data.room));
@@ -121,9 +127,26 @@ socket.on("new_notification", (data) => {
         title = "📄 New Document Forwarded";
         const id = data._id;
         clickUrl = id ? `/open_document/${id}` : "/documents_content";
+    } else if (data.type === "reliever_request") {
+        title = "🤝 Reliever Request Awaiting Action";
+        clickUrl = "/dashboard_leave_pass";
+    } else if (data.type === "reliever_accepted") {
+        title = "✅ Reliever Request Accepted";
+        clickUrl = "/dashboard_leave_pass";
+    } else if (data.type === "reliever_declined") {
+        title = "❌ Reliever Request Declined";
+        clickUrl = "/dashboard_leave_pass";
     }
 
     showBrowserNotification(title, body, clickUrl);
+
+    if (window.showAppToast) {
+        let toastType = "info";
+        if (data.type === "reliever_accepted") toastType = "success";
+        else if (data.type === "reliever_declined") toastType = "error";
+        else if (data.type === "reliever_request") toastType = "warning";
+        window.showAppToast(body, toastType, title);
+    }
 
     routeNotification(data);
 });
@@ -151,10 +174,127 @@ function routeNotification(data) {
 
     } else if (type === "document") {
         showDocumentNotificationModal(data);
+    } else if (type === "reliever_request") {
+        if (DASHBOARD_TYPE === "parade") {
+            return;
+        }
+        showRelieverRequestModal(data);
     } else {
         console.log("[socket.js] Unknown notification type:", type);
         // Don't show anything for unknown types — prevents cross-modal bleed
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// RELIEVER REQUEST MODAL
+// ─────────────────────────────────────────────────────────────────────────
+function showRelieverRequestModal(data) {
+    console.log("🎯 showRelieverRequestModal:", data);
+
+    document.getElementById("relieverRequestModal")?.remove();
+
+    const msg = data.message || "A staff member has requested you to stand as a reliever for their leave application.";
+    const acceptUrl = data.acceptUrl || "";
+    const declineUrl = data.declineUrl || "";
+
+    if (!acceptUrl || !declineUrl) {
+        console.warn("[socket.js] Reliever request urls missing from payload:", data);
+        return;
+    }
+
+    document.body.insertAdjacentHTML("beforeend", `
+        <div id="relieverRequestModal" style="
+            position:fixed;top:0;left:0;right:0;bottom:0;
+            background:rgba(0,0,0,0.6);
+            display:flex;align-items:center;justify-content:center;
+            z-index:9999;">
+            <div style="
+                background:#fff;padding:30px 25px;border-radius:10px;
+                max-width:400px;width:90%;text-align:center;
+                box-shadow:0 4px 12px rgba(0,0,0,0.2);
+                font-family:'Inter',Arial,sans-serif;
+                border-left:5px solid #319795;">
+
+                <div style="margin-bottom:15px;">
+                    <span style="background:#e6fffa;color:#2c7a7b;padding:5px 15px;
+                        border-radius:20px;font-size:12px;font-weight:bold;border:1px solid #b2f5ea;">
+                        🤝 RELIEVER REQUEST
+                    </span>
+                </div>
+
+                <h3 style="margin-bottom:10px;color:#333;font-weight:bold;">Reliever Request Pending</h3>
+                <p style="margin-bottom:20px;color:#555;font-size:14px;line-height:1.5;">
+                    ${msg}
+                </p>
+
+                <div style="display:flex;justify-content:center;gap:15px;">
+                    <button id="modalAcceptRelieverBtn" style="
+                        background-color:#319795;color:white;border:none;
+                        padding:10px 20px;border-radius:6px;cursor:pointer;
+                        font-weight:bold;transition:all 0.2s;">
+                        Accept
+                    </button>
+                    <button id="modalDeclineRelieverBtn" style="
+                        background-color:#e53e3e;color:white;border:none;
+                        padding:10px 20px;border-radius:6px;cursor:pointer;
+                        font-weight:bold;transition:all 0.2s;">
+                        Decline
+                    </button>
+                </div>
+            </div>
+        </div>
+    `);
+
+    // Fallback to fetch the token from any form input if meta tag is missing
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        || document.querySelector('input[name="csrf_token"]')?.value
+        || '';
+    document.getElementById("modalAcceptRelieverBtn").addEventListener("click", () => {
+        submitRelieverAction(acceptUrl, "accept", csrfToken);
+    });
+    document.getElementById("modalDeclineRelieverBtn").addEventListener("click", () => {
+        submitRelieverAction(declineUrl, "decline", csrfToken);
+    });
+}
+
+function submitRelieverAction(url, action, csrfToken) {
+    fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken // Correct header name for Flask-WTF
+        }
+    })
+        .then(res => {
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                return res.json();
+            } else {
+                // If the response is HTML/Redirect (e.g. legacy route), treat it as success
+                return { success: true, redirect: true };
+            }
+        })
+        .then(data => {
+            document.getElementById("relieverRequestModal")?.remove();
+            if (data.success) {
+                if (window.showAppToast) {
+                    window.showAppToast(`You have successfully ${action}ed the reliever request.`, "success", "Success");
+                } else {
+                    alert(`Reliever request ${action}ed successfully.`);
+                }
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                if (window.showAppToast) {
+                    window.showAppToast(data.error || "An error occurred.", "error", "Error");
+                } else {
+                    alert(data.error || "An error occurred.");
+                }
+            }
+        })
+        .catch(err => {
+            console.error("Error updating reliever request status:", err);
+            document.getElementById("relieverRequestModal")?.remove();
+        });
 }
 
 // ─────────────────────────────────────────────────────────────────────────

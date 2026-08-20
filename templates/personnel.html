@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DSA Paperless - Civilian & Personnel</title>
+  <title>ODOGWU - Civilian & Personnel</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
@@ -25,7 +25,12 @@
       </div>
       <nav class="sidebar-menu">
         <div class="menu-section-label">OVERVIEW</div>
-        <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
+        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+
+        {% if user.role == 'super_admin' %}
+        <div class="menu-section-label">ADMINISTRATION</div>
+        <a href="/super-admin-dashboard" class="menu-item">🔑 Super Admin</a>
+        {% endif %}
 
         <div class="menu-section-label">REGISTRY</div>
         {% if "documents" in permissions.sidebar %}
@@ -43,19 +48,59 @@
 
         <div class="menu-section-label">HR MANAGEMENT</div>
         {% if "civilian_personnel" in permissions.sidebar %}
-        <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+        <a href="/personnel-view" class="menu-item active">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
         {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
         <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
         {% endif %} {% if "leave_pass" in permissions.sidebar %}
-        <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+        <a href="/dashboard_leave_pass" class="menu-item">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
         {% endif %}
-      </nav>
+
+        <!-- {% if user.role == 'super_admin' or user.is_approval_role or session.get('role') in ['cdsa', 'dcdsa', 'director', 'dd', 'ad', 'so', 'registry'] %}
+        <a href="/switch-view" class="menu-item" style="background: rgba(21, 101, 216, 0.1); border: 1px dashed var(--blue); color: var(--blue); margin-top: 15px; text-align: center; justify-content: center; font-weight: 600;">
+          {% if session.get('is_approval_role') %}
+            🔄 Switch to Personal Account
+          {% else %}
+            🔄 Switch to Approval Account
+          {% endif %}
+        </a>
+        {% endif %} -->
+
+
       <!-- Permanently Locked Footer Segment -->
       <div class="sidebar-footer">
+        <div class="menu-section-label">General</div>
+        {% if "support" in permissions.sidebar %}
+        <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "notification" in permissions.sidebar %}
+        <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "setting" in permissions.sidebar %}
+        <a href="/setting" class="menu-item">📅 Setting</a>
+        {% endif %}
         <a href="{{ url_for('logout') }}" class="logout-btn">
-          Logout
+          Sign out
         </a>
       </div>
+      </nav>
     </aside>
 
     <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
@@ -64,7 +109,7 @@
       <!-- Top Navbar Section -->
       <header class="top-navbar">
         <div class="breadcrumb">
-          📋 DSA PAPERLESS &gt;
+          📋 ODOGWU &gt;
           <span class="active-crumb"> Civilian & Personnel</span>
         </div>
         <div class="user-profile-badge">
@@ -139,8 +184,8 @@
             {% set staff_cat = raw_cat %}
             {% endif %}
 
-            {% set rank_val = staff.onboarding_data.step_1.rankOrGrade if staff.onboarding_data else '' %}
-            {% set appt_val = staff.onboarding_data.step_1.appointment if staff.onboarding_data else '' %}
+            {% set rank_val = staff.rankOrGrade or (staff.onboarding_data.step_1.rankOrGrade if (staff.onboarding_data and staff.onboarding_data.step_1) else '') %}
+            {% set appt_val = staff.appt or staff.appointment or (staff.onboarding_data.step_1.appt if (staff.onboarding_data and staff.onboarding_data.step_1) else '') or (staff.onboarding_data.step_1.appointment if (staff.onboarding_data and staff.onboarding_data.step_1) else '') %}
             {% set cur_status = staff.get('status', 'Pending Onboarding') %}
             {% set search_data = (staff.service_number or '') ~ ' ' ~ (staff.name or '') ~ ' ' ~ (staff.email or '') ~ '
             ' ~ (staff.directorate or '') ~ ' ' ~ staff_cat ~ ' ' ~ rank_val ~ ' ' ~ appt_val ~ ' ' ~ cur_status %}
@@ -238,6 +283,25 @@
               <option value="military">Military</option>
               <option value="nysc">NYSC</option>
               <option value="it">IT</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-form-group" id="catRoleGroup" style="display: none;">
+          <label>Military Role <span class="required-star">*</span></label>
+          <div class="select-wrapper">
+            <select id="staffCatRole">
+              <option value="" disabled selected hidden>Select Role</option>
+              {% if role_permissions %}
+                {% for role_name in ['officer', 'personnel'] %}
+                  {% if role_name in role_permissions %}
+                    <option value="{{ role_name }}">{{ role_name | replace('_', ' ') | title }}</option>
+                  {% endif %}
+                {% endfor %}
+              {% else %}
+                <option value="officer">Officer</option>
+                <option value="personnel">Personnel</option>
+              {% endif %}
             </select>
           </div>
         </div>
@@ -582,8 +646,25 @@
       const generateBtn = document.getElementById("generatePasswordBtn");
       const passwordInput = document.getElementById("staffPassword");
       const createStaffForm = document.getElementById("createStaffForm");
+      
+      const categorySelect = document.getElementById("staffCategory");
+      const catRoleGroup = document.getElementById("catRoleGroup");
+      const catRoleSelect = document.getElementById("staffCatRole");
+      
+      if (categorySelect && catRoleGroup && catRoleSelect) {
+        categorySelect.addEventListener("change", () => {
+          if (categorySelect.value === "military") {
+            catRoleGroup.style.display = "block";
+            catRoleSelect.setAttribute("required", "required");
+          } else {
+            catRoleGroup.style.display = "none";
+            catRoleSelect.removeAttribute("required");
+            catRoleSelect.value = "";
+          }
+        });
+      }
 
-      console.log("DSA Paperless Core Engine Mounted Successfully.");
+      console.log("ODOGWU Core Engine Mounted Successfully.");
 
       // 2. CLOSE MODAL ACTION CONTROL
       if (closeBtn && modal && createStaffForm) {
@@ -653,6 +734,7 @@
 
           const payload = {
             category: document.getElementById("staffCategory").value,
+            cat_role: document.getElementById("staffCatRole") ? document.getElementById("staffCatRole").value : "",
             surname: document.getElementById("surName").value.trim(),
             middlename: document.getElementById("middleName").value.trim(),
             firstname: document.getElementById("firstName").value.trim(),

@@ -1,5 +1,6 @@
 from flask import Blueprint, app, render_template, session, jsonify, make_response, flash, redirect, url_for, current_app, send_file, abort, request
 from datetime import datetime, timedelta
+from pymongo import MongoClient
 from bson.objectid import ObjectId
 from functools import wraps
 # from flask_login import current_user
@@ -674,8 +675,18 @@ def dashboard_leave_pass():
             user_step_index = None
 
             for i, step in enumerate(chain):
-                if step.get("approverId") == user_id:
-                    user_step = step; user_step_index = i; break
+                if step.get("approverId") == user_id and step.get("status") == "pending":
+                    user_step = step; 
+                    user_step_index = i; 
+                    break
+
+            if not user_step:
+                for i, step in enumerate(chain):
+                    if step.get("approverId") == user_id:
+                        user_step = step; 
+                        user_step_index = i; 
+                        break
+                    
                 if (is_so_approver or current_user.get("is_so_approver")) and step.get("role") == "so" \
                         and app.get("directorate") == user_directorate:
                     user_step = step; user_step_index = i; break
@@ -3155,11 +3166,11 @@ def send_chief_clerk_receipt_notification(chief_clerk_email, chief_clerk_name, r
         server.sendmail(app.config['MAIL_USERNAME'], chief_clerk_email, msg.as_string())
         server.quit()
         
-        print(f"✓ Receipt sent to registry: {chief_clerk_email}")
+        print(f"[OK] Receipt sent to registry: {chief_clerk_email}")
         return True
         
     except Exception as e:
-        print(f"✗ Error sending to registry {chief_clerk_email}: {e}")
+        print(f"[ERROR] Error sending to registry {chief_clerk_email}: {e}")
         return False
 
 def send_applicant_receipt_notification(applicant_email, applicant_name, receipt_no, app_id, app, so1_doa_user):
@@ -3207,9 +3218,235 @@ def send_applicant_receipt_notification(applicant_email, applicant_name, receipt
         server.sendmail(app.config['MAIL_USERNAME'], applicant_email, msg.as_string())
         server.quit()
         
-        print(f"✓ Receipt sent to Applicant: {applicant_email}")
+        print(f"[OK] Receipt sent to Applicant: {applicant_email}")
         return True
         
     except Exception as e:
-        print(f"✗ Error sending to Applicant {applicant_email}: {e}")
+        print(f"[ERROR] Error sending to Applicant {applicant_email}: {e}")
         return False
+
+
+@approver_dashboard.route('/api/leave-return/submit/<string:app_id>', methods=['POST'])
+def submit_leave_return(app_id):
+    if 'user_email' not in session:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    applications_coll = current_app.applications_collection
+    try:
+        app = applications_coll.find_one({"_id": ObjectId(app_id)})
+    except Exception:
+        return jsonify({"status": "error", "message": "Invalid Application ID"}), 400
+        
+    if not app:
+        return jsonify({"status": "error", "message": "Application not found"}), 404
+        
+    user_email = session.get('user_email')
+    
+    # Find user profile
+    client = MongoClient("mongodb://localhost:27017/")
+    db_name = os.getenv("DATABASE_NAME", "DSM")
+    db = client[db_name]
+    user_data = db.users.find_one({"email": user_email})
+    if not user_data:
+        return jsonify({"status": "error", "message": "User not found"}), 404
+        
+    applicant_id = app.get("applicantId")
+    # Verify applicant owns this leave record
+    if applicant_id != user_data.get("service_number") and applicant_id != user_email:
+        return jsonify({"status": "error", "message": "Only the applicant can report return from leave"}), 403
+        
+    data = request.get_json() or {}
+    actual_return_str = data.get("actual_return_date")
+    if not actual_return_str:
+        return jsonify({"status": "error", "message": "Actual return date is required"}), 400
+        
+    try:
+        actual_return_date = datetime.strptime(actual_return_str, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"status": "error", "message": "Invalid date format, use YYYY-MM-DD"}), 400
+        
+    end_date = app.get("endDate")
+    if isinstance(end_date, dict) and "$date" in end_date:
+        end_date = datetime.fromisoformat(end_date["$date"].replace("Z", "+00:00")).replace(tzinfo=None)
+        
+    if not isinstance(end_date, datetime):
+        end_date = datetime.utcnow()
+        
+    expected_returned_date = end_date + timedelta(days=1)
+    
+    actual_date_only = actual_return_date.date()
+    expected_date_only = expected_returned_date.date()
+    
+    if actual_date_only < expected_date_only:
+        returnedresult = "returned early"
+    elif actual_date_only == expected_date_only:
+        returnedresult = "returned on time"
+    else:
+        returnedresult = "overstayed"
+        
+    leave_pass_returned = {
+        "returned_from_leave": False,
+        "actual_returned_date": actual_return_date,
+        "expected_returned_date": expected_returned_date,
+        "returnedresult": returnedresult,
+        "returned_status": "pending"
+    }
+    
+    applications_coll.update_one(
+        {"_id": ObjectId(app_id)},
+        {"$set": {"leave_pass_returned": leave_pass_returned}}
+    )
+    
+    directorate = app.get("directorate")
+    directors = list(db.users.find({"role": "director", "directorate": directorate}))
+    notifications_coll = current_app.notifications_collection
+    
+    for director in directors:
+        notifications_coll.insert_one({
+            "type": "leave_return_approval",
+            "applicationId": ObjectId(app_id),
+            "referenceId": app.get("referenceId"),
+            "target": {
+                "type": "user",
+                "email": director.get("email")
+            },
+            "message": f"{app.get('applicantName')} reported return from leave ({returnedresult}). Awaiting your approval.",
+            "status": "unread",
+            "isActive": True,
+            "createdAt": datetime.utcnow()
+        })
+        
+    return jsonify({"status": "success", "message": "Return report submitted successfully"})
+
+
+@approver_dashboard.route('/api/leave-return/approve/<string:app_id>', methods=['POST'])
+def approve_leave_return(app_id):
+    if 'user_email' not in session:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    user_role = session.get('role', 'civilian')
+    if user_role != 'director':
+        return jsonify({"status": "error", "message": "Only the Directorate Director can approve leave returns"}), 403
+        
+    applications_coll = current_app.applications_collection
+    try:
+        app = applications_coll.find_one({"_id": ObjectId(app_id)})
+    except Exception:
+        return jsonify({"status": "error", "message": "Invalid Application ID"}), 400
+        
+    if not app:
+        return jsonify({"status": "error", "message": "Application not found"}), 404
+        
+    leave_pass_returned = app.get("leave_pass_returned")
+    if not leave_pass_returned or leave_pass_returned.get("returned_status") != "pending":
+        return jsonify({"status": "error", "message": "No pending return report for this application"}), 400
+        
+    actual_return_date = leave_pass_returned.get("actual_returned_date")
+    end_date = app.get("endDate")
+    
+    if isinstance(actual_return_date, dict) and "$date" in actual_return_date:
+        actual_return_date = datetime.fromisoformat(actual_return_date["$date"].replace("Z", "+00:00")).replace(tzinfo=None)
+    if isinstance(end_date, dict) and "$date" in end_date:
+        end_date = datetime.fromisoformat(end_date["$date"].replace("Z", "+00:00")).replace(tzinfo=None)
+        
+    returnedresult = leave_pass_returned.get("returnedresult")
+    
+    if returnedresult == "returned early" and isinstance(actual_return_date, datetime) and isinstance(end_date, datetime):
+        leave_type = app.get("leave_type")
+        applicant_id = app.get("applicantId")
+        year = actual_return_date.year
+        
+        client = MongoClient("mongodb://localhost:27017/")
+        db_name = os.getenv("DATABASE_NAME", "DSM")
+        db = client[db_name]
+        leave_balances_coll = db.leave_balances
+        balance = leave_balances_coll.find_one({"serviceNumber": applicant_id, "year": year})
+        
+        if balance:
+            from .leave_helper import get_public_holidays
+            public_holidays = get_public_holidays(year)
+            
+            if leave_type == "casual":
+                unused_days = (end_date - actual_return_date).days + 1
+            else:
+                from .leave_logic import working_days_between
+                unused_days = working_days_between(actual_return_date, end_date, public_holidays)
+                
+            if unused_days > 0:
+                update_fields = {}
+                notes = balance.get("notes", [])
+                
+                if leave_type == "annual":
+                    update_fields["annualRemaining"] = balance.get("annualRemaining", 0) + unused_days
+                    notes.append(f"{datetime.utcnow().isoformat()}: Credited - {leave_type} - {unused_days} days (Early Return)")
+                    
+                elif leave_type == "casual":
+                    new_used = max(0, balance.get("casualCalendarDaysUsed", 0) - unused_days)
+                    update_fields["casualCalendarDaysUsed"] = new_used
+                    update_fields["casualCalendarDaysRemaining"] = min(7, 7 - new_used)
+                    notes.append(f"{datetime.utcnow().isoformat()}: Credited - {leave_type} - {unused_days} days (Early Return)")
+                    
+                elif leave_type == "compassionate":
+                    update_fields["compassionateUsed"] = max(0, balance.get("compassionateUsed", 0) - unused_days)
+                    update_fields["compassionateRemaining"] = balance.get("compassionateRemaining", 10) + unused_days
+                    notes.append(f"{datetime.utcnow().isoformat()}: Credited - {leave_type} - {unused_days} days (Early Return)")
+                    
+                elif leave_type == "sick":
+                    update_fields["sickThisYear"] = max(0, balance.get("sickThisYear", 0) - unused_days)
+                    update_fields["sickThisYearRemaining"] = min(21, balance.get("sickThisYearRemaining", 21) + unused_days)
+                    update_fields["sickRolling12m"] = max(0, balance.get("sickRolling12m", 0) - unused_days)
+                    update_fields["sickRollingRemaining"] = min(42, balance.get("sickRollingRemaining", 42) + unused_days)
+                    notes.append(f"{datetime.utcnow().isoformat()}: Credited - {leave_type} - {unused_days} days (Early Return)")
+                    
+                if update_fields:
+                    update_fields["notes"] = notes
+                    update_fields["updatedAt"] = datetime.utcnow()
+                    leave_balances_coll.update_one({"_id": balance["_id"]}, {"$set": update_fields})
+                    print(f"[OK] Credited back {unused_days} days to {applicant_id} for early return.")
+
+    applications_coll.update_one(
+        {"_id": ObjectId(app_id)},
+        {
+            "$set": {
+                "leave_pass_returned.returned_from_leave": True,
+                "leave_pass_returned.returned_status": "approved"
+            },
+            "$push": {
+                "auditTrail": {
+                    "action": "Return Approved",
+                    "actor": session.get("name"),
+                    "timestamp": datetime.utcnow()
+                }
+            }
+        }
+    )
+    
+    # Notify applicant
+    client = MongoClient("mongodb://localhost:27017/")
+    db_name = os.getenv("DATABASE_NAME", "DSM")
+    db = client[db_name]
+    notifications_coll = db.notifications
+    
+    # Get applicant user record to get their email
+    applicant_email = app.get("applicantId") if "@" in str(app.get("applicantId")) else None
+    if not applicant_email:
+        applicant_user = db.users.find_one({"service_number": app.get("applicantId")})
+        if applicant_user:
+            applicant_email = applicant_user.get("email")
+            
+    if applicant_email:
+        notifications_coll.insert_one({
+            "type": "leave_return_approved",
+            "applicationId": ObjectId(app_id),
+            "referenceId": app.get("referenceId"),
+            "target": {
+                "type": "user",
+                "email": applicant_email
+            },
+            "message": f"Your leave return approval request for {app.get('referenceId')} has been approved.",
+            "status": "unread",
+            "isActive": True,
+            "createdAt": datetime.utcnow()
+        })
+    
+    return jsonify({"status": "success", "message": "Return report approved successfully"})

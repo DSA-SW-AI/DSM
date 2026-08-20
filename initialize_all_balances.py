@@ -498,7 +498,7 @@ def initialize_all_staff_balances(delete_existing: bool = False, year: int = Non
         # Navy ranks
         "Rear Admiral": 15,
         "Commodore": 14,
-        "Captain": 13,  # Navy Captain
+        "Navy Captain": 13,  # Navy Captain
         "Commander": 12,
         "Lt Commander": 11,
         "Lieutenant": 10,  # Navy Lieutenant
@@ -842,3 +842,171 @@ if __name__ == "__main__":
         print(f"\n❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
+
+
+def initialize_single_staff_balance(service_number_or_email: str, delete_existing: bool = False, year: int = None):
+    import os
+    client = MongoClient("mongodb://localhost:27017/")
+    db_name = os.getenv("DATABASE_NAME", "DSM")
+    db = client[db_name]
+    
+    if year is None:
+        year = datetime.now().year
+        
+    staff = db.users.find_one({
+        "$or": [
+            {"service_number": service_number_or_email},
+            {"serviceNumber": service_number_or_email},
+            {"email": service_number_or_email.lower().strip()}
+        ]
+    })
+    
+    if not staff:
+        client.close()
+        return False, "User profile not found in users collection"
+        
+    service_number = staff.get('serviceNumber') or staff.get('service_number')
+    if not service_number:
+        service_number = str(staff.get('_id'))
+        
+    MILITARY_RANK_TO_GRADE = {
+        "Maj Gen": 15, "Major General": 15,
+        "Brig Gen": 14, "Brigadier General": 14,
+        "Col": 13, "Colonel": 13,
+        "Lt Col": 12, "Lieutenant Colonel": 12,
+        "Maj": 11, "Major": 11,
+        "Capt": 10, "Captain": 10,
+        "Lt": 9, "Lieutenant": 9,
+        "2Lt": 8, "Second Lieutenant": 8,
+        "Rear Admiral": 15, "Commodore": 14, "Captain": 13, "Commander": 12, "Lt Commander": 11, "Lieutenant": 10, "Sub Lieutenant": 9,
+        "Air Vice Marshal": 15, "Air Commodore": 14, "Group Captain": 13, "Wing Commander": 12, "Squadron Leader": 11, "Flight Lieutenant": 10, "Flying Officer": 9, "Pilot Officer": 8,
+        "WO": 7, "Warrant Officer": 7, "SSgt": 6, "Staff Sergeant": 6, "Sgt": 5, "Sergeant": 5, "Cpl": 4, "Corporal": 4, "LCpl": 3, "Lance Corporal": 3, "Pte": 2, "Private": 2, "Recruit": 1
+    }
+    
+    def extract_grade(staff_doc):
+        rank_or_grade = staff_doc.get('rankOrGrade', '') or ""
+        rank_or_grade = rank_or_grade.strip()
+        if 'Grade Level' in rank_or_grade:
+            try:
+                grade_str = rank_or_grade.split('Grade Level')[-1].strip()
+                return int(grade_str)
+            except:
+                pass
+        for rank, grade in MILITARY_RANK_TO_GRADE.items():
+            if rank.lower() in rank_or_grade.lower():
+                return grade
+        try:
+            import re
+            numbers = re.findall(r'\d+', rank_or_grade)
+            if numbers:
+                return int(numbers[0])
+        except:
+            pass
+        sn = staff_doc.get('serviceNumber') or staff_doc.get('service_number', '')
+        if isinstance(sn, str):
+            if sn.startswith(('DSA/CIV/')):
+                return 8
+            elif sn.startswith(('NA/', 'NN/', 'NAF/')):
+                return 10
+        return 0
+
+    grade = extract_grade(staff)
+    if 2 <= grade <= 6:
+        annual_entitlement = 21
+    elif 7 <= grade <= 15:
+        annual_entitlement = 30
+    else:
+        annual_entitlement = 21
+        
+    if delete_existing:
+        db.leave_balances.delete_many({"serviceNumber": service_number, "year": year})
+        
+    existing_balance = db.leave_balances.find_one({
+        "serviceNumber": service_number,
+        "year": year
+    })
+    
+    balance_doc = {
+        "serviceNumber": service_number,
+        "fullName": staff.get('name') or staff.get('fullName', ''),
+        "directorate": staff.get('directorate', ''),
+        "grade": grade,
+        "year": year,
+        "isActive": True,
+        "annualEntitlement": annual_entitlement,
+        "annualRemaining": annual_entitlement,
+        "compassionateUsed": 0,
+        "compassionateRemaining": 10,
+        "casualCalendarDays": 7,
+        "casualCalendarDaysUsed": 0,
+        "casualCalendarDaysRemaining": 7,
+        "sickThisYear": 0,
+        "sickRolling12m": 0,
+        "sickThisYearRemaining": 21,
+        "sickRollingRemaining": 42,
+        "maternityUsed": False,
+        "maternityAvailable": True,
+        "maternityStartDate": None,
+        "paternityUsed": False,
+        "paternityAvailable": True,
+        "paternityDaysUsed": 0,
+        "disembarkationAvailable": True,
+        "disembarkationDaysUsed": 0,
+        "terminalGranted": False,
+        "hospitalizationDaysUsed": 0,
+        "firstHospitalizationUsed": False,
+        "hasInternationalPermission": staff.get('hasInternationalPermission', False),
+        "createdAt": datetime.utcnow(),
+        "updatedAt": datetime.utcnow(),
+        "notes": ["Initialized with TACOS defaults"]
+    }
+    
+    onboarding_data = staff.get("onboarding_data") or {}
+    step_5 = onboarding_data.get("step_5") or {}
+    gender = step_5.get("gender", "").lower().strip()
+    
+    if gender == 'female':
+        balance_doc["maternityAvailable"] = True
+        balance_doc["maternityUsed"] = False
+        balance_doc["paternityAvailable"] = False
+        balance_doc["paternityUsed"] = True
+    elif gender == 'male':
+        balance_doc["maternityAvailable"] = False
+        balance_doc["maternityUsed"] = True
+        balance_doc["paternityAvailable"] = True
+        balance_doc["paternityUsed"] = False
+        
+    if existing_balance:
+        update_data = {}
+        for field, value in balance_doc.items():
+            if field not in existing_balance:
+                update_data[field] = value
+        required_fields = [
+            'casualCalendarDays', 'compassionateUsed', 
+            'sickThisYear', 'sickRolling12m', 'terminalGranted',
+            'maternityUsed', 'paternityUsed', 'disembarkationDaysUsed'
+        ]
+        for field in required_fields:
+            if field not in existing_balance:
+                update_data[field] = balance_doc[field]
+        if update_data:
+            update_data['updatedAt'] = datetime.utcnow()
+            notes = existing_balance.get('notes', [])
+            if isinstance(notes, list):
+                notes.append("Updated with TACOS defaults")
+            else:
+                notes = ["Updated with TACOS defaults"]
+            update_data['notes'] = notes
+            db.leave_balances.update_one(
+                {"_id": existing_balance['_id']},
+                {"$set": update_data}
+            )
+            client.close()
+            return True, "Balance updated with missing fields."
+    else:
+        db.leave_balances.insert_one(balance_doc)
+        client.close()
+        return True, "Balance initialized successfully."
+        
+    client.close()
+    return True, "Balance already exists and is fully populated."

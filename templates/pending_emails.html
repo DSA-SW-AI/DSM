@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DSA Paperless - Pending Email Dispatch Queue</title>
+  <title>ODOGWU - Pending Email Dispatch Queue</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
@@ -119,19 +119,48 @@
 
         <div class="menu-section-label">HR MANAGEMENT</div>
         {% if "civilian_personnel" in permissions.sidebar %}
-        <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+        <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
         {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
         <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
         {% endif %} {% if "leave_pass" in permissions.sidebar %}
-        <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+        <a href="/dashboard_leave_pass" class="menu-item">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
         {% endif %}
-      </nav>
       <!-- Permanently Locked Footer Segment -->
       <div class="sidebar-footer">
+        <div class="menu-section-label">General</div>
+        {% if "support" in permissions.sidebar %}
+        <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "notification" in permissions.sidebar %}
+        <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "setting" in permissions.sidebar %}
+        <a href="/setting" class="menu-item">📅 Setting</a>
+        {% endif %}
+
         <a href="{{ url_for('logout') }}" class="logout-btn">
-          Logout
+          Sign out
         </a>
       </div>
+      </nav>
     </aside>
 
     <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
@@ -141,7 +170,7 @@
       <!-- Top Navbar Section -->
       <header class="top-navbar">
         <div class="breadcrumb">
-          📋 DSA PAPERLESS &gt;
+          📋 ODOGWU &gt;
           <span class="active-crumb"> Pending Mail Dispatch Queue</span>
         </div>
         <div class="user-profile-badge">

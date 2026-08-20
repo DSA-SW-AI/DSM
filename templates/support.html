@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support Center</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <style>
+    .support-container {
+      padding: 25px;
+      height: calc(100vh - 70px);
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    .support-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+      flex: 1;
+      min-height: 0;
+      margin-top: 20px;
+    }
+
+    .admin-layout {
+      grid-template-columns: 350px 1fr;
+    }
+
+    .support-panel {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .panel-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #111827;
+      margin-top: 0;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    .form-control:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .ticket-list {
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ticket-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #fafafa;
+    }
+
+    .ticket-card:hover {
+      border-color: #3b82f6;
+      background: #f8fafc;
+    }
+
+    .ticket-card.active {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+
+    .ticket-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .ticket-subject {
+      font-weight: 600;
+      color: #111827;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .ticket-meta {
+      font-size: 0.75rem;
+      color: #6b7280;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .badge-status {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+    }
+
+    .badge-status.open {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-status.in-progress {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .badge-status.resolved {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-priority {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .badge-priority.high {
+      background: #fef2f2;
+      color: #ef4444;
+      border: 1px solid #fee2e2;
+    }
+
+    .badge-priority.medium {
+      background: #fffbeb;
+      color: #d97706;
+      border: 1px solid #fef3c7;
+    }
+
+    .badge-priority.low {
+      background: #f0fdf4;
+      color: #16a34a;
+      border: 1px solid #dcfce7;
+    }
+
+    /* Chat thread styles */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #f8fafc;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .chat-bubble {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      position: relative;
+    }
+
+    .chat-bubble.incoming {
+      background: white;
+      align-self: flex-start;
+      border: 1px solid #e5e7eb;
+      border-top-left-radius: 0;
+    }
+
+    .chat-bubble.outgoing {
+      background: #3b82f6;
+      color: white;
+      align-self: flex-end;
+      border-top-right-radius: 0;
+    }
+
+    .chat-bubble-meta {
+      font-size: 0.75rem;
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+    }
+
+    .chat-bubble.incoming .chat-bubble-meta {
+      color: #6b7280;
+    }
+
+    .chat-bubble.outgoing .chat-bubble-meta {
+      color: #dbeafe;
+    }
+
+    .chat-input-wrapper {
+      display: flex;
+      gap: 10px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+      resize: none;
+      height: 45px;
+      box-sizing: border-box;
+    }
+
+    .chat-input:focus {
+      border-color: #3b82f6;
+    }
+
+    .chat-send-btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0 16px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+
+    .chat-send-btn:hover {
+      background: #2563eb;
+    }
+  </style>
+</head>
+
+<body data-active-page="support">
+  <div class="dashboard-wrapper">
+
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>{{ user.directorate }}</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+
+        {% if user.role == 'super_admin' %}
+        <div class="menu-section-label">ADMINISTRATION</div>
+        <a href="/super-admin-dashboard" class="menu-item">🔑 Super Admin</a>
+        {% endif %}
+
+        <div class="menu-section-label">REGISTRY</div>
+        {% if "documents" in permissions.sidebar %}
+        <a href="/documents-view" class="menu-item">📁 Documents</a>
+        {% endif %} {% if "incoming" in permissions.sidebar %}
+        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+        {% endif %} {% if "outgoing" in permissions.sidebar %}
+        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+        {% endif %}
+
+        <div class="menu-section-label">HR MANAGEMENT</div>
+        {% if "civilian_personnel" in permissions.sidebar %}
+        <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+        <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+        {% endif %} {% if "leave_pass" in permissions.sidebar %}
+        <a href="/dashboard_leave_pass" class="menu-item active">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+
+        <!-- {% if user.role == 'super_admin' or user.is_approval_role or session.get('role') in ['cdsa', 'dcdsa',
+        'director', 'dd', 'ad', 'so', 'registry'] %}
+        <a href="/switch-view" class="menu-item"
+          style="background: rgba(21, 101, 216, 0.1); border: 1px dashed var(--blue); color: var(--blue); margin-top: 15px; text-align: center; justify-content: center; font-weight: 600;">
+          {% if session.get('is_approval_role') %}
+          🔄 Switch to Personal Account
+          {% else %}
+          🔄 Switch to Approval Account
+          {% endif %}
+        </a>
+        {% endif %} -->
+
+        <!-- Permanently Locked Footer Segment -->
+        <div class="sidebar-footer">
+          <div class="menu-section-label">General</div>
+          {% if "support" in permissions.sidebar %}
+          <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+          {% endif %} {% if "notification" in permissions.sidebar %}
+          <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+          {% endif %} {% if "setting" in permissions.sidebar %}
+          <a href="/setting" class="menu-item">📅 Setting</a>
+          {% endif %}
+          <a href="{{ url_for('logout') }}" class="logout-btn">
+            🚪 Sign out
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 ODOGWU &gt; <span class="active-crumb"> Support Center</span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="support-container">
+        <!-- Header -->
+        <div>
+          <h1 style="font-size:1.8rem; font-weight:700; color:#111827; margin:0;">Support Center</h1>
+          <p style="color:#6b7280; margin:5px 0 0 0; font-size:0.9rem;">
+            {% if role == 'super_admin' %}
+            Manage support tickets and respond to user inquiries.
+            {% else %}
+            Need help? Open a support ticket and chat directly with administrators.
+            {% endif %}
+          </p>
+        </div>
+
+        {% if role == 'super_admin' %}
+        <!-- ADMIN VIEW -->
+        <div class="support-layout admin-layout">
+          <!-- Tickets Sidebar -->
+          <div class="support-panel">
+            <h3 class="panel-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Active Tickets
+            </h3>
+
+            <div class="ticket-list" id="adminTicketList">
+              {% for ticket in tickets %}
+              <div class="ticket-card" onclick="loadTicketDetails('{{ ticket._id }}', this)">
+                <div class="ticket-header">
+                  <h4 class="ticket-subject">{{ ticket.subject }}</h4>
+                  <span class="badge-status {{ ticket.status | lower | replace(' ', '-') }}">{{ ticket.status }}</span>
+                </div>
+                <div class="ticket-meta">
+                  <span class="badge-priority {{ ticket.priority | lower }}">{{ ticket.priority }}</span>
+                  <span>{{ ticket.category }}</span>
+                  <span>·</span>
+                  <span>{{ ticket.user_name }} ({{ ticket.user_directorate }})</span>
+                </div>
+              </div>
+              {% else %}
+              <div style="text-align:center; padding:40px; color:#9ca3af;">
+                No support tickets found.
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Chat Detail Area -->
+          <div class="support-panel">
+            <div id="noTicketSelected"
+              style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; color:#9ca3af;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <h3 style="margin-top:15px; font-size:1.1rem; color:#4b5563;">Select a Ticket</h3>
+              <p style="margin:5px 0 0; font-size:0.9rem;">Choose a ticket from the list to view the conversation and
+                reply.</p>
+            </div>
+
+            <div id="ticketDetailArea" style="display:none; flex-direction:column; flex:1; min-height:0;">
+              <!-- Meta Header -->
+              <div
+                style="border-bottom:1px solid #e5e7eb; padding-bottom:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <h2 id="activeSubject" style="font-size:1.2rem; font-weight:700; color:#111827; margin:0;">Subject
+                  </h2>
+                  <div style="font-size:0.8rem; color:#6b7280; margin-top:4px;">
+                    Submitted by <strong id="activeUser">User</strong> (<span id="activeEmail">email</span>) ·
+                    Directorate: <span id="activeDir">Dir</span>
+                  </div>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <!-- Priority Badge -->
+                  <span id="activePriority" class="badge-priority">HIGH</span>
+
+                  <!-- Status dropdown -->
+                  <select id="activeStatusSelect" onchange="updateTicketStatus()"
+                    style="padding:6px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.85rem; font-weight:600; outline:none; cursor:pointer;">
+                    <option value="Open">Open</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Resolved">Resolved</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Chat container -->
+              <div class="chat-container">
+                <div class="chat-messages" id="adminChatMessages">
+                  <!-- Messages loaded dynamically -->
+                </div>
+
+                <form id="adminReplyForm" onsubmit="submitReply(event)">
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div class="chat-input-wrapper">
+                      <textarea id="adminReplyText" class="chat-input" placeholder="Type your response to the user..."
+                        required></textarea>
+                      <button type="submit" class="chat-send-btn">Send Reply</button>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
+                      <label for="adminAttachment" style="font-weight:600; color:#4b5563; cursor:pointer; display:flex; align-items:center; gap:4px; margin:0;">
+                        📎 Attach Image/File:
+                      </label>
+                      <input type="file" id="adminAttachment" name="attachment" accept="image/*" style="font-size:0.8rem;" />
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% else %}
+        <!-- USER VIEW -->
+        <div class="support-layout">
+          <!-- Submit Ticket Form -->
+          <div class="support-panel">
+            <h3 class="panel-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+              Create Support Ticket
+            </h3>
+
+            <form action="/support/create" method="POST" enctype="multipart/form-data">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" class="form-control"
+                  placeholder="Brief summary of your issue..." required>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                <div class="form-group">
+                  <label for="category">Category</label>
+                  <select id="category" name="category" class="form-control" required>
+                    <option value="Technical Issue">Technical Issue</option>
+                    <option value="Bug / Error">Bug / Error</option>
+                    <option value="Access Request">Access Request</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="priority">Priority</label>
+                  <select id="priority" name="priority" class="form-control" required>
+                    <option value="Low">Low</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group" style="flex:1; display:flex; flex-direction:column;">
+                <label for="description">Detailed Description</label>
+                <textarea id="description" name="description" class="form-control"
+                  style="flex:1; min-height:120px; resize:none;"
+                  placeholder="Explain the problem and include any error messages..." required></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="attachment">Attachment (Optional, e.g. screenshot of the issue)</label>
+                <input type="file" id="attachment" name="attachment" class="form-control" accept="image/*" />
+              </div>
+
+              <button type="submit" class="chat-send-btn" style="width:100%; height:45px; font-size:0.95rem;">
+                Submit Ticket
+              </button>
+            </form>
+          </div>
+
+          <!-- My Tickets list / Details -->
+          <div class="support-panel" style="min-height:0;">
+            <div id="userTicketsListView" style="display:flex; flex-direction:column; flex:1; min-height:0;">
+              <h3 class="panel-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 20h9M3 20h3M3 12h18M3 4h18"></path>
+                </svg>
+                My Tickets History
+              </h3>
+
+              <div class="ticket-list">
+                {% for ticket in tickets %}
+                <div class="ticket-card" onclick="openUserTicketDetail('{{ ticket._id }}')">
+                  <div class="ticket-header">
+                    <h4 class="ticket-subject">{{ ticket.subject }}</h4>
+                    <span class="badge-status {{ ticket.status | lower | replace(' ', '-') }}">{{ ticket.status
+                      }}</span>
+                  </div>
+                  <div class="ticket-meta">
+                    <span class="badge-priority {{ ticket.priority | lower }}">{{ ticket.priority }}</span>
+                    <span>{{ ticket.category }}</span>
+                    <span>·</span>
+                    <span>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                  </div>
+                </div>
+                {% else %}
+                <div
+                  style="text-align:center; padding:40px; color:#9ca3af; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <p style="margin-top:10px;">You have not created any support tickets yet.</p>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- User Ticket Detail Chat View (Hidden initially) -->
+            <div id="userTicketDetailView" style="display:none; flex-direction:column; flex:1; min-height:0;">
+              <div
+                style="border-bottom:1px solid #e5e7eb; padding-bottom:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <button onclick="backToUserTicketsList()"
+                    style="background:none; border:none; color:#2563eb; font-weight:600; cursor:pointer; font-size:0.85rem; padding:0; display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg> Back to History
+                  </button>
+                  <h2 id="userActiveSubject" style="font-size:1.15rem; font-weight:700; color:#111827; margin:0;">
+                    Subject</h2>
+                </div>
+
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                  <span id="userActiveStatus" class="badge-status">OPEN</span>
+                  <span id="userActivePriority" class="badge-priority">MEDIUM</span>
+                </div>
+              </div>
+
+              <!-- Chat container -->
+              <div class="chat-container">
+                <div class="chat-messages" id="userChatMessages">
+                  <!-- Messages loaded dynamically -->
+                </div>
+
+                <form id="userReplyForm" onsubmit="submitUserReply(event)">
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div class="chat-input-wrapper">
+                      <textarea id="userReplyText" class="chat-input" placeholder="Type a response to the admin..."
+                        required></textarea>
+                      <button type="submit" class="chat-send-btn">Send Message</button>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
+                      <label for="userAttachment" style="font-weight:600; color:#4b5563; cursor:pointer; display:flex; align-items:center; gap:4px; margin:0;">
+                        📎 Attach Image/File:
+                      </label>
+                      <input type="file" id="userAttachment" name="attachment" accept="image/*" style="font-size:0.8rem;" />
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    lucide.createIcons();
+
+    let activeTicketId = null;
+
+    // --- ADMIN SCRIPTS ---
+    function loadTicketDetails(ticketId, cardEl) {
+      activeTicketId = ticketId;
+
+      // Toggle card active states
+      document.querySelectorAll('.ticket-card').forEach(c => c.classList.remove('active'));
+      if (cardEl) cardEl.classList.add('active');
+
+      fetch(`/support/ticket/${ticketId}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('noTicketSelected').style.display = 'none';
+          document.getElementById('ticketDetailArea').style.display = 'flex';
+
+          document.getElementById('activeSubject').textContent = data.subject;
+          document.getElementById('activeUser').textContent = data.user_name;
+          document.getElementById('activeEmail').textContent = data.user_email;
+          document.getElementById('activeDir').textContent = data.user_directorate;
+          document.getElementById('activeStatusSelect').value = data.status;
+
+          const activePriority = document.getElementById('activePriority');
+          activePriority.textContent = data.priority;
+          activePriority.className = `badge-priority ${data.priority.toLowerCase()}`;
+
+          renderChatMessages(data, 'adminChatMessages');
+        });
+    }
+
+    function updateTicketStatus() {
+      if (!activeTicketId) return;
+      const status = document.getElementById('activeStatusSelect').value;
+
+      fetch(`/support/status/${activeTicketId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({ status: status })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            // Reload ticket sidebar to reflect status change
+            window.location.reload();
+          }
+        });
+    }
+
+    function submitReply(e) {
+      e.preventDefault();
+      if (!activeTicketId) return;
+
+      const replyText = document.getElementById('adminReplyText').value;
+      const formData = new FormData();
+      formData.append('message', replyText);
+      
+      const fileInput = document.getElementById('adminAttachment');
+      if (fileInput && fileInput.files.length > 0) {
+        formData.append('attachment', fileInput.files[0]);
+      }
+
+      fetch(`/support/reply/${activeTicketId}`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': "{{ csrf_token() }}"
+        },
+        body: formData
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('adminReplyText').value = '';
+            if (fileInput) fileInput.value = '';
+            // Reload chat messages
+            loadTicketDetails(activeTicketId, null);
+          }
+        });
+    }
+
+    // --- USER SCRIPTS ---
+    function openUserTicketDetail(ticketId) {
+      activeTicketId = ticketId;
+
+      fetch(`/support/ticket/${ticketId}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('userTicketsListView').style.display = 'none';
+          document.getElementById('userTicketDetailView').style.display = 'flex';
+
+          document.getElementById('userActiveSubject').textContent = data.subject;
+
+          const statusEl = document.getElementById('userActiveStatus');
+          statusEl.textContent = data.status;
+          statusEl.className = `badge-status ${data.status.toLowerCase().replace(' ', '-')}`;
+
+          const priEl = document.getElementById('userActivePriority');
+          priEl.textContent = data.priority;
+          priEl.className = `badge-priority ${data.priority.toLowerCase()}`;
+
+          // Disable input if ticket is resolved
+          const replyInput = document.getElementById('userReplyText');
+          const replyBtn = document.querySelector('#userReplyForm .chat-send-btn');
+          if (data.status === 'Resolved') {
+            replyInput.disabled = true;
+            replyInput.placeholder = "This ticket has been resolved and closed.";
+            replyBtn.disabled = true;
+            replyBtn.style.opacity = 0.5;
+            replyBtn.style.cursor = 'not-allowed';
+          } else {
+            replyInput.disabled = false;
+            replyInput.placeholder = "Type a response to the admin...";
+            replyBtn.disabled = false;
+            replyBtn.style.opacity = 1;
+            replyBtn.style.cursor = 'pointer';
+          }
+
+          renderChatMessages(data, 'userChatMessages');
+        });
+    }
+
+    function backToUserTicketsList() {
+      document.getElementById('userTicketDetailView').style.display = 'none';
+      document.getElementById('userTicketsListView').style.display = 'flex';
+      activeTicketId = null;
+    }
+
+    function submitUserReply(e) {
+      e.preventDefault();
+      if (!activeTicketId) return;
+
+      const replyText = document.getElementById('userReplyText').value;
+      const formData = new FormData();
+      formData.append('message', replyText);
+      
+      const fileInput = document.getElementById('userAttachment');
+      if (fileInput && fileInput.files.length > 0) {
+        formData.append('attachment', fileInput.files[0]);
+      }
+
+      fetch(`/support/reply/${activeTicketId}`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': "{{ csrf_token() }}"
+        },
+        body: formData
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('userReplyText').value = '';
+            if (fileInput) fileInput.value = '';
+            openUserTicketDetail(activeTicketId);
+          }
+        });
+    }
+
+    // --- SHARED CHAT RENDER ---
+    function renderChatMessages(ticket, elementId) {
+      const container = document.getElementById(elementId);
+      container.innerHTML = '';
+
+      // 1. Initial ticket description bubble
+      const descBubble = document.createElement('div');
+      descBubble.className = 'chat-bubble incoming';
+
+      const timeStr = formatTicketTime(ticket.created_at);
+      let descHTML = `
+        <div style="font-weight:700; color:#3b82f6; margin-bottom:4px;">Original Issue description:</div>
+        <div>${ticket.description}</div>
+      `;
+      
+      if (ticket.attachment_url) {
+        descHTML += `
+          <div style="margin-top:8px; border-top:1px solid #edf2f7; padding-top:6px;">
+            <a href="${ticket.attachment_url}" target="_blank" style="color:#2563eb; text-decoration:underline; font-size:0.85rem; display:inline-flex; align-items:center; gap:4px; font-weight:600;">
+              🖼️ View Screenshot / Attachment
+            </a>
+          </div>
+        `;
+      }
+      
+      descHTML += `
+        <div class="chat-bubble-meta">
+          <span>${ticket.user_name} (${ticket.user_role})</span>
+          <span>${timeStr}</span>
+        </div>
+      `;
+      descBubble.innerHTML = descHTML;
+      container.appendChild(descBubble);
+
+      // 2. Reply comments bubbles
+      ticket.responses.forEach(r => {
+        const isSelf = r.author_email === "{{ session.get('user_email') }}";
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${isSelf ? 'outgoing' : 'incoming'}`;
+
+        const rTimeStr = formatTicketTime(r.timestamp);
+        let replyHTML = `<div>${r.message}</div>`;
+        
+        if (r.attachment_url) {
+          replyHTML += `
+            <div style="margin-top:6px; border-top:1px dashed ${isSelf ? 'rgba(255,255,255,0.3)' : '#edf2f7'}; padding-top:4px;">
+              <a href="${r.attachment_url}" target="_blank" style="color:${isSelf ? '#dbeafe' : '#2563eb'}; text-decoration:underline; font-size:0.82rem; display:inline-flex; align-items:center; gap:4px; font-weight:600;">
+                📎 View Attachment
+              </a>
+            </div>
+          `;
+        }
+        
+        replyHTML += `
+          <div class="chat-bubble-meta">
+            <span>${r.author_name}</span>
+            <span>${rTimeStr}</span>
+          </div>
+        `;
+        bubble.innerHTML = replyHTML;
+        container.appendChild(bubble);
+      });
+
+      // Scroll to bottom
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function formatTicketTime(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+  </script>
+</body>
+
+</html>

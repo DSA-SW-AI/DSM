@@ -51,7 +51,7 @@ body {
 
 /* Ensure the sidebar covers full vertical space and stacks content correctly */
 .sidebar {
-    width: 280px;
+    width: 300px;
     background-color: #15305B;
     /* Dark Navy Theme */
     color: #FFFFFF;

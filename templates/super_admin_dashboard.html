@@ -1,0 +1,1621 @@
+<!-- templates/super_admin_dashboard.html -->
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ODOGWU - Super Admin Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .admin-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 15px;
+      margin: 25px;
+    }
+    
+    .admin-stat-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 15px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .admin-stat-card h4 {
+      font-size: 11px;
+      font-weight: 700;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0 0 5px 0;
+    }
+    
+    .admin-stat-card .value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a202c;
+    }
+    
+    .utility-section {
+      background: #ffffff;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      padding: 20px;
+      margin: 25px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    
+    .utility-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      .utility-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .utility-card {
+      border: 1px solid #edf2f7;
+      border-radius: 8px;
+      padding: 15px;
+      background: #f7fafc;
+    }
+    
+    .utility-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-top: 0;
+    }
+    
+    .utility-card p {
+      font-size: 13px;
+      color: #718096;
+    }
+    
+    .form-group-inline {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    
+    .form-group-inline label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #4a5568;
+    }
+    
+    .form-group-inline input, .form-group-inline select {
+      padding: 6px 12px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    
+    .run-btn {
+      background-color: #1a365d;
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .run-btn:hover {
+      background-color: #2a4365;
+    }
+    
+    /* Edit User Modal Form design */
+    .modal-scroll-body {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+    
+    .form-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    .checkbox-group-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      background: #f7fafc;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #edf2f7;
+      margin-top: 5px;
+    }
+    
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #4a5568;
+      cursor: pointer;
+    }
+    
+    .checkbox-item input {
+      cursor: pointer;
+    }
+    
+    .action-btn-pill {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .action-btn-pill:hover {
+      background: #f7fafc;
+      border-color: #cbd5e0;
+    }
+    
+    .action-btn-pill.edit {
+      color: #2b6cb0;
+      border-color: #bee3f8;
+      background: #ebf8ff;
+    }
+    
+    .action-btn-pill.edit:hover {
+      background: #edf2f7;
+    }
+    
+    .action-btn-pill.init {
+      color: #2f855a;
+      border-color: #c6f6d5;
+      background: #f0fff4;
+    }
+    
+    .action-btn-pill.init:hover {
+      background: #e6fffa;
+    }
+    
+    .action-btn-pill.onboard {
+      color: #b7791f;
+      border-color: #feebc8;
+      background: #fffaf0;
+    }
+    
+    .action-btn-pill.onboard:hover {
+      background: #fdf2e9;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>SUPER ADMIN</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+
+        <div class="menu-section-label">ADMINISTRATION</div>
+        <a href="/super-admin-dashboard" class="menu-item active">🔑 Super Admin</a>
+
+        <div class="menu-section-label">REGISTRY</div>
+        {% if "documents" in permissions.sidebar %}
+        <a href="/documents-view" class="menu-item">📁 Documents</a>
+        {% endif %}
+        {% if "incoming" in permissions.sidebar %}
+        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+        {% endif %}
+        {% if "outgoing" in permissions.sidebar %}
+        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %}
+        {% if "filing_cabinets" in permissions.sidebar %}
+        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+        {% endif %}
+
+        <div class="menu-section-label">HR MANAGEMENT</div>
+        <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
+        <a href="/dashboard_leave_pass" class="menu-item">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
+        
+        <!-- Toggle View Mode Option -->
+        <!-- <a href="/switch-view" class="menu-item" style="background: rgba(21, 101, 216, 0.1); border: 1px dashed var(--blue); color: var(--blue); margin-top: 15px; text-align: center; justify-content: center; font-weight: 600;">
+          {% if user.is_approval_role %}
+            🔄 Switch to Personal Account
+          {% else %}
+            🔄 Switch to Approval Account
+          {% endif %}
+        </a> -->
+        
+      <!-- Permanently Locked Footer Segment -->
+      <div class="sidebar-footer">
+        <div class="menu-section-label">General</div>
+        {% if "support" in permissions.sidebar %}
+        <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "notification" in permissions.sidebar %}
+        <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "setting" in permissions.sidebar %}
+        <a href="/setting" class="menu-item">📅 Setting</a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}" class="logout-btn">
+          🚪 Sign out
+        </a>
+      </div>
+      </nav>
+    </aside>
+
+    <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
+    <main class="main-content">
+      <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
+      
+      {% include "base.html" %}
+
+      <!-- HEADCOUNT PER DIRECTORATE & CATEGORY STATS -->
+      <div style="margin: 25px 25px 0 25px;">
+        <h3 style="font-weight: 600; color: #2d3748; margin: 0;">System Statistics</h3>
+      </div>
+      
+      <div class="admin-stats-grid">
+        <!-- Directorate headcounts -->
+        {% for dir_name, count in directorate_stats.items() %}
+        <div class="admin-stat-card">
+          <h4>{{ dir_name }} Directorate</h4>
+          <div class="value">{{ count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="admin-stats-grid" style="margin-top: 0;">
+        <!-- Category headcounts -->
+        <div class="admin-stat-card" style="border-left: 4px solid #3182ce;">
+          <h4>Civilians</h4>
+          <div class="value">{{ category_stats.civilian }}</div>
+        </div>
+        <div class="admin-stat-card" style="border-left: 4px solid #38a169;">
+          <h4>Military Personnel</h4>
+          <div class="value">{{ category_stats.military }}</div>
+        </div>
+        <div class="admin-stat-card" style="border-left: 4px solid #d69e2e;">
+          <h4>IT Attachés</h4>
+          <div class="value">{{ category_stats.it }}</div>
+        </div>
+        <div class="admin-stat-card" style="border-left: 4px solid #e53e3e;">
+          <h4>NYSC Corps</h4>
+          <div class="value">{{ category_stats.nysc }}</div>
+        </div>
+      </div>
+
+      <!-- DATABASE & SYSTEM UTILITIES -->
+      <div class="utility-section">
+        <h3 style="font-weight: 600; color: #2d3748; margin-top: 0; margin-bottom: 15px;">Database & Leave Utilities</h3>
+        <div class="utility-grid">
+          
+          <!-- UTILITY 1: Initialize All staff balances -->
+          <div class="utility-card">
+            <h3>🔄 Bulk Leave Balance Initialization</h3>
+            <p>Runs the <code>initialize_all_balances.py</code> logic to create default leave balances for all active staff members in the system.</p>
+            
+            <form id="initAllBalancesForm" onsubmit="runBulkInitialization(event)">
+              <div class="checkbox-item" style="margin-bottom: 10px;">
+                <input type="checkbox" id="bulkDeleteExisting" />
+                <label for="bulkDeleteExisting" style="font-weight: 600; color: #e53e3e;">⚠️ Overwrite existing balances (Delete & start fresh)</label>
+              </div>
+              <div class="form-group-inline">
+                <label for="bulkYear">Year:</label>
+                <input type="number" id="bulkYear" value="2026" min="2024" max="2035" style="width: 80px;" required />
+                <button type="submit" class="run-btn">🚀 Initialize All Balances</button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- UTILITY 2: Initialize Single staff balance -->
+          <div class="utility-card">
+            <h3>👤 Single Staff Balance Initialization</h3>
+            <p>Initialize or reset the leave balance track for a specific staff member in the database by their Email or Service Number.</p>
+            
+            <form id="initSingleBalanceForm" onsubmit="runSingleInitialization(event)">
+              <div style="margin-bottom: 10px;">
+                <input type="text" id="singleIdentifier" placeholder="e.g. director.doa@dsa.mil.ng or NA/1234" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px;" required />
+              </div>
+              <div class="checkbox-item" style="margin-bottom: 10px;">
+                <input type="checkbox" id="singleDeleteExisting" />
+                <label for="singleDeleteExisting" style="font-weight: 600; color: #e53e3e;">Overwrite existing balance</label>
+              </div>
+              <div class="form-group-inline">
+                <label for="singleYear">Year:</label>
+                <input type="number" id="singleYear" value="2026" min="2024" max="2035" style="width: 80px;" required />
+                <button type="submit" class="run-btn">🚀 Initialize User Balance</button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SYSTEM CONTROLS (SETTING, NOTIFICATION, SUPPORT) -->
+      <div class="utility-section">
+        <h3 style="font-weight: 600; color: #2d3748; margin-top: 0; margin-bottom: 15px;">System & Portal Controls</h3>
+        <div class="utility-grid">
+          
+          <!-- CONTROLS 1: System settings -->
+          <div class="utility-card">
+            <h3>⚙️ Portal Settings</h3>
+            <p>Configure system-wide settings and toggles for the ODOGWU portal.</p>
+            
+            <form id="systemSettingsForm" onsubmit="saveSystemSettings(event)">
+              <div class="checkbox-item" style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="allowRegistration" {% if system_settings.allow_registration %}checked{% endif %} />
+                <label for="allowRegistration" style="font-weight: 600; color: #4a5568;">Allow New Staff Registration / Onboarding</label>
+              </div>
+              <div class="checkbox-item" style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="maintenanceMode" {% if system_settings.maintenance_mode %}checked{% endif %} />
+                <label for="maintenanceMode" style="font-weight: 600; color: #e53e3e;">⚠️ Maintenance Mode (Restrict non-admin access)</label>
+              </div>
+              <button type="submit" class="run-btn" style="background: #4a5568;">💾 Save Portal Settings</button>
+            </form>
+          </div>
+          
+          <!-- CONTROLS 2: Broadcast Notification -->
+          <div class="utility-card">
+            <h3>📢 Broadcast System Notification</h3>
+            <p>Send a push notification alert to all personnel, specific roles, or individual accounts.</p>
+            
+            <form id="adminBroadcastForm" onsubmit="sendAdminNotification(event)">
+              <div class="form-group-inline" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 10px;">
+                <label for="notifTarget">Target Audience:</label>
+                <select id="notifTarget" onchange="toggleNotifTargetInput()" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px;">
+                  <option value="broadcast">Broadcast to All Users</option>
+                  <option value="role">Target Specific Role</option>
+                  <option value="user">Target Specific Account (Email/SN)</option>
+                </select>
+              </div>
+              <div id="targetRoleContainer" class="form-group-inline" style="display: none; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 10px;">
+                <label for="notifRole">Select Role:</label>
+                <select id="notifRole" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px;">
+                  {% for role_opt in available_roles %}
+                  <option value="{{ role_opt }}">{{ role_opt | replace('_', ' ') | title }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div id="targetUserContainer" class="form-group-inline" style="display: none; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 10px;">
+                <label for="notifUser">Enter Email or Service Number:</label>
+                <input type="text" id="notifUser" placeholder="e.g. staff@dsa.mil.ng or DSA/CIV/1234" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px;" />
+              </div>
+              <div class="form-group-inline" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 10px;">
+                <label for="notifMessage">Notification Message:</label>
+                <textarea id="notifMessage" placeholder="Type notification alert content here..." style="width: 100%; height: 70px; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; resize: none;" required></textarea>
+              </div>
+              <button type="submit" class="run-btn" style="background: #2b6cb0; width: 100%;">📢 Dispatch Notification</button>
+            </form>
+          </div>
+          
+          <!-- CONTROLS 3: Support Center Overview -->
+          <div class="utility-card" style="grid-column: span 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h3>👥 Support Ticket Registry Overview</h3>
+              <a href="/support" class="run-btn" style="background: #319795; text-decoration: none; padding: 6px 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">
+                💬 Go to Support Center (Reply to Tickets)
+              </a>
+            </div>
+            <p>Summary of user-submitted tickets requiring assistance or debugging.</p>
+            
+            <div class="table-scroll" style="margin-top: 15px;">
+              <table class="personnel-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                  <tr style="background: #f7fafc; border-bottom: 1px solid #e2e8f0; text-align: left;">
+                    <th style="padding: 10px;">Subject</th>
+                    <th style="padding: 10px;">Submitted By</th>
+                    <th style="padding: 10px;">Category</th>
+                    <th style="padding: 10px;">Priority</th>
+                    <th style="padding: 10px;">Status</th>
+                    <th style="padding: 10px;">Date Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for t in support_tickets[:5] %}
+                  <tr style="border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 10px; font-weight: 600;"><a href="/support" style="color: #2b6cb0; text-decoration: none;">{{ t.subject }}</a></td>
+                    <td style="padding: 10px;">{{ t.user_name }} ({{ t.user_directorate }})</td>
+                    <td style="padding: 10px;">{{ t.category }}</td>
+                    <td style="padding: 10px;">
+                      <span class="badge-priority {{ t.priority | lower }}" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold;">{{ t.priority }}</span>
+                    </td>
+                    <td style="padding: 10px;">
+                      <span class="badge-status {{ t.status | lower | replace(' ', '-') }}" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold;">{{ t.status }}</span>
+                    </td>
+                    <td style="padding: 10px;">{{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else '' }}</td>
+                  </tr>
+                  {% else %}
+                  <tr>
+                    <td colspan="6" style="padding: 20px; text-align: center; color: #a0aec0;">No active support tickets found.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- USER MANAGEMENT SECTION -->
+      <div style="margin: 25px 25px 0 25px; display: flex; gap: 10px; border-bottom: 2px solid #edf2f7; padding-bottom: 8px;">
+        <button type="button" class="tab-btn active" id="tabPersonalAccounts" onclick="switchAccountRegistryTab('personal')" style="font-weight: 600;">👥 Personal Accounts</button>
+        <button type="button" class="tab-btn" id="tabApprovalAccounts" onclick="switchAccountRegistryTab('approval')" style="font-weight: 600;">🛡️ Approval Accounts</button>
+      </div>
+
+      <!-- Directorate Sub-tabs (visible for both Personal and Approval accounts) -->
+      <div id="dirPillsContainer" style="margin: 15px 25px 0 25px; display: block;">
+        <div id="dirPillsLabel" style="font-size: 12px; font-weight: 700; color: #718096; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Filter Personal Accounts by Directorate:</div>
+        <div class="category-tabs" style="display: inline-flex; flex-wrap: wrap; background: #edf2f7; padding: 4px; border-radius: 8px; gap: 4px;">
+          <button type="button" class="tab-btn active" data-dir-pill="ALL" onclick="filterByDirectoratePill('ALL')">ALL</button>
+          <button type="button" class="tab-btn" data-dir-pill="CDSA" onclick="filterByDirectoratePill('CDSA')">CDSA</button>
+          <button type="button" class="tab-btn" data-dir-pill="DOA" onclick="filterByDirectoratePill('DOA')">DOA</button>
+          <button type="button" class="tab-btn" data-dir-pill="DCS" onclick="filterByDirectoratePill('DCS')">DCS</button>
+          <button type="button" class="tab-btn" data-dir-pill="DNPT" onclick="filterByDirectoratePill('DNPT')">DNPT</button>
+          <button type="button" class="tab-btn" data-dir-pill="DFA" onclick="filterByDirectoratePill('DFA')">DFA</button>
+          <button type="button" class="tab-btn" data-dir-pill="DLSO" onclick="filterByDirectoratePill('DLSO')">DLSO</button>
+          <button type="button" class="tab-btn" data-dir-pill="DEO" onclick="filterByDirectoratePill('DEO')">DEO</button>
+          <button type="button" class="tab-btn" data-dir-pill="DCYBER" onclick="filterByDirectoratePill('DCYBER')">DCYBER</button>
+          <button type="button" class="tab-btn" data-dir-pill="DPPR" onclick="filterByDirectoratePill('DPPR')">DPPR</button>
+          <button type="button" class="tab-btn" data-dir-pill="DLOG" onclick="filterByDirectoratePill('DLOG')">DLOG</button>
+          <button type="button" class="tab-btn" data-dir-pill="DELSPACE" onclick="filterByDirectoratePill('DELSPACE')">DELSPACE</button>
+        </div>
+      </div>
+
+      <div class="table-controls-bar" style="margin: 25px; display: flex; gap: 15px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <h3 style="font-weight: 600; color: #2d3748; margin: 0;" id="registryTitleText">User Accounts Registry</h3>
+        
+        <div style="display: flex; gap: 10px; flex-grow: 1; justify-content: flex-end; max-width: 600px;">
+          <!-- Universal Live Search Bar -->
+          <div style="position: relative; width: 100%; max-width: 350px;">
+            <input type="text" id="userSearchInput" placeholder="Search by name, SN, email..."
+              style="width: 100%; padding: 9px 16px 9px 38px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 13.5px; background: #ffffff; color: #1a202c; outline: none;"
+              oninput="filterUserTable()" />
+            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #a0aec0; font-size: 14px; pointer-events: none;">🔍</span>
+          </div>
+
+          <button class="add-staff-btn" style="background-color: #2b6cb0; display: inline-flex; align-items: center; gap: 6px;" onclick="openBulkUploadModal()">
+            📥 Bulk Import (Excel)
+          </button>
+          <button class="add-staff-btn" style="background-color: #1a365d;" onclick="openAddStaffModal()">
+            ➕ Add New User
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Users Table -->
+      <div class="table-container" style="margin: 25px;">
+        <table class="personnel-table">
+          <thead>
+            <tr>
+              <th>Service Number</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Directorate</th>
+              <th>Role</th>
+              <th>Category</th>
+              <th>Onboarded</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody">
+            {% if users %}
+            {% for u in users %}
+            {% set search_data = (u.service_number or '') ~ ' ' ~ (u.name or '') ~ ' ' ~ (u.email or '') ~ ' ' ~ (u.directorate or '') ~ ' ' ~ (u.role or '') ~ ' ' ~ (u.category or '') %}
+            {% set is_approval = (u.is_approval_role == true or u.is_approval_role == 'true' or u.is_approval_role == 'True') %}
+            <tr class="user-row" 
+                data-search="{{ search_data | lower }}"
+                data-is-approval="{{ 'true' if is_approval else 'false' }}"
+                data-directorate="{{ (u.directorate or '') | upper | trim }}">
+              <td class="text-bold">{{ u.service_number or '-' }}</td>
+              <td class="text">{{ u.name or '-' }}</td>
+              <td>{{ u.email }}</td>
+              <td class="text-bold">{{ (u.directorate or '-') | upper }}</td>
+              <td><span class="role-badge-pill" style="background-color: #edf2f7; color: #4a5568; font-size: 12px; padding: 3px 8px; border-radius: 4px;">{{ u.role }}</span></td>
+              <td>{{ (u.category or 'civilian') | title }}</td>
+              <td>
+                {% if u.is_onboarded %}
+                <span style="color: #38a169; font-weight: bold;">✓ Completed</span>
+                {% else %}
+                <span style="color: #e53e3e; font-weight: bold;">✗ In Progress</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="status-tag tag-{{ (u.status or 'pending-onboarding') | lower | replace(' ', '-') }}">
+                  {{ u.status or 'Pending' }}
+                </span>
+              </td>
+              <td>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button class="action-btn-pill edit" onclick="openEditUserModal('{{ u.email }}')">✏️ Edit</button>
+                  <button class="action-btn-pill init" onclick="triggerQuickSingleInit('{{ u.email }}')">🔄 Bal</button>
+                  <button class="action-btn-pill onboard" onclick="toggleOnboardingStatus('{{ u.email }}', {{ 'true' if u.is_onboarded else 'false' }})">🚀 Step</button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+              <td colspan="9" style="text-align: center; color: #a0aec0; padding: 30px;">
+                No user profiles found in system database.
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- ================= EDIT USER MODAL (DYNAMIC DATABASE FIELDS) ================= -->
+  <div id="editUserModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(6px); z-index: 2000; justify-content: center; align-items: center; padding: 20px;">
+    <div class="modal-container" style="max-width: 650px; width: 92%; max-height: 90vh; background: #ffffff; border-radius: 14px; padding: 25px 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; border: 1px solid #e2e8f0; display: flex; flex-direction: column;">
+      <span class="close-modal-x" onclick="closeEditUserModal()">&times;</span>
+
+      <h2 style="font-weight: 700; color: #1a365d; margin-top: 0; margin-bottom: 5px;">Edit User Profile</h2>
+      <p style="font-size: 13px; color: #718096; margin-bottom: 20px;">Modify any database entry field for this account.</p>
+
+      <form id="editUserForm" onsubmit="saveUserEdits(event)" class="modal-scroll-body">
+        <input type="hidden" id="editOriginalEmail" />
+
+        <div class="form-row-2">
+          <div class="modal-form-group">
+            <label>Full Name <span class="required-star">*</span></label>
+            <input type="text" id="editName" required autocomplete="off" />
+          </div>
+          <div class="modal-form-group">
+            <label>Service Number <span class="required-star">*</span></label>
+            <input type="text" id="editServiceNumber" required autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="modal-form-group">
+            <label>Surname</label>
+            <input type="text" id="editSurname" autocomplete="off" />
+          </div>
+          <div class="modal-form-group">
+            <label>First Name</label>
+            <input type="text" id="editFirstname" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="modal-form-group">
+            <label>Middle Name</label>
+            <input type="text" id="editMiddlename" autocomplete="off" />
+          </div>
+          <div class="modal-form-group">
+            <label>Alternate Email</label>
+            <input type="email" id="editAltEmail" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="modal-form-group">
+            <label>Official Email <span class="required-star">*</span></label>
+            <input type="email" id="editEmail" required autocomplete="off" />
+          </div>
+          <div class="modal-form-group">
+            <label>Change Password <span style="font-size:11px; color:#718096;">(Optional)</span></label>
+            <input type="password" id="editPassword" placeholder="Enter new password to reset" autocomplete="new-password" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="modal-form-group">
+            <label>Appointment (appt)</label>
+            <input type="text" id="editAppt" placeholder="e.g. Chief Clerk or Director" autocomplete="off" />
+          </div>
+          <div class="modal-form-group">
+            <label>Rank or Grade Level (rankOrGrade)</label>
+            <input type="text" id="editRankOrGrade" placeholder="e.g. Maj Gen or Grade Level 10" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="modal-form-group">
+            <label>Directorate <span class="required-star">*</span></label>
+            <div class="select-wrapper">
+              <select id="editDirectorate" required>
+                <option value="CDSA">CDSA (CDSA Office)</option>
+                <option value="DOA">Directorate of Administration (DOA)</option>
+                <option value="DCS">Directorate of Communications Satellite (DCS)</option>
+                <option value="DNPT">Directorate of Navigation & Positioning (DNPT)</option>
+                <option value="DFA">Directorate of Finance (DFA)</option>
+                <option value="DLSO">Directorate of Launch Services & Space Operations (DLSO)</option>
+                <option value="DEO">Directorate of Earth Observation (DEO)</option>
+                <option value="DCYBER">Directorate of Cyber Security (DCYBER)</option>
+                <option value="DPPR">Directorate of Policy Planning and Research (DPPR)</option>
+                <option value="DLOG">Directorate of Logistics (DLOG)</option>
+                <option value="DELSPACE">Delspace</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-form-group">
+            <label>Category <span class="required-star">*</span></label>
+            <div class="select-wrapper">
+              <select id="editCategory" required>
+                <option value="civilian">Civilian</option>
+                <option value="military">Military</option>
+                <option value="nysc">NYSC</option>
+                <option value="it">IT</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="modal-form-group">
+            <label>System Role <span class="required-star">*</span></label>
+            <div class="select-wrapper">
+              <select id="editRole" required>
+                {% if available_roles %}
+                  {% for r in available_roles %}
+                    <option value="{{ r }}">
+                      {% if r == 'cdsa' %}CDSA
+                      {% elif r == 'dcdsa' %}DCDSA
+                      {% elif r == 'dd' %}Deputy Director (DD)
+                      {% elif r == 'ad' %}Assistant Director (AD)
+                      {% elif r == 'so' %}Staff Officer (SO)
+                      {% elif r == 'registry' %}DOA Registry
+                      {% else %}{{ r | replace('_', ' ') | title }}
+                      {% endif %}
+                    </option>
+                  {% endfor %}
+                {% else %}
+                  <option value="civilian">Civilian</option>
+                  <option value="personnel">Personnel</option>
+                  <option value="registry">DOA Registry</option>
+                  <option value="central_registry">Central Registry</option>
+                  <option value="so">Staff Officer (SO)</option>
+                  <option value="ad">Assistant Director (AD)</option>
+                  <option value="dd">Deputy Director (DD)</option>
+                  <option value="director">Director</option>
+                  <option value="cdsa">CDSA</option>
+                  <option value="dcdsa">DCDSA</option>
+                  <option value="super_admin">Super Admin</option>
+                {% endif %}
+              </select>
+            </div>
+          </div>
+          <div class="modal-form-group">
+            <label>Application Status <span class="required-star">*</span></label>
+            <div class="select-wrapper">
+              <select id="editStatus" required>
+                <option value="In Progress">In Progress</option>
+                <option value="Awaiting Approval">Awaiting Approval</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-form-group">
+          <label>Account Flags & Privileges</label>
+          <div class="checkbox-group-grid">
+            <div class="checkbox-item">
+              <input type="checkbox" id="editIsActive" />
+              <label for="editIsActive">Is Active (Enabled)</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="editIsOnboarded" />
+              <label for="editIsOnboarded">Is Onboarded</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="editIsApprovalRole" />
+              <label for="editIsApprovalRole">Is Approval Role</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="editIsSoApprover" />
+              <label for="editIsSoApprover">Is SO Approver</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="editIsAdApprover" />
+              <label for="editIsAdApprover">Is AD Approver</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="editIsDdApprover" />
+              <label for="editIsDdApprover">Is DD Approver</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="editIsFinalApprover" />
+              <label for="editIsFinalApprover">Is Final Approver</label>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="tab-btn" onclick="closeEditUserModal()" style="border: 1px solid #cbd5e0;">Cancel</button>
+          <button type="submit" class="add-staff-btn" style="background-color: #1a365d;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= APPROVER ROLE CONFLICT RESOLUTION MODAL ================= -->
+  <div id="conflictModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); z-index: 3000; justify-content: center; align-items: center; padding: 20px;">
+    <div class="modal-container" style="max-width: 500px; width: 92%; background: #ffffff; border-radius: 14px; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; border: 1px solid #e2e8f0; text-align: center;">
+      <div style="width: 60px; height: 60px; background: #feebc8; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 20px auto; color: #dd6b20; font-size: 30px;">⚠️</div>
+      <h3 style="font-weight: 700; color: #dd6b20; margin-top: 0; margin-bottom: 10px;">Approver Role Conflict</h3>
+      <div id="conflictModalText" style="font-size: 14px; color: #4a5568; line-height: 1.5; margin-bottom: 25px;">
+        <!-- Dynamic text inserted here -->
+      </div>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button type="button" class="tab-btn" onclick="closeConflictModal()" style="border: 1px solid #cbd5e0; padding: 8px 20px;">Cancel</button>
+        <button type="button" class="add-staff-btn" onclick="confirmConflictReplacement()" style="background-color: #dd6b20; padding: 8px 20px; border: none;">Yes, Disable & Replace</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DYNAMIC CONFIRMATION / ALERT MODAL ================= -->
+  <div id="adminAlertModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); z-index: 4000; justify-content: center; align-items: center; padding: 20px;">
+    <div class="modal-container" style="max-width: 480px; width: 92%; background: #ffffff; border-radius: 14px; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; border: 1px solid #e2e8f0; text-align: center;">
+      <div id="alertModalIconContainer" style="width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 20px auto; font-size: 30px;"></div>
+      <h3 id="alertModalTitle" style="font-weight: 700; margin-top: 0; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">Notification</h3>
+      <div id="alertModalText" style="font-size: 14px; color: #4a5568; line-height: 1.5; margin-bottom: 25px; font-family: 'Inter', sans-serif;"></div>
+      <div style="display: flex; gap: 12px; justify-content: center;" id="alertModalButtons"></div>
+    </div>
+  </div>
+
+  <!-- ================= BULK IMPORT USER MODAL ================= -->
+  <div id="bulkUploadModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(6px); z-index: 2000; justify-content: center; align-items: center; padding: 20px;">
+    <div class="modal-container" style="max-width: 500px; width: 92%; background: #ffffff; border-radius: 14px; padding: 25px 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; border: 1px solid #e2e8f0; display: flex; flex-direction: column;">
+      <span class="close-modal-x" onclick="closeBulkUploadModal()">&times;</span>
+
+      <h2 style="font-weight: 700; color: #1a365d; margin-top: 0; margin-bottom: 15px;">Bulk User Import (Excel)</h2>
+      
+      <p style="font-size: 13.5px; color: #4a5568; line-height: 1.5; margin-bottom: 20px;">
+        Upload an Excel spreadsheet (<code>.xlsx</code>) containing your user registration records. 
+        The system will parse the records, check for duplicate service numbers, generate official emails, hash passwords, and email credentials to the users' personal/alternate email addresses.
+      </p>
+
+      <div style="background-color: #ebf8ff; border-left: 4px solid #3182ce; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; color: #2b6cb0;">
+        <strong>Excel Format Requirements:</strong>
+        <ul style="margin: 5px 0 0 18px; padding: 0;">
+          <li>Required Headers: <code>Firstname</code>, <code>Surname</code>, <code>Category</code>, <code>Role</code>, <code>Directorate</code>, <code>Service Number</code>, <code>Personal Email</code></li>
+          <li>Optional Header: <code>Official Email</code> (leaves default as auto-generated)</li>
+          <li>Duplicate service numbers or official emails will be gracefully bypassed.</li>
+        </ul>
+      </div>
+
+      <form action="/super-admin/bulk-upload" method="POST" enctype="multipart/form-data" onsubmit="showBulkUploadLoading()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+        
+        <div class="modal-form-group" style="margin-bottom: 20px;">
+          <label style="font-weight: 600; color: #2d3748; display: block; margin-bottom: 8px;">Select Excel Spreadsheet (.xlsx) <span class="required-star">*</span></label>
+          <input type="file" name="file" accept=".xlsx" required style="width: 100%; padding: 10px; border: 1px dashed #cbd5e0; border-radius: 8px; background-color: #f7fafc; cursor: pointer;" />
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+          <a href="/super-admin/bulk-upload/template" style="font-size: 13px; color: #2b6cb0; text-decoration: none; font-weight: 600;" target="_blank">
+            📥 Download XLSX Template
+          </a>
+          
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="tab-btn" onclick="closeBulkUploadModal()" style="border: 1px solid #cbd5e0; padding: 8px 16px; border-radius: 6px;">Cancel</button>
+            <button type="submit" class="add-staff-btn" style="background-color: #2b6cb0; padding: 8px 20px; border-radius: 6px;">Upload & Import</button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Loading overlay inside modal -->
+      <div id="bulkUploadLoadingOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); border-radius: 14px; flex-direction: column; align-items: center; justify-content: center; z-index: 10;">
+        <div style="width: 40px; height: 40px; border: 4px solid #cbd5e0; border-top-color: #2b6cb0; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+        <div style="font-weight: 600; color: #2d3748; font-size: 14px;">Processing spreadsheet...</div>
+        <div style="font-size: 12px; color: #718096; margin-top: 5px;">Hashing passwords and dispatching credentials...</div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- ================= ADD STAFF MODAL (INTEGRATED FOR SUPER ADMIN) ================= -->
+  <div id="addStaffModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(6px); z-index: 2000; justify-content: center; align-items: center; padding: 20px;">
+    <div class="modal-container" style="max-width: 600px; width: 92%; max-height: 85vh; background: #ffffff; border-radius: 14px; padding: 25px 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; border: 1px solid #e2e8f0; display: flex; flex-direction: column;">
+      <span class="close-modal-x" onclick="closeAddStaffModal()">&times;</span>
+
+      <h2 style="font-weight: 700; color: #1a365d; margin-top: 0;">Add New System User</h2>
+
+      <form id="createStaffForm" onsubmit="submitAddStaff(event)" class="modal-scroll-body">
+        <div class="modal-form-group">
+          <label>Category <span class="required-star">*</span></label>
+          <div class="select-wrapper">
+            <select id="staffCategory" required onchange="generateEmailPreview()">
+              <option value="" disabled selected hidden>Select Category</option>
+              <option value="civilian">Civilian</option>
+              <option value="military">Military</option>
+              <option value="nysc">NYSC</option>
+              <option value="it">IT</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-form-group">
+          <label>Service Number <span class="required-star">*</span></label>
+          <input type="text" id="staffServiceNumber" placeholder="e.g. DSA/CIV/0034 or NA/1234" required autocomplete="off" oninput="generateEmailPreview()" />
+        </div>
+
+        <div style="display: flex; flex-direction: row; justify-content: space-between; width: 100%; gap: 15px;">
+          <div class="modal-form-group" style="flex: 1;">
+            <label>Surname <span class="required-star">*</span></label>
+            <input type="text" id="surName" placeholder="e.g. Alabi" required autocomplete="off" oninput="generateEmailPreview()" />
+          </div>
+          <div class="modal-form-group" style="flex: 1;">
+            <label>Middle Name</label>
+            <input type="text" id="middleName" placeholder="e.g. Chinedu" autocomplete="off" oninput="generateEmailPreview()" />
+          </div>
+          <div class="modal-form-group" style="flex: 1;">
+            <label>First Name <span class="required-star">*</span></label>
+            <input type="text" id="firstName" placeholder="e.g. Musa" required autocomplete="off" oninput="generateEmailPreview()" />
+          </div>
+        </div>
+
+        <div class="modal-form-group">
+          <label>Official Email <span class="required">(Auto-Generated)</span></label>
+          <input type="email" id="offEmail" placeholder="surname.middlename@dsa.mil.ng" required readonly style="background-color: #e2e8f0; font-weight: 600; color: #4a5568;" />
+        </div>
+
+        <div class="modal-form-group">
+          <label>Directorate <span class="required-star">*</span></label>
+          <div class="select-wrapper">
+            <select id="staffDirectorate" required>
+              <option value="" disabled selected hidden>Select Directorate</option>
+              <option value="cdsa">CDSA (CDSA Office)</option>
+              <option value="doa">Directorate of Administration (DOA)</option>
+              <option value="dcs">Directorate of Communications Satellite (DCS)</option>
+              <option value="dnpt"> Directorate of Navigation & Positioning (DNPT)</option>
+              <option value="dfa">Directorate of Finance (DFA)</option>
+              <option value="dlso"> Directorate of Launch Services and Space Operation (DLSO)</option>
+              <option value="deo"> Directorate of Earth Observation (DEO)</option>
+              <option value="dcyber"> Directorate of Cyber Security (DCYBER)</option>
+              <option value="dppr"> Directorate of Policy Planning and Research (DPPR)</option>
+              <option value="dlog"> Directorate of Logistics (DLOG)</option>
+              <option value="delspace"> Delspace</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-form-group">
+          <label>Alternate Personal Email <span class="required-star">*</span></label>
+          <input type="email" id="altEmail" placeholder="e.g. name@gmail.com" required autocomplete="off" />
+        </div>
+
+        <div class="modal-form-group">
+          <label>Workstation Temporary Password <span class="required-star">*</span></label>
+          <input type="password" id="plainPassword" placeholder="Minimum 6 characters" required autocomplete="new-password" />
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="tab-btn" onclick="closeAddStaffModal()" style="border: 1px solid #cbd5e0;">Cancel</button>
+          <button type="submit" class="add-staff-btn" style="background-color: #1a365d;">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript utilities for API interaction -->
+  <script>
+    // Search & Tab filtering variables
+    let currentRegistryTab = 'personal'; // 'personal' or 'approval'
+    let currentDirectoratePill = 'ALL';
+    let pendingEditPayload = null;
+
+    // Dynamic Alert and Confirmation modals
+    function showAdminAlert(message, title = "Notification", type = "info", callback = null) {
+      const modal = document.getElementById('adminAlertModal');
+      const iconContainer = document.getElementById('alertModalIconContainer');
+      const titleElem = document.getElementById('alertModalTitle');
+      const textElem = document.getElementById('alertModalText');
+      const buttonsContainer = document.getElementById('alertModalButtons');
+
+      titleElem.textContent = title;
+      textElem.innerHTML = message;
+
+      iconContainer.style.background = '';
+      iconContainer.style.color = '';
+      titleElem.style.color = '';
+
+      if (type === 'success') {
+        iconContainer.innerHTML = '✅';
+        iconContainer.style.background = '#e6fffa';
+        iconContainer.style.color = '#319795';
+        titleElem.style.color = '#2c7a7b';
+      } else if (type === 'error') {
+        iconContainer.innerHTML = '❌';
+        iconContainer.style.background = '#fed7d7';
+        iconContainer.style.color = '#e53e3e';
+        titleElem.style.color = '#c53030';
+      } else if (type === 'warning') {
+        iconContainer.innerHTML = '⚠️';
+        iconContainer.style.background = '#feebc8';
+        iconContainer.style.color = '#dd6b20';
+        titleElem.style.color = '#c05621';
+      } else { // info
+        iconContainer.innerHTML = 'ℹ️';
+        iconContainer.style.background = '#ebf8ff';
+        iconContainer.style.color = '#3182ce';
+        titleElem.style.color = '#2b6cb0';
+      }
+
+      buttonsContainer.innerHTML = '';
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'add-staff-btn';
+      closeBtn.style.padding = '8px 24px';
+      closeBtn.style.border = 'none';
+      
+      if (type === 'success') closeBtn.style.backgroundColor = '#319795';
+      else if (type === 'error') closeBtn.style.backgroundColor = '#e53e3e';
+      else if (type === 'warning') closeBtn.style.backgroundColor = '#dd6b20';
+      else closeBtn.style.backgroundColor = '#3182ce';
+      
+      closeBtn.textContent = 'OK';
+      closeBtn.onclick = function() {
+        modal.style.display = 'none';
+        if (callback) callback();
+      };
+      buttonsContainer.appendChild(closeBtn);
+
+      modal.style.display = 'flex';
+    }
+
+    function showAdminConfirm(message, title = "Confirm Action", onConfirm = null) {
+      const modal = document.getElementById('adminAlertModal');
+      const iconContainer = document.getElementById('alertModalIconContainer');
+      const titleElem = document.getElementById('alertModalTitle');
+      const textElem = document.getElementById('alertModalText');
+      const buttonsContainer = document.getElementById('alertModalButtons');
+
+      titleElem.textContent = title;
+      textElem.innerHTML = message;
+
+      iconContainer.innerHTML = '❓';
+      iconContainer.style.background = '#ebf8ff';
+      iconContainer.style.color = '#3182ce';
+      titleElem.style.color = '#2b6cb0';
+
+      buttonsContainer.innerHTML = '';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'tab-btn';
+      cancelBtn.style.border = '1px solid #cbd5e0';
+      cancelBtn.style.padding = '8px 20px';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.onclick = function() {
+        modal.style.display = 'none';
+      };
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.type = 'button';
+      confirmBtn.className = 'add-staff-btn';
+      confirmBtn.style.padding = '8px 20px';
+      confirmBtn.style.border = 'none';
+      confirmBtn.style.backgroundColor = '#3182ce';
+      confirmBtn.textContent = 'Confirm';
+      confirmBtn.onclick = function() {
+        modal.style.display = 'none';
+        if (onConfirm) onConfirm();
+      };
+
+      buttonsContainer.appendChild(cancelBtn);
+      buttonsContainer.appendChild(confirmBtn);
+
+      modal.style.display = 'flex';
+    }
+
+    function switchAccountRegistryTab(tab) {
+      currentRegistryTab = tab;
+      
+      const tabPersonal = document.getElementById('tabPersonalAccounts');
+      const tabApproval = document.getElementById('tabApprovalAccounts');
+      const dirLabel = document.getElementById('dirPillsLabel');
+      const titleText = document.getElementById('registryTitleText');
+      
+      if (tab === 'personal') {
+        tabPersonal.classList.add('active');
+        tabApproval.classList.remove('active');
+        dirLabel.textContent = "Filter Personal Accounts by Directorate:";
+        titleText.textContent = "Personal Accounts Registry";
+      } else {
+        tabPersonal.classList.remove('active');
+        tabApproval.classList.add('active');
+        dirLabel.textContent = "Filter Approval Accounts by Directorate:";
+        titleText.textContent = "Directorate Approval Accounts";
+      }
+      
+      filterUserTable();
+    }
+
+    function filterByDirectoratePill(dir) {
+      currentDirectoratePill = dir;
+      
+      const pills = document.querySelectorAll('[data-dir-pill]');
+      pills.forEach(pill => {
+        if (pill.getAttribute('data-dir-pill') === dir) {
+          pill.classList.add('active');
+        } else {
+          pill.classList.remove('active');
+        }
+      });
+      
+      filterUserTable();
+    }
+
+    // Search filter for user table
+    function filterUserTable() {
+      const query = document.getElementById('userSearchInput').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('.user-row');
+      
+      rows.forEach(row => {
+        const searchData = row.getAttribute('data-search') || '';
+        const isApprovalRow = row.getAttribute('data-is-approval') === 'true';
+        const rowDir = row.getAttribute('data-directorate') || '';
+        
+        let matchesSearch = searchData.includes(query);
+        let matchesTab = true;
+        let matchesPill = true;
+        
+        if (currentRegistryTab === 'approval') {
+          matchesTab = isApprovalRow;
+        } else if (currentRegistryTab === 'personal') {
+          matchesTab = !isApprovalRow;
+        }
+        
+        if (currentDirectoratePill !== 'ALL') {
+          matchesPill = (rowDir === currentDirectoratePill);
+        }
+        
+        if (matchesSearch && matchesTab && matchesPill) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // Modal Control: Add Staff
+    function openAddStaffModal() {
+      document.getElementById('addStaffModal').style.display = 'flex';
+    }
+    function closeAddStaffModal() {
+      document.getElementById('addStaffModal').style.display = 'none';
+      document.getElementById('createStaffForm').reset();
+    }
+
+    // Modal Control: Bulk Upload
+    function openBulkUploadModal() {
+      document.getElementById('bulkUploadModal').style.display = 'flex';
+      document.getElementById('bulkUploadLoadingOverlay').style.display = 'none';
+    }
+    function closeBulkUploadModal() {
+      document.getElementById('bulkUploadModal').style.display = 'none';
+    }
+    function showBulkUploadLoading() {
+      document.getElementById('bulkUploadLoadingOverlay').style.display = 'flex';
+    }
+
+    // Modal Control: Edit User
+    function openEditUserModal(email) {
+      fetch(`/get-personnel-profile?email=${encodeURIComponent(email)}`)
+        .then(response => {
+          if (!response.ok) throw new Error('Failed to fetch user parameters');
+          return response.json();
+        })
+        .then(data => {
+          document.getElementById('editOriginalEmail').value = data.email || '';
+          document.getElementById('editEmail').value = data.email || '';
+          document.getElementById('editName').value = data.name || '';
+          document.getElementById('editSurname').value = data.surname || '';
+          document.getElementById('editFirstname').value = data.firstname || '';
+          document.getElementById('editMiddlename').value = data.middlename || '';
+          document.getElementById('editAltEmail').value = data.alternate_email || '';
+          document.getElementById('editServiceNumber').value = data.service_number || '';
+          document.getElementById('editDirectorate').value = data.directorate || 'DOA';
+          document.getElementById('editCategory').value = data.category || 'civilian';
+          document.getElementById('editRole').value = data.role || 'civilian';
+          document.getElementById('editStatus').value = data.status || 'In Progress';
+          document.getElementById('editPassword').value = ''; 
+          document.getElementById('editAppt').value = data.appt || '';
+          document.getElementById('editRankOrGrade').value = data.rankOrGrade || '';
+          
+          document.getElementById('editIsActive').checked = data.is_active !== false;
+          document.getElementById('editIsOnboarded').checked = data.is_onboarded === true;
+          document.getElementById('editIsApprovalRole').checked = data.is_approval_role === true || data.is_approval_role === 'true';
+          document.getElementById('editIsSoApprover').checked = data.is_so_approver === true;
+          document.getElementById('editIsAdApprover').checked = data.is_ad_approver === true;
+          document.getElementById('editIsDdApprover').checked = data.is_dd_approver === true;
+          document.getElementById('editIsFinalApprover').checked = data.is_final_approver === true || data.is_final_approver === 'true';
+          
+          document.getElementById('editUserModal').style.display = 'flex';
+        })
+        .catch(err => {
+          showAdminAlert('Error loading user details: ' + err.message, 'Error', 'error');
+        });
+    }
+    
+    function closeEditUserModal() {
+      document.getElementById('editUserModal').style.display = 'none';
+    }
+
+    // Modal Control: Conflict Resolution
+    function closeConflictModal() {
+      document.getElementById('conflictModal').style.display = 'none';
+      pendingEditPayload = null;
+    }
+
+    function confirmConflictReplacement() {
+      if (pendingEditPayload) {
+        pendingEditPayload.force_replace = true;
+        executeUserEditSave(pendingEditPayload);
+        closeConflictModal();
+      }
+    }
+
+    // Auto-generate official email based on names
+    function generateEmailPreview() {
+      const surname = document.getElementById('surName').value.toLowerCase().replace(/[^a-z]/g, '').trim();
+      const middlename = document.getElementById('middleName').value.toLowerCase().replace(/[^a-z]/g, '').trim();
+      const firstname = document.getElementById('firstName').value.toLowerCase().replace(/[^a-z]/g, '').trim();
+      const category = document.getElementById('staffCategory').value;
+      const serviceNumber = document.getElementById('staffServiceNumber').value.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase().trim();
+
+      if (surname && firstname) {
+        let emailBase = '';
+        if (category === 'it' || category === 'nysc') {
+          emailBase = `${firstname}.${surname}_${category}`;
+        } else {
+          if (middlename) {
+            emailBase = `${firstname}.${middlename}.${surname}`;
+          } else {
+            emailBase = `${firstname}.${surname}`;
+          }
+        }
+        document.getElementById('offEmail').value = `${emailBase}@dsa.mil.ng`;
+      } else if (serviceNumber) {
+        document.getElementById('offEmail').value = `${serviceNumber}@dsa.mil.ng`;
+      }
+    }
+
+    // AJAX API Call: Submit Add Staff
+    function submitAddStaff(event) {
+      event.preventDefault();
+      const csrfToken = document.getElementById('csrf_token').value;
+      
+      const payload = {
+        category: document.getElementById('staffCategory').value,
+        directorate: document.getElementById('staffDirectorate').value,
+        service_number: document.getElementById('staffServiceNumber').value,
+        alternate_email: document.getElementById('altEmail').value,
+        password: document.getElementById('plainPassword').value,
+        surname: document.getElementById('surName').value,
+        firstname: document.getElementById('firstName').value,
+        middlename: document.getElementById('middleName').value,
+        official_email: document.getElementById('offEmail').value
+      };
+
+      fetch('/add-staff', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          showAdminAlert('User created successfully: ' + data.message, 'Success', 'success', () => {
+            closeAddStaffModal();
+            location.reload();
+          });
+        } else {
+          showAdminAlert('Error: ' + data.message, 'Error', 'error');
+        }
+      })
+      .catch(err => {
+        showAdminAlert('Server communication failed: ' + err.message, 'Error', 'error');
+      });
+    }
+
+    // AJAX API Call: Save User Edits (with Conflict verification)
+    function saveUserEdits(event) {
+      event.preventDefault();
+      const csrfToken = document.getElementById('csrf_token').value;
+      const origEmail = document.getElementById('editOriginalEmail').value;
+      
+      const payload = {
+        target_email: origEmail,
+        email: document.getElementById('editEmail').value,
+        name: document.getElementById('editName').value,
+        surname: document.getElementById('editSurname').value,
+        firstname: document.getElementById('editFirstname').value,
+        middlename: document.getElementById('editMiddlename').value,
+        alternate_email: document.getElementById('editAltEmail').value,
+        service_number: document.getElementById('editServiceNumber').value,
+        directorate: document.getElementById('editDirectorate').value,
+        category: document.getElementById('editCategory').value,
+        role: document.getElementById('editRole').value,
+        status: document.getElementById('editStatus').value,
+        password: document.getElementById('editPassword').value,
+        is_active: document.getElementById('editIsActive').checked,
+        is_onboarded: document.getElementById('editIsOnboarded').checked,
+        is_approval_role: document.getElementById('editIsApprovalRole').checked,
+        is_so_approver: document.getElementById('editIsSoApprover').checked,
+        is_ad_approver: document.getElementById('editIsAdApprover').checked,
+        is_dd_approver: document.getElementById('editIsDdApprover').checked,
+        is_final_approver: document.getElementById('editIsFinalApprover').checked,
+        appt: document.getElementById('editAppt').value,
+        rankOrGrade: document.getElementById('editRankOrGrade').value
+      };
+
+      // Check conflicts if they enabled any approver flags
+      if (payload.is_so_approver || payload.is_ad_approver || payload.is_dd_approver) {
+        fetch('/super-admin/check-approver-conflict', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({
+            email: payload.target_email,
+            directorate: payload.directorate,
+            is_so_approver: payload.is_so_approver,
+            is_ad_approver: payload.is_ad_approver,
+            is_dd_approver: payload.is_dd_approver
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'conflict') {
+            let conflictMsg = '';
+            data.conflicts.forEach(c => {
+              conflictMsg += `<p style="margin-bottom: 8px;"><strong>${c.name}</strong> (${c.email}) is currently configured as the <strong>${c.role}</strong> for the <strong>${payload.directorate}</strong> directorate.</p>`;
+            });
+            conflictMsg += `<p style="margin-top: 15px; font-weight: bold; color: #dd6b20;">Would you like to automatically disable their flags and assign the role(s) to ${payload.name}?</p>`;
+            
+            document.getElementById('conflictModalText').innerHTML = conflictMsg;
+            pendingEditPayload = payload;
+            document.getElementById('conflictModal').style.display = 'flex';
+          } else {
+            // No conflicts, proceed immediately
+            executeUserEditSave(payload);
+          }
+        })
+        .catch(err => {
+          showAdminAlert('Conflict check failed: ' + err.message, 'Error', 'error');
+        });
+      } else {
+        // No approver roles enabled, save changes
+        executeUserEditSave(payload);
+      }
+    }
+
+    function executeUserEditSave(payload) {
+      const csrfToken = document.getElementById('csrf_token').value;
+      
+      fetch('/super-admin/edit-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          showAdminAlert('User profile has been updated successfully.', 'Success', 'success', () => {
+            closeEditUserModal();
+            location.reload();
+          });
+        } else {
+          showAdminAlert('Update failed: ' + data.message, 'Error', 'error');
+        }
+      })
+      .catch(err => {
+        showAdminAlert('Network request failed: ' + err.message, 'Error', 'error');
+      });
+    }
+
+    // AJAX API Call: Run Bulk Initialization
+    function runBulkInitialization(event) {
+      event.preventDefault();
+      const year = document.getElementById('bulkYear').value;
+
+      showAdminConfirm(
+        `Are you sure you want to run bulk leave balance initialization for all active staff for the year <strong>${year}</strong>? This will overwrite existing records.`,
+        "Bulk Leave Balance Initialization",
+        () => {
+          const csrfToken = document.getElementById('csrf_token').value;
+          const deleteExisting = document.getElementById('bulkDeleteExisting').checked;
+          
+          fetch('/super-admin/initialize-all-balances', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+              delete_existing: deleteExisting,
+              year: year
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            showAdminAlert(data.message, 'Initialization Complete', 'success');
+          })
+          .catch(err => {
+            showAdminAlert('Bulk initialization request failed: ' + err.message, 'Error', 'error');
+          });
+        }
+      );
+    }
+
+    // AJAX API Call: Run Single User Initialization
+    function runSingleInitialization(event) {
+      event.preventDefault();
+      const identifier = document.getElementById('singleIdentifier').value.trim();
+      if (!identifier) return;
+      
+      const csrfToken = document.getElementById('csrf_token').value;
+      const deleteExisting = document.getElementById('singleDeleteExisting').checked;
+      const year = document.getElementById('singleYear').value;
+      
+      fetch('/super-admin/initialize-single-balance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+          identifier: identifier,
+          delete_existing: deleteExisting,
+          year: year
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        showAdminAlert(data.message, 'Initialization Complete', 'success');
+      })
+      .catch(err => {
+        showAdminAlert('Single initialization request failed: ' + err.message, 'Error', 'error');
+      });
+    }
+
+    // Quick single initialization via table action button
+    function triggerQuickSingleInit(email) {
+      showAdminConfirm(
+        `Are you sure you want to initialize or reset leave balances for <strong>${email}</strong> for the year <strong>2026</strong>?`,
+        "Initialize User Balance",
+        () => {
+          const csrfToken = document.getElementById('csrf_token').value;
+          
+          fetch('/super-admin/initialize-single-balance', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+              identifier: email,
+              delete_existing: true,
+              year: 2026
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            showAdminAlert(data.message, 'Initialization Complete', 'success');
+          })
+          .catch(err => {
+            showAdminAlert('Request failed: ' + err.message, 'Error', 'error');
+          });
+        }
+      );
+    }
+
+    // Quick toggle onboarding status via table action button
+    function toggleOnboardingStatus(email, currentStatus) {
+      const csrfToken = document.getElementById('csrf_token').value;
+      const newStatus = !currentStatus;
+      
+      showAdminConfirm(
+        `Are you sure you want to switch onboarding status of <strong>${email}</strong> to <strong>${newStatus ? 'Completed' : 'In Progress'}</strong>?`,
+        "Toggle Onboarding Status",
+        () => {
+          fetch('/get-personnel-profile?email=' + encodeURIComponent(email))
+            .then(res => res.json())
+            .then(user => {
+              const payload = {
+                target_email: email,
+                email: user.email,
+                name: user.name,
+                surname: user.surname || '',
+                firstname: user.firstname || '',
+                middlename: user.middlename || '',
+                alternate_email: user.alternate_email || '',
+                service_number: user.service_number,
+                directorate: user.directorate || 'DOA',
+                category: user.category || 'civilian',
+                role: user.role || 'civilian',
+                status: newStatus ? 'Approved' : 'In Progress',
+                is_active: user.is_active !== false,
+                is_onboarded: newStatus,
+                is_approval_role: user.is_approval_role === true || user.is_approval_role === 'true',
+                is_so_approver: user.is_so_approver === true,
+                is_ad_approver: user.is_ad_approver === true,
+                is_dd_approver: user.is_dd_approver === true,
+                is_final_approver: user.is_final_approver === true || user.is_final_approver === 'true',
+                appt: user.appt || '',
+                rankOrGrade: user.rankOrGrade || ''
+              };
+              
+              return fetch('/super-admin/edit-user', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload)
+              });
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data.status === 'success') {
+                showAdminAlert('Onboarding status updated successfully.', 'Success', 'success', () => {
+                  location.reload();
+                });
+              } else {
+                showAdminAlert('Failed: ' + data.message, 'Error', 'error');
+              }
+            })
+            .catch(err => {
+              showAdminAlert('Error: ' + err.message, 'Error', 'error');
+            });
+        }
+      );
+    }
+
+    function saveSystemSettings(e) {
+      e.preventDefault();
+      const allowRegistration = document.getElementById('allowRegistration').checked;
+      const maintenanceMode = document.getElementById('maintenanceMode').checked;
+      const csrfToken = document.getElementById('csrf_token')?.value || '';
+
+      fetch('/super-admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+          allow_registration: allowRegistration,
+          maintenance_mode: maintenanceMode
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          showAdminAlert('Portal settings saved successfully.', 'Success', 'success');
+        } else {
+          showAdminAlert('Failed to save settings: ' + data.message, 'Error', 'error');
+        }
+      })
+      .catch(err => {
+        showAdminAlert('Error: ' + err.message, 'Error', 'error');
+      });
+    }
+
+    function toggleNotifTargetInput() {
+      const targetType = document.getElementById('notifTarget').value;
+      const targetRoleContainer = document.getElementById('targetRoleContainer');
+      const targetUserContainer = document.getElementById('targetUserContainer');
+      
+      if (targetType === 'broadcast') {
+        targetRoleContainer.style.display = 'none';
+        targetUserContainer.style.display = 'none';
+      } else if (targetType === 'role') {
+        targetRoleContainer.style.display = 'flex';
+        targetUserContainer.style.display = 'none';
+      } else if (targetType === 'user') {
+        targetRoleContainer.style.display = 'none';
+        targetUserContainer.style.display = 'flex';
+      }
+    }
+
+    function sendAdminNotification(e) {
+      e.preventDefault();
+      const targetType = document.getElementById('notifTarget').value;
+      const message = document.getElementById('notifMessage').value;
+      const csrfToken = document.getElementById('csrf_token')?.value || '';
+      
+      const payload = {
+        target_type: targetType,
+        message: message
+      };
+      
+      if (targetType === 'role') {
+        payload.role = document.getElementById('notifRole').value;
+      } else if (targetType === 'user') {
+        payload.user = document.getElementById('notifUser').value;
+      }
+
+      fetch('/super-admin/notification/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          showAdminAlert('Notification dispatched successfully.', 'Success', 'success');
+          document.getElementById('notifMessage').value = '';
+        } else {
+          showAdminAlert('Failed: ' + data.message, 'Error', 'error');
+        }
+      })
+      .catch(err => {
+        showAdminAlert('Error: ' + err.message, 'Error', 'error');
+      });
+    }
+  </script>
+</body>
+
+</html>

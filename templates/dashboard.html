@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DSA Paperless - Dashboard</title>
+  <title>ODOGWU - Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
@@ -81,15 +81,15 @@
     .hero h1 {
       margin: 0;
       font-size: 34px;
-      letter-spacing: -.5px;
-      font-weight: 700
+      letter-spacing: -0.5px;
+      font-weight: 700;
     }
 
     .hero p {
       margin: 8px 0 0;
       font-size: 13px;
       color: #cfe0ff;
-      font-weight: 600
+      font-weight: 600;
     }
 
     .clock {
@@ -99,7 +99,7 @@
       font-size: 13px;
       font-weight: 600;
       color: #e6efff;
-      padding-top: 6px
+      padding-top: 6px;
     }
 
     .hero-stats {
@@ -114,7 +114,7 @@
     .hstat {
       display: flex;
       align-items: center;
-      gap: 12px
+      gap: 12px;
     }
 
     .hstat .ic {
@@ -131,13 +131,13 @@
     .hstat b {
       display: block;
       font-size: 19px;
-      line-height: 1.1
+      line-height: 1.1;
     }
 
     .hstat span {
       font-size: 13px;
       color: #bcd4ff;
-      font-weight: 600
+      font-weight: 600;
     }
 
     /* ---------- Metric cards ---------- */
@@ -145,18 +145,18 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 16px;
-      margin-top: 16px
+      margin-top: 16px;
     }
 
     .metric {
-      padding: 16px 16px 12px
+      padding: 16px 16px 12px;
     }
 
     .metric-head {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 10px
+      gap: 10px;
     }
 
     .metric h3 {
@@ -165,7 +165,7 @@
       letter-spacing: .09em;
       text-transform: uppercase;
       color: #5b6b86;
-      font-weight: 700
+      font-weight: 700;
     }
 
     .metric .big {
@@ -173,7 +173,7 @@
       font-weight: 700;
       color: var(--ink);
       margin: 8px 0 2px;
-      letter-spacing: -.5px
+      letter-spacing: -0.5px
     }
 
     .metric .sub {
@@ -703,6 +703,11 @@
         <div class="menu-section-label">OVERVIEW</div>
         <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
 
+        {% if user.role == 'super_admin' %}
+        <div class="menu-section-label">ADMINISTRATION</div>
+        <a href="/super-admin-dashboard" class="menu-item">🔑 Super Admin</a>
+        {% endif %}
+
         <div class="menu-section-label">REGISTRY</div>
         {% if "documents" in permissions.sidebar %}
         <a href="/documents-view" class="menu-item">📁 Documents</a>
@@ -719,44 +724,66 @@
 
         <div class="menu-section-label">HR MANAGEMENT</div>
         {% if "civilian_personnel" in permissions.sidebar %}
-        <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+        <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
         {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
         <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
         {% endif %} {% if "leave_pass" in permissions.sidebar %}
-        <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+        <a href="/dashboard_leave_pass" class="menu-item">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
         {% endif %}
-      </nav>
+
+        <!-- {% if user.role == 'super_admin' or user.is_approval_role or session.get('role') in ['cdsa', 'dcdsa', 'director', 'dd', 'ad', 'so', 'civilian_head_cao', 'central_registry', 'registry'] %}
+        <a href="/switch-view" class="menu-item" style="background: rgba(21, 101, 216, 0.1); border: 1px dashed var(--blue); color: var(--blue); margin-top: 15px; text-align: center; justify-content: center; font-weight: 600;">
+          {% if session.get('is_approval_role') %}
+            🔄 Switch to Personal Account
+          {% else %}
+            🔄 Switch to Approval Account
+          {% endif %}
+        </a>
+        {% endif %} -->
+
       <!-- Permanently Locked Footer Segment -->
       <div class="sidebar-footer">
+        <div class="menu-section-label">General</div>
+        {% if "support" in permissions.sidebar %}
+        <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "notification" in permissions.sidebar %}
+        <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "setting" in permissions.sidebar %}
+        <a href="/setting" class="menu-item">📅 Setting</a>
+        {% endif %}
+
+
+
         <a href="{{ url_for('logout') }}" class="logout-btn">
-          🚪 Logout
+          🚪 Sign out
         </a>
       </div>
+      </nav>
     </aside>
 
     <!-- ================= MAIN DASHBOARD CONTENT CONTAINER ================= -->
     <main class="main-content">
-      <!-- Top Navbar Section -->
-      <header class="top-navbar">
-        <div class="breadcrumb">
-          📋 DSA PAPERLESS &gt; <span class="active-crumb"> Dashboard</span>
-        </div>
-        <div class="user-profile-badge">
-          <!-- Clean circle initials token frame -->
-          <div class="user-avatar-circle" id="navAvatarIcon">
-            {{ user.name[:2] | upper if user.name else 'DS' }}
-          </div>
-          <!-- Multi-line text metadata stacking engine -->
-          <div class="user-meta-stack">
-            <h4 class="user-fullname-text">{{ user.name }}</h4>
-            <div class="user-role-row">
-              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
-              <span class="role-divider-dot">•</span>
-              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
-            </div>
-          </div>
-        </div>
-      </header>
+      {% include "base.html" %}
 
       <!-- Main Welcome Banner Card Layout -->
       <!-- <section class="welcome-banner">
@@ -937,7 +964,7 @@
           <div class="metric-head">
             <div>
               <h3>Documents</h3>
-              <div class="big">1297</div>
+              <div class="big">0</div>
               <div class="sub">Total Documents</div>
             </div>
             <span class="badge b-navy"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
@@ -946,9 +973,9 @@
               </svg></span>
           </div>
           <div class="metric-foot">
-            <div><b>234</b><span>Draft</span></div>
-            <div><b>105</b><span>Pending</span></div>
-            <div><b>954</b><span>Approved</span></div>
+            <div><b>0</b><span>Draft</span></div>
+            <div><b>0</b><span>Pending</span></div>
+            <div><b>0</b><span>Approved</span></div>
           </div>
         </article>
         <article class="card metric">
@@ -964,16 +991,16 @@
               </svg></span>
           </div>
           <div class="metric-foot">
-            <div><b>234</b><span>Pending</span></div>
-            <div><b>105</b><span>Approved</span></div>
-            <div><b>954</b><span>Rejected</span></div>
+            <div><b>0</b><span>Pending</span></div>
+            <div><b>0</b><span>Approved</span></div>
+            <div><b>0</b><span>Rejected</span></div>
           </div>
         </article>
         <article class="card metric">
           <div class="metric-head">
             <div>
               <h3>Promotions</h3>
-              <div class="big">1297</div>
+              <div class="big">0</div>
               <div class="sub">Total Record</div>
             </div>
             <span class="badge b-green"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
@@ -982,9 +1009,9 @@
               </svg></span>
           </div>
           <div class="metric-foot">
-            <div><b>234</b><span>Pending</span></div>
-            <div><b>105</b><span>Approved</span></div>
-            <div><b>954</b><span>Review</span></div>
+            <div><b>0</b><span>Pending</span></div>
+            <div><b>0</b><span>Approved</span></div>
+            <div><b>0</b><span>Review</span></div>
           </div>
         </article>
         <article class="card metric">
@@ -1010,7 +1037,7 @@
       {% if reliever_requests %}
       {% for req in reliever_requests %}
       <div class="alert-box"
-        style="background-color: #e6fffa; color: #234e52; padding: 15px; border-radius: 8px; margin: 25px; border-left: 4px solid #319795; display: flex; justify-content: space-between; align-items: center; border: 1px solid #b2f5ea; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+        style="background-color: #ffffff; padding: 15px; border-radius: 8px; margin: 25px; border-left: 4px solid #319795; display: flex; justify-content: space-between; align-items: center; border: 1px solid #b2f5ea; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
         <div>
           <strong style="display: block; margin-bottom: 4px; font-size: 16px; color: #2c7a7b;">📋 Reliever
             Request</strong>
@@ -1050,15 +1077,15 @@
           </div>
           <div class="sub-metrics">
             <div>
-              <span>234</span>
+              <span>0</span>
               <p>Draft</p>
             </div>
             <div>
-              <span>105</span>
+              <span>0</span>
               <p>Pending</p>
             </div>
             <div>
-              <span>954</span>
+              <span>0</span>
               <p>Approved</p>
             </div>
           </div>
@@ -1074,15 +1101,15 @@
           </div>
           <div class="sub-metrics">
             <div>
-              <span>234</span>
+              <span>0</span>
               <p>Military</p>
             </div>
             <div>
-              <span>105</span>
+              <span>0</span>
               <p>Civilian</p>
             </div>
             <div>
-              <span>954</span>
+              <span>0</span>
               <p>NYSC</p>
             </div>
           </div>
@@ -1267,7 +1294,7 @@
   <!-- Application Tracking Results Modal Overlay -->
   {% if show_result_modal %}
   <div id="resultModal" class="modal-overlay"
-    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1050; backdrop-filter: blur(5px); animation: fadeIn 0.3s ease;">
+    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 00; backdrop-filter: blur(5px); animation: fadeIn 0.3s ease;">
     <div class="modal-box"
       style="background: white; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transform: scale(1.02); animation: modalScale 0.3s ease;">
 

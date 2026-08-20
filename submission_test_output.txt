@@ -1,3 +1,0 @@
-Response Status Code: 302
-Redirect Location: /application-success?ref_id=DSA-DCS-2026-208586
-Flash Messages: [('info', 'ℹ️ This leave will deduct 6 working days from your Annual Leave balance'), ('warning', 'Warning: No Civilian Head found in DCS'), ('warning', 'Warning: No SO2 approver found in DCS'), ('warning', 'Warning: No Director found in DCS'), ('warning', 'Warning: No Registry found in DCS'), ('success', 'Application submitted successfully! Reference ID: DSA-DCS-2026-208586')]

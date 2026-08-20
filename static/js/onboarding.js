@@ -135,7 +135,7 @@ function goToStep(stepNumber) {
         const idCardElement = document.getElementById('idCardNameDisplay');
         if (idCardElement) idCardElement.textContent = compiledFullName || "NEW PERSONNEL STAFF";
 
-        const appointmentVal = document.getElementById('appointment')?.value || '';
+        const appointmentVal = document.getElementById('appt')?.value || '';
         const appointmentDisplay = document.getElementById('idCardAppointmentDisplay');
         if (appointmentDisplay) {
             appointmentDisplay.innerHTML = `<strong>Appointment:</strong> ${appointmentVal.toUpperCase()}`;

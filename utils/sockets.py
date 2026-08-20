@@ -1,4 +1,4 @@
-from flask import request, session as flask_session
+from flask import request, session as flask_session, current_app
 from flask_socketio import emit, join_room
 from modules.extensions import socketio
 from datetime import datetime
@@ -10,15 +10,20 @@ import os
 def handle_connect():
     print(f"🔌 Socket connect from SID: {request.sid}")
 
-    service_number = flask_session.get("service_number")
-    if not service_number:
-        print("❌ No service_number in session — socket connected but no room joined")
-        return
+    user_email = flask_session.get("user_email")
+    if user_email:
+        email_room = f"USER_{user_email.strip().lower()}"
+        join_room(email_room)
+        print(f"✅ Joined email room: {email_room}")
 
-    safe_sn = service_number.replace("/", "_")
-    user_room = f"USER_{safe_sn}"
-    join_room(user_room)
-    print(f"✅ Joined room: {user_room}")
+    service_number = flask_session.get("service_number")
+    if service_number:
+        safe_sn = service_number.replace("/", "_")
+        user_room = f"USER_{safe_sn}"
+        join_room(user_room)
+        print(f"✅ Joined service room: {user_room}")
+    else:
+        print("ℹ️ No service_number in session — skipped service room join")
 
     # Join role‑based rooms so we can broadcast to all users of a certain role
     # (useful if you ever want to notify all SOs, DDs, etc.)
@@ -87,14 +92,14 @@ db = mongo_client[db_name]
 
 @socketio.on('send_chat_message')
 def handle_send_chat_message(data):
-    sender_email = flask_session.get("email")
-    sender_name = flask_session.get("name", sender_email)
-    
+    sender_email = flask_session.get("user_email")
     if not sender_email:
         print("❌ Socket send_chat_message rejected: No sender session")
         return
         
-    recipient_email = data.get("recipient_email")
+    sender_email = sender_email.strip().lower()
+    sender_name = flask_session.get("name", sender_email)
+    recipient_email = data.get("recipient_email", "").strip().lower()
     text = data.get("text", "").strip()
     
     if not recipient_email or not text:
@@ -103,7 +108,9 @@ def handle_send_chat_message(data):
         
     now = datetime.now()
     participants = sorted([sender_email, recipient_email])
-    
+    safe_recipient = recipient_email.replace('.', '_')
+
+
     message_obj = {
         "sender_email": sender_email,
         "sender_name": sender_name,
@@ -111,8 +118,10 @@ def handle_send_chat_message(data):
         "timestamp": now
     }
     
-    safe_recipient = recipient_email.replace('.', '_')
-    db.chats.update_one(
+    chats_coll = current_app.chats_collection
+    users_coll = current_app.users_collection
+
+    chats_coll.update_one(
         {"participants": participants},
         {
             "$push": {"messages": message_obj},
@@ -126,25 +135,21 @@ def handle_send_chat_message(data):
     )
     
     # Broadcast to recipient room
-    recipient_user = db.users.find_one({"email": recipient_email})
-    if recipient_user and recipient_user.get("service_number"):
-        recipient_safe_sn = recipient_user["service_number"].replace("/", "_")
-        
-        payload = {
-            "sender_email": sender_email,
-            "sender_name": sender_name,
-            "text": text,
-            "timestamp": now.isoformat()
-        }
-        emit("receive_chat_message", payload, room=f"USER_{recipient_safe_sn}")
-        print(f"📡 Chat message routed to USER_{recipient_safe_sn}")
+    recipient_room = f"USER_{recipient_email}"
+    payload = {
+        "sender_email": sender_email,
+        "sender_name": sender_name,
+        "text": text,
+        "timestamp": now.isoformat()
+    }
+    emit("receive_chat_message", payload, room=recipient_room)
+    print(f"📡 Chat message routed to: {recipient_room}")
         
     # Confirm sent back to sender room
-    sender_user = db.users.find_one({"email": sender_email})
-    if sender_user and sender_user.get("service_number"):
-        sender_safe_sn = sender_user["service_number"].replace("/", "_")
-        emit("chat_message_sent", {
-            "recipient_email": recipient_email,
-            "text": text,
-            "timestamp": now.isoformat()
-        }, room=f"USER_{sender_safe_sn}")
+    sender_room = f"USER_{sender_email}"
+    emit("chat_message_sent", {
+        "recipient_email": recipient_email,
+        "text": text,
+        "timestamp": now.isoformat()
+    }, room=sender_room)
+    print(f"📡 Sent confirmation routed to: {sender_room}")

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    .notif-container {
+      padding: 25px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .notif-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 15px;
+    }
+
+    .notif-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #111827;
+      margin: 0;
+    }
+
+    .notif-btn-all {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .notif-btn-all:hover {
+      background: #dbeafe;
+    }
+
+    .notif-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .notif-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      gap: 15px;
+      align-items: flex-start;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .notif-card:hover {
+      border-color: #3b82f6;
+      background: #f8fafc;
+      transform: translateY(-1px);
+    }
+
+    .notif-card.unread {
+      border-left: 4px solid #3b82f6;
+      background: #f9fafb;
+    }
+
+    .notif-card.unread:hover {
+      background: #eff6ff;
+    }
+
+    .notif-icon-wrapper {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .notif-icon-wrapper.parade {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .notif-icon-wrapper.leave {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .notif-icon-wrapper.default {
+      background: #f3f4f6;
+      color: #4b5563;
+    }
+
+    .notif-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .notif-message {
+      font-size: 0.9rem;
+      color: #1f2937;
+      margin: 0 0 6px 0;
+      line-height: 1.4;
+      font-weight: 500;
+    }
+
+    .notif-card.unread .notif-message {
+      font-weight: 600;
+    }
+
+    .notif-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.78rem;
+      color: #6b7280;
+    }
+
+    .notif-badge {
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+    }
+
+    .notif-badge.unread {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .notif-dismiss-btn {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notif-dismiss-btn:hover {
+      background: #f3f4f6;
+      color: #ef4444;
+    }
+  </style>
+</head>
+
+<body data-active-page="notifications">
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
+        <div>
+          <h2>Defence Space Administration</h2>
+          <p>{{ user.directorate }}</p>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OVERVIEW</div>
+        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+
+        {% if user.role == 'super_admin' %}
+        <div class="menu-section-label">ADMINISTRATION</div>
+        <a href="/super-admin-dashboard" class="menu-item">🔑 Super Admin</a>
+        {% endif %}
+
+        <div class="menu-section-label">REGISTRY</div>
+        {% if "documents" in permissions.sidebar %}
+        <a href="/documents-view" class="menu-item">📁 Documents</a>
+        {% endif %} {% if "incoming" in permissions.sidebar %}
+        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
+        {% endif %} {% if "outgoing" in permissions.sidebar %}
+        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
+        {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
+        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
+        {% endif %}
+
+        <div class="menu-section-label">HR MANAGEMENT</div>
+        {% if "civilian_personnel" in permissions.sidebar %}
+        <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
+        <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
+        {% endif %} {% if "leave_pass" in permissions.sidebar %}
+        <a href="/dashboard_leave_pass" class="menu-item active">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+
+        <!-- {% if user.role == 'super_admin' or user.is_approval_role or session.get('role') in ['cdsa', 'dcdsa',
+        'director', 'dd', 'ad', 'so', 'registry'] %}
+        <a href="/switch-view" class="menu-item"
+          style="background: rgba(21, 101, 216, 0.1); border: 1px dashed var(--blue); color: var(--blue); margin-top: 15px; text-align: center; justify-content: center; font-weight: 600;">
+          {% if session.get('is_approval_role') %}
+          🔄 Switch to Personal Account
+          {% else %}
+          🔄 Switch to Approval Account
+          {% endif %}
+        </a>
+        {% endif %} -->
+        
+      <!-- Permanently Locked Footer Segment -->
+      <div class="sidebar-footer">
+        <div class="menu-section-label">General</div>
+        {% if "support" in permissions.sidebar %}
+        <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "notification" in permissions.sidebar %}
+        <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %} {% if "setting" in permissions.sidebar %}
+        <a href="/setting" class="menu-item">📅 Setting</a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}" class="logout-btn">
+          🚪 Sign out
+        </a>
+      </div>
+      </nav>
+    </aside>
+
+
+
+
+    <div class="main-content">
+      {% include "base.html" %}
+
+      <div class="notif-container">
+        <div class="notif-header">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <h1 class="notif-title">Notifications</h1>
+            {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="notification-badge"
+              style="background:#ef4444; color:white; font-size:0.8rem; font-weight:700; padding:2px 8px; border-radius:12px;">
+              {{ unread_notifications_count }} New
+            </span>
+            {% endif %}
+          </div>
+          <button class="notif-btn-all" onclick="markAllRead()">Mark all as read</button>
+        </div>
+
+        <div class="notif-list">
+          {% for n in notifications %}
+          {% set is_parade = n.type == 'parade' %}
+          {% set is_leave = n.type.startswith('application_') or n.type == 'approval_required' %}
+
+          {% set target_url = '#' %}
+          {% if n.applicationId %}
+          {% if is_parade %}
+          {% set target_url = url_for('parade_state.view_parade_state', parade_id=n.applicationId) %}
+          {% elif is_leave %}
+          {% set target_url = url_for('approver_dashboard.view_application', app_id=n.applicationId) %}
+          {% endif %}
+          {% endif %}
+
+          <div class="notif-card {{ 'unread' if not n.is_read else '' }}" id="notif-{{ n._id }}"
+            onclick="clickNotification('{{ n._id }}', '{{ target_url }}')">
+            <div class="notif-icon-wrapper {{ 'parade' if is_parade else ('leave' if is_leave else 'default') }}">
+              {% if is_parade %}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              {% elif is_leave %}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              {% else %}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              {% endif %}
+            </div>
+
+            <div class="notif-body">
+              <p class="notif-message">{{ n.message }}</p>
+              <div class="notif-meta">
+                <span class="notif-badge {{ 'unread' if not n.is_read else '' }}">
+                  {{ 'Unread' if not n.is_read else 'Read' }}
+                </span>
+                <span>{{ n.createdAt.strftime('%d %b %Y %H:%M') if n.createdAt and n.createdAt.strftime else n.createdAt
+                  }}</span>
+              </div>
+            </div>
+
+            <button class="notif-dismiss-btn" title="Dismiss notification" onclick="dismissNotif('{{ n._id }}', event)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          {% else %}
+          <div
+            style="background:white; border:1px dashed #d1d5db; border-radius:10px; padding:40px; text-align:center; color:#6b7280;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+              style="margin-bottom:10px;">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <p style="margin:0; font-size:0.95rem; font-weight:500;">You have no notifications at this time.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
+  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Development version -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- Production version -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script>
+    // Click card: mark read (if unread) then redirect
+    function clickNotification(id, targetUrl) {
+      const card = document.getElementById(`notif-${id}`);
+      const isUnread = card.classList.contains('unread');
+
+      if (isUnread) {
+        fetch(`/notifications/read/${id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': "{{ csrf_token() }}"
+          }
+        })
+          .then(() => {
+            if (targetUrl && targetUrl !== '#') {
+              window.location.href = targetUrl;
+            } else {
+              window.location.reload();
+            }
+          });
+      } else {
+        if (targetUrl && targetUrl !== '#') {
+          window.location.href = targetUrl;
+        }
+      }
+    }
+
+    // Dismiss single notification
+    function dismissNotif(id, event) {
+      event.stopPropagation(); // Prevent card click trigger
+
+      fetch(`/notifications/delete/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': "{{ csrf_token() }}"
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const card = document.getElementById(`notif-${id}`);
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+              card.remove();
+              // If list empty, reload to show empty state
+              if (document.querySelectorAll('.notif-card').length === 0) {
+                window.location.reload();
+              }
+            }, 200);
+          }
+        });
+    }
+
+    // Mark all read
+    function markAllRead() {
+      fetch('/notifications/read-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': "{{ csrf_token() }}"
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            window.location.reload();
+          }
+        });
+    }
+  </script>
+</body>
+
+</html>

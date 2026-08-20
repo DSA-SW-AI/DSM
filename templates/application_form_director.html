@@ -15,6 +15,7 @@
         .conditional-field {
             display: none;
         }
+
         /* NEW STYLES FOR TWO-COLUMN LAYOUT */
         .application-container {
             display: flex;
@@ -382,8 +383,9 @@
             margin-right: 6px;
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  </head>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
 
 <body>
 
@@ -415,19 +417,47 @@
 
                 <div class="menu-section-label">HR MANAGEMENT</div>
                 {% if "civilian_personnel" in permissions.sidebar %}
-                <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+                <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
                 {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
                 <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
                 {% endif %} {% if "leave_pass" in permissions.sidebar %}
-                <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+                <a href="/dashboard_leave_pass" class="menu-item">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
                 {% endif %}
+                <!-- Permanently Locked Footer Segment -->
+                <div class="sidebar-footer">
+                    <div class="menu-section-label">General</div>
+                    {% if "support" in permissions.sidebar %}
+                    <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+                    {% endif %} {% if "notification" in permissions.sidebar %}
+                    <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+                    {% endif %} {% if "setting" in permissions.sidebar %}
+                    <a href="/setting" class="menu-item">📅 Setting</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="logout-btn">
+                        🚪 Sign out
+                    </a>
+                </div>
             </nav>
-            <!-- Permanently Locked Footer Segment -->
-            <div class="sidebar-footer">
-                <a href="{{ url_for('logout') }}" class="logout-btn">
-                    🚪 Logout
-                </a>
-            </div>
         </aside>
 
 
@@ -437,7 +467,7 @@
             <!-- Top Navbar Section -->
             <header class="top-navbar">
                 <div class="breadcrumb">
-                    📋 DSA PAPERLESS &gt; <span class="active-crumb"> Directors Leave/Pass Application Form</span>
+                    📋 ODOGWU &gt; <span class="active-crumb"> Directors Leave/Pass Application Form</span>
                 </div>
                 <div class="user-profile-badge">
                     <!-- Clean circle initials token frame -->
@@ -623,36 +653,43 @@
                                 </div>
 
                                 <div class="form-group">
-                                     <label for="director_reliever_select">Who to oversee duties/responsibilities during period of my pass/leave.</label>
-                                     <select id="director_reliever_select" class="form-select" style="padding: 10px; border-radius: 8px; border: 1px solid #ced4da; font-size: 14px; margin-top: 5px; cursor: pointer; color: #2c3e50; font-weight: 500;">
-                                         <option value="">-- Select Deputy Director --</option>
-                                         {% for dd in deputy_directors %}
-                                         <option value="{{ dd.service_number }}" data-name="{{ dd.name }}" data-rank="{{ dd.rankOrGrade }}" data-tel="{{ dd.telephone }}">
-                                             {{ dd.rankOrGrade }} {{ dd.name }} ({{ dd.service_number }})
-                                         </option>
-                                         {% endfor %}
-                                     </select>
-                                 </div>
-                                 <div class="form-group">
-                                     <label for="director_reliever_service_number">Service Number</label>
-                                     <input type="text" autocomplete="off" id="director_reliever_service_number"
-                                         name="director_reliever_service_number" placeholder="" readonly style="background-color: #f8f9fa; color: #495057;">
-                                 </div>
-                                 <div class="form-group">
-                                     <label for="director_reliever_rank">Rank</label>
-                                     <input type="text" autocomplete="off" id="director_reliever_rank"
-                                         name="director_reliever_rank" placeholder="" readonly style="background-color: #f8f9fa; color: #495057;">
-                                 </div>
-                                 <div class="form-group">
-                                     <label for="director_reliever_name">Name</label>
-                                     <input type="text" autocomplete="off" id="director_reliever_name"
-                                         name="director_reliever_name" placeholder="" readonly style="background-color: #f8f9fa; color: #495057;">
-                                 </div>
-                                 <div class="form-group">
-                                     <label for="director_reliever_telephone">Telephone</label>
-                                     <input type="text" autocomplete="off" id="director_reliever_telephone"
-                                         name="director_reliever_telephone" placeholder="" readonly style="background-color: #f8f9fa; color: #495057;">
-                                 </div>
+                                    <label for="director_reliever_select">Who to oversee duties/responsibilities during
+                                        period of my pass/leave.</label>
+                                    <select id="director_reliever_select" class="form-select"
+                                        style="padding: 10px; border-radius: 8px; border: 1px solid #ced4da; font-size: 14px; margin-top: 5px; cursor: pointer; color: #2c3e50; font-weight: 500;">
+                                        <option value="">-- Select Deputy Director --</option>
+                                        {% for dd in deputy_directors %}
+                                        <option value="{{ dd.service_number }}" data-name="{{ dd.name }}"
+                                            data-rank="{{ dd.rankOrGrade }}" data-tel="{{ dd.telephone }}">
+                                            {{ dd.rankOrGrade }} {{ dd.name }} ({{ dd.service_number }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="director_reliever_service_number">Service Number</label>
+                                    <input type="text" autocomplete="off" id="director_reliever_service_number"
+                                        name="director_reliever_service_number" placeholder="" readonly
+                                        style="background-color: #f8f9fa; color: #495057;">
+                                </div>
+                                <div class="form-group">
+                                    <label for="director_reliever_rank">Rank</label>
+                                    <input type="text" autocomplete="off" id="director_reliever_rank"
+                                        name="director_reliever_rank" placeholder="" readonly
+                                        style="background-color: #f8f9fa; color: #495057;">
+                                </div>
+                                <div class="form-group">
+                                    <label for="director_reliever_name">Name</label>
+                                    <input type="text" autocomplete="off" id="director_reliever_name"
+                                        name="director_reliever_name" placeholder="" readonly
+                                        style="background-color: #f8f9fa; color: #495057;">
+                                </div>
+                                <div class="form-group">
+                                    <label for="director_reliever_telephone">Telephone</label>
+                                    <input type="text" autocomplete="off" id="director_reliever_telephone"
+                                        name="director_reliever_telephone" placeholder="" readonly
+                                        style="background-color: #f8f9fa; color: #495057;">
+                                </div>
 
                                 <button type="submit" class="login-btn">Submit Application</button>
                             </form>
@@ -662,19 +699,25 @@
                                 style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 25000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
                                 <div class="success-card"
                                     style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 500px; width: 100%; text-align: center; position: relative; box-sizing: border-box; transform: scale(0.9); transition: transform 0.3s ease;">
-                                    
-                                    <div class="error-icon" style="font-size: 60px; color: #dc3545; margin-bottom: 15px;">
+
+                                    <div class="error-icon"
+                                        style="font-size: 60px; color: #dc3545; margin-bottom: 15px;">
                                         <i class="bi bi-x-circle-fill" style="color: #dc3545;"></i>
                                     </div>
 
-                                    <h1 id="validationErrorTitle" style="color: #2c3e50; margin-bottom: 15px; font-size: 22px; font-weight: 700; line-height: 1.2;">Validation Error</h1>
+                                    <h1 id="validationErrorTitle"
+                                        style="color: #2c3e50; margin-bottom: 15px; font-size: 22px; font-weight: 700; line-height: 1.2;">
+                                        Validation Error</h1>
 
-                                    <p id="validationErrorMessage" style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 25px;">
+                                    <p id="validationErrorMessage"
+                                        style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 25px;">
                                         Error message
                                     </p>
 
-                                    <div class="action-buttons" style="display: flex; gap: 12px; justify-content: center;">
-                                        <button type="button" onclick="closeValidationErrorModal()" class="btn btn-home" style="padding: 10px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px; background: #dc3545; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                    <div class="action-buttons"
+                                        style="display: flex; gap: 12px; justify-content: center;">
+                                        <button type="button" onclick="closeValidationErrorModal()" class="btn btn-home"
+                                            style="padding: 10px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px; background: #dc3545; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
                                             Dismiss
                                         </button>
                                     </div>
@@ -686,70 +729,96 @@
                                 style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 20000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
                                 <div class="success-card"
                                     style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 600px; width: 100%; text-align: center; position: relative; box-sizing: border-box; max-height: 95vh; overflow-y: auto;">
-                                    
-                                    <div class="success-icon" style="font-size: 60px; color: #28a745; margin-bottom: 15px; animation: bounce 1s ease;">
+
+                                    <div class="success-icon"
+                                        style="font-size: 60px; color: #28a745; margin-bottom: 15px; animation: bounce 1s ease;">
                                         <i class="ri-checkbox-circle-fill"></i>
                                     </div>
 
-                                    <h1 style="color: #2c3e50; margin-bottom: 15px; font-size: 24px; font-weight: 700; line-height: 1.2;">Application Submitted Successfully!</h1>
+                                    <h1
+                                        style="color: #2c3e50; margin-bottom: 15px; font-size: 24px; font-weight: 700; line-height: 1.2;">
+                                        Application Submitted Successfully!</h1>
 
-                                    <p class="success-message" style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 20px;">
+                                    <p class="success-message"
+                                        style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 20px;">
                                         Your application has been received and is now being processed.<br>
                                         Please keep your Reference ID for tracking purposes.
                                     </p>
 
-                                    <div class="ref-id-box" style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 15px; padding: 20px; margin: 20px 0; position: relative; box-sizing: border-box;">
-                                        <strong style="display: block; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Reference ID</strong>
-                                        <div id="successRefIdValue" class="ref-id-value" style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; color: #2c3e50; letter-spacing: 2px;">DSA-DCS-2026-XXXXXX</div>
-                                        <button type="button" class="ref-id-copy" onclick="copyModalReferenceId()" style="position: absolute; top: 12px; right: 12px; background: #3498db; color: white; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; transition: all 0.3s ease;">
+                                    <div class="ref-id-box"
+                                        style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 15px; padding: 20px; margin: 20px 0; position: relative; box-sizing: border-box;">
+                                        <strong
+                                            style="display: block; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Reference
+                                            ID</strong>
+                                        <div id="successRefIdValue" class="ref-id-value"
+                                            style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; color: #2c3e50; letter-spacing: 2px;">
+                                            DSA-DCS-2026-XXXXXX</div>
+                                        <button type="button" class="ref-id-copy" onclick="copyModalReferenceId()"
+                                            style="position: absolute; top: 12px; right: 12px; background: #3498db; color: white; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; transition: all 0.3s ease;">
                                             <i class="ri-file-copy-line"></i> Copy
                                         </button>
                                     </div>
 
-                                    <div class="instructions" style="background: #e8f4f8; border-radius: 15px; padding: 20px; margin: 20px 0; text-align: left;">
-                                        <h3 style="color: #2c3e50; margin-bottom: 10px; font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: 700; margin-top: 0;"><i class="ri-information-line"></i> What's Next?</h3>
+                                    <div class="instructions"
+                                        style="background: #e8f4f8; border-radius: 15px; padding: 20px; margin: 20px 0; text-align: left;">
+                                        <h3
+                                            style="color: #2c3e50; margin-bottom: 10px; font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: 700; margin-top: 0;">
+                                            <i class="ri-information-line"></i> What's Next?</h3>
                                         <ul style="list-style: none; padding: 0; margin: 0;">
-                                            <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                            <li
+                                                style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
                                                 <i class="ri-save-line" style="color: #3498db; margin-top: 3px;"></i>
                                                 <div>
                                                     <strong>Save Your Reference ID</strong>
-                                                    <p style="margin: 0; font-size: 12px; color: #777;">Keep this ID safe to track your application status.</p>
+                                                    <p style="margin: 0; font-size: 12px; color: #777;">Keep this ID
+                                                        safe to track your application status.</p>
                                                 </div>
                                             </li>
-                                            <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                            <li
+                                                style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
                                                 <i class="ri-time-line" style="color: #3498db; margin-top: 3px;"></i>
                                                 <div>
                                                     <strong>Processing Time</strong>
-                                                    <p style="margin: 0; font-size: 12px; color: #777;">Applications typically take 3-5 working days.</p>
+                                                    <p style="margin: 0; font-size: 12px; color: #777;">Applications
+                                                        typically take 3-5 working days.</p>
                                                 </div>
                                             </li>
-                                            <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
-                                                <i class="ri-notification-line" style="color: #3498db; margin-top: 3px;"></i>
+                                            <li
+                                                style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                <i class="ri-notification-line"
+                                                    style="color: #3498db; margin-top: 3px;"></i>
                                                 <div>
                                                     <strong>Status Updates</strong>
-                                                    <p style="margin: 0; font-size: 12px; color: #777;">You'll receive email notifications at each approval stage.</p>
+                                                    <p style="margin: 0; font-size: 12px; color: #777;">You'll receive
+                                                        email notifications at each approval stage.</p>
                                                 </div>
                                             </li>
-                                            <li style="padding: 8px 0; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                            <li
+                                                style="padding: 8px 0; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
                                                 <i class="ri-search-line" style="color: #3498db; margin-top: 3px;"></i>
                                                 <div>
                                                     <strong>Track Progress</strong>
-                                                    <p style="margin: 0; font-size: 12px; color: #777;">Use the button below to track your application anytime.</p>
+                                                    <p style="margin: 0; font-size: 12px; color: #777;">Use the button
+                                                        below to track your application anytime.</p>
                                                 </div>
                                             </li>
                                         </ul>
                                     </div>
 
-                                    <div class="action-buttons" style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
-                                        <a id="modalTrackBtn" href="#" class="btn btn-track" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                    <div class="action-buttons"
+                                        style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+                                        <a id="modalTrackBtn" href="#" class="btn btn-track"
+                                            style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
                                             <i class="ri-search-line"></i> Track Application
                                         </a>
 
-                                        <button type="button" onclick="window.print()" class="btn btn-print" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #f8f9fa; color: #495057; border: 1px solid #dee2e6; cursor: pointer;">
+                                        <button type="button" onclick="window.print()" class="btn btn-print"
+                                            style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #f8f9fa; color: #495057; border: 1px solid #dee2e6; cursor: pointer;">
                                             <i class="ri-printer-line"></i> Print Receipt
                                         </button>
 
-                                        <a href="/dashboard_leave_pass" class="btn btn-home" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #28a745; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                        <a href="/dashboard_leave_pass" class="btn btn-home"
+                                            style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #28a745; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
                                             <i class="ri-home-line"></i> Back to Dashboard
                                         </a>
                                     </div>
@@ -1160,7 +1229,7 @@
             const telInput = document.getElementById("director_reliever_telephone");
 
             if (overseerSelect) {
-                overseerSelect.addEventListener("change", function() {
+                overseerSelect.addEventListener("change", function () {
                     const selectedOpt = overseerSelect.options[overseerSelect.selectedIndex];
                     if (selectedOpt && selectedOpt.value !== "") {
                         serviceNoInput.value = selectedOpt.value;
@@ -1218,7 +1287,7 @@
             }, 50);
         }
 
-        window.closeValidationErrorModal = function() {
+        window.closeValidationErrorModal = function () {
             const modal = document.getElementById('validationErrorModal');
             modal.children[0].style.transform = 'scale(0.9)';
             setTimeout(() => {
@@ -1227,13 +1296,13 @@
         }
 
         // === Form Submit Interceptor to show Success Modal ===
-        document.getElementById('registerForm')?.addEventListener('submit', function(e) {
+        document.getElementById('registerForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
-            
+
             const formData = new FormData(this);
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Submit Application';
-            
+
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
@@ -1265,7 +1334,7 @@
                 }
                 return;
             }
-            
+
             fetch(this.action, {
                 method: 'POST',
                 headers: {
@@ -1274,48 +1343,48 @@
                 },
                 body: formData
             })
-            .then(response => {
-                if (response.redirected) {
-                    window.location.href = response.url;
-                    return null;
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data === null) {
-                    return;
-                }
-                if (data && data.success) {
-                    // Populate success modal values
-                    document.getElementById('successRefIdValue').textContent = data.referenceId;
-                    document.getElementById('modalTrackBtn').href = `/track_application?reference_id=${data.referenceId}`;
-                    
-                    // Show success modal
-                    const successModal = document.getElementById('applicationSuccessModal');
-                    successModal.style.display = 'flex';
-                    setTimeout(() => {
-                        successModal.children[0].style.transform = 'scale(1)';
-                    }, 50);
-                } else {
-                    alert(data && data.error ? data.error : 'An error occurred during submission.');
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                        return null;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data === null) {
+                        return;
+                    }
+                    if (data && data.success) {
+                        // Populate success modal values
+                        document.getElementById('successRefIdValue').textContent = data.referenceId;
+                        document.getElementById('modalTrackBtn').href = `/track_application?reference_id=${data.referenceId}`;
+
+                        // Show success modal
+                        const successModal = document.getElementById('applicationSuccessModal');
+                        successModal.style.display = 'flex';
+                        setTimeout(() => {
+                            successModal.children[0].style.transform = 'scale(1)';
+                        }, 50);
+                    } else {
+                        alert(data && data.error ? data.error : 'An error occurred during submission.');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalBtnHtml;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Submission error:', error);
+                    alert('A network error occurred while submitting your application.');
                     if (submitBtn) {
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalBtnHtml;
                     }
-                }
-            })
-            .catch(error => {
-                console.error('Submission error:', error);
-                alert('A network error occurred while submitting your application.');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnHtml;
-                }
-            });
+                });
         });
 
         // Function to copy reference ID from success modal
-        window.copyModalReferenceId = function() {
+        window.copyModalReferenceId = function () {
             const refId = document.getElementById('successRefIdValue').textContent;
             navigator.clipboard.writeText(refId).then(() => {
                 const copyBtn = document.querySelector('#applicationSuccessModal .ref-id-copy');

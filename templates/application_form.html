@@ -15,6 +15,7 @@
         .conditional-field {
             display: none;
         }
+
         /* NEW STYLES FOR TWO-COLUMN LAYOUT */
         .application-container {
             display: flex;
@@ -382,8 +383,9 @@
             margin-right: 6px;
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  </head>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
 
 <body>
 
@@ -415,19 +417,47 @@
 
                 <div class="menu-section-label">HR MANAGEMENT</div>
                 {% if "civilian_personnel" in permissions.sidebar %}
-                <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+                <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
                 {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
                 <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
                 {% endif %} {% if "leave_pass" in permissions.sidebar %}
-                <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
+                <a href="/dashboard_leave_pass" class="menu-item">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
+        </a>
                 {% endif %}
+                <!-- Permanently Locked Footer Segment -->
+                <div class="sidebar-footer">
+                    <div class="menu-section-label">General</div>
+                    {% if "support" in permissions.sidebar %}
+                    <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+                    {% endif %} {% if "notification" in permissions.sidebar %}
+                    <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+                    {% endif %} {% if "setting" in permissions.sidebar %}
+                    <a href="/setting" class="menu-item">📅 Setting</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="logout-btn">
+                        🚪 Sign out
+                    </a>
+                </div>
             </nav>
-            <!-- Permanently Locked Footer Segment -->
-            <div class="sidebar-footer">
-                <a href="{{ url_for('logout') }}" class="logout-btn">
-                    🚪 Logout
-                </a>
-            </div>
         </aside>
 
 
@@ -435,7 +465,7 @@
             <!-- Top Navbar Section -->
             <header class="top-navbar">
                 <div class="breadcrumb">
-                    📋 DSA PAPERLESS &gt; <span class="active-crumb"> Civilian Staff Leave/Pass Application Form</span>
+                    📋 ODOGWU &gt; <span class="active-crumb"> Civilian Staff Leave/Pass Application Form</span>
                 </div>
                 <div class="user-profile-badge">
                     <!-- Clean circle initials token frame -->
@@ -482,7 +512,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="fname">Name</label>
-                                    <input type="text" autocomplete="off" id="fname" name="fname" 
+                                    <input type="text" autocomplete="off" id="fname" name="fname"
                                         value="{{ applicant.fullName }}" readonly>
                                 </div>
 
@@ -506,10 +536,13 @@
                                 <!-- Dynamic Reliever Selection Fields -->
                                 <div class="form-group">
                                     <label for="reliever_email_select">Name of Reliever</label>
-                                    <select id="reliever_email_select" class="form-control" style="border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px;" required>
+                                    <select id="reliever_email_select" class="form-control"
+                                        style="border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px;" required>
                                         <option value="" data-appt="">-- Select a Reliever --</option>
                                         {% for reliever in potential_relievers %}
-                                        <option value="{{ reliever.email }}" data-appt="{{ reliever.appt or reliever.title or '' }}">{{ reliever.name }}</option>
+                                        <option value="{{ reliever.email }}"
+                                            data-appt="{{ reliever.appt or reliever.title or '' }}">{{ reliever.name }}
+                                        </option>
                                         {% endfor %}
                                     </select>
                                     <input type="hidden" id="reliever_email" name="reliever_email" value="">
@@ -519,7 +552,8 @@
                                 <div class="form-group">
                                     <label for="appt_of_reliever">Appointment of Reliever</label>
                                     <input type="text" autocomplete="off" id="appt_of_reliever" name="appt_of_reliever"
-                                        placeholder="" readonly style="background-color: #f7fafc; border: 1px solid #e2e8f0; cursor: not-allowed;">
+                                        placeholder="" readonly
+                                        style="background-color: #f7fafc; border: 1px solid #e2e8f0; cursor: not-allowed;">
                                 </div>
 
                                 <!-- Reliever Confirmation Modal -->
@@ -527,11 +561,15 @@
                                     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; transition: opacity 0.3s ease;">
                                     <div class="modal-container"
                                         style="background: white; padding: 30px; border-radius: 16px; max-width: 450px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: scale(0.95); transition: transform 0.3s ease; text-align: center; border: 1px solid #e2e8f0;">
-                                        <div style="width: 60px; height: 60px; background-color: #e6fffa; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; color: #319795; font-size: 28px;">
+                                        <div
+                                            style="width: 60px; height: 60px; background-color: #e6fffa; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; color: #319795; font-size: 28px;">
                                             👤
                                         </div>
-                                        <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #1a202c; font-weight: 700;">Request Reliever</h3>
-                                        <p id="relieverModalText" style="font-size: 14px; color: #4a5568; line-height: 1.5; margin: 0 0 25px 0;">
+                                        <h3
+                                            style="margin: 0 0 10px 0; font-size: 18px; color: #1a202c; font-weight: 700;">
+                                            Request Reliever</h3>
+                                        <p id="relieverModalText"
+                                            style="font-size: 14px; color: #4a5568; line-height: 1.5; margin: 0 0 25px 0;">
                                             Send a request to stand as reliever?
                                         </p>
                                         <div style="display: flex; gap: 12px; justify-content: center;">
@@ -552,19 +590,26 @@
                                     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 25000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
                                     <div class="success-card"
                                         style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 500px; width: 100%; text-align: center; position: relative; box-sizing: border-box; transform: scale(0.9); transition: transform 0.3s ease;">
-                                        
-                                        <div class="error-icon" style="font-size: 60px; color: #dc3545; margin-bottom: 15px;">
+
+                                        <div class="error-icon"
+                                            style="font-size: 60px; color: #dc3545; margin-bottom: 15px;">
                                             <i class="bi bi-x-circle-fill" style="color: #dc3545;"></i>
                                         </div>
 
-                                        <h1 id="validationErrorTitle" style="color: #2c3e50; margin-bottom: 15px; font-size: 22px; font-weight: 700; line-height: 1.2;">Validation Error</h1>
+                                        <h1 id="validationErrorTitle"
+                                            style="color: #2c3e50; margin-bottom: 15px; font-size: 22px; font-weight: 700; line-height: 1.2;">
+                                            Validation Error</h1>
 
-                                        <p id="validationErrorMessage" style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 25px;">
+                                        <p id="validationErrorMessage"
+                                            style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 25px;">
                                             Error message
                                         </p>
 
-                                        <div class="action-buttons" style="display: flex; gap: 12px; justify-content: center;">
-                                            <button type="button" onclick="closeValidationErrorModal()" class="btn btn-home" style="padding: 10px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px; background: #dc3545; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                        <div class="action-buttons"
+                                            style="display: flex; gap: 12px; justify-content: center;">
+                                            <button type="button" onclick="closeValidationErrorModal()"
+                                                class="btn btn-home"
+                                                style="padding: 10px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px; background: #dc3545; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
                                                 Dismiss
                                             </button>
                                         </div>
@@ -576,70 +621,99 @@
                                     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 20000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
                                     <div class="success-card"
                                         style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 600px; width: 100%; text-align: center; position: relative; box-sizing: border-box; max-height: 95vh; overflow-y: auto;">
-                                        
-                                        <div class="success-icon" style="font-size: 60px; color: #28a745; margin-bottom: 15px; animation: bounce 1s ease;">
+
+                                        <div class="success-icon"
+                                            style="font-size: 60px; color: #28a745; margin-bottom: 15px; animation: bounce 1s ease;">
                                             <i class="ri-checkbox-circle-fill"></i>
                                         </div>
 
-                                        <h1 style="color: #2c3e50; margin-bottom: 15px; font-size: 24px; font-weight: 700; line-height: 1.2;">Application Submitted Successfully!</h1>
+                                        <h1
+                                            style="color: #2c3e50; margin-bottom: 15px; font-size: 24px; font-weight: 700; line-height: 1.2;">
+                                            Application Submitted Successfully!</h1>
 
-                                        <p class="success-message" style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 20px;">
+                                        <p class="success-message"
+                                            style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 20px;">
                                             Your application has been received and is now being processed.<br>
                                             Please keep your Reference ID for tracking purposes.
                                         </p>
 
-                                        <div class="ref-id-box" style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 15px; padding: 20px; margin: 20px 0; position: relative; box-sizing: border-box;">
-                                            <strong style="display: block; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Reference ID</strong>
-                                            <div id="successRefIdValue" class="ref-id-value" style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; color: #2c3e50; letter-spacing: 2px;">DSA-DCS-2026-XXXXXX</div>
-                                            <button type="button" class="ref-id-copy" onclick="copyModalReferenceId()" style="position: absolute; top: 12px; right: 12px; background: #3498db; color: white; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; transition: all 0.3s ease;">
+                                        <div class="ref-id-box"
+                                            style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 15px; padding: 20px; margin: 20px 0; position: relative; box-sizing: border-box;">
+                                            <strong
+                                                style="display: block; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Reference
+                                                ID</strong>
+                                            <div id="successRefIdValue" class="ref-id-value"
+                                                style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; color: #2c3e50; letter-spacing: 2px;">
+                                                DSA-DCS-2026-XXXXXX</div>
+                                            <button type="button" class="ref-id-copy" onclick="copyModalReferenceId()"
+                                                style="position: absolute; top: 12px; right: 12px; background: #3498db; color: white; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; transition: all 0.3s ease;">
                                                 <i class="ri-file-copy-line"></i> Copy
                                             </button>
                                         </div>
 
-                                        <div class="instructions" style="background: #e8f4f8; border-radius: 15px; padding: 20px; margin: 20px 0; text-align: left;">
-                                            <h3 style="color: #2c3e50; margin-bottom: 10px; font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: 700; margin-top: 0;"><i class="ri-information-line"></i> What's Next?</h3>
+                                        <div class="instructions"
+                                            style="background: #e8f4f8; border-radius: 15px; padding: 20px; margin: 20px 0; text-align: left;">
+                                            <h3
+                                                style="color: #2c3e50; margin-bottom: 10px; font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: 700; margin-top: 0;">
+                                                <i class="ri-information-line"></i> What's Next?</h3>
                                             <ul style="list-style: none; padding: 0; margin: 0;">
-                                                <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
-                                                    <i class="ri-save-line" style="color: #3498db; margin-top: 3px;"></i>
+                                                <li
+                                                    style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                    <i class="ri-save-line"
+                                                        style="color: #3498db; margin-top: 3px;"></i>
                                                     <div>
                                                         <strong>Save Your Reference ID</strong>
-                                                        <p style="margin: 0; font-size: 12px; color: #777;">Keep this ID safe to track your application status.</p>
+                                                        <p style="margin: 0; font-size: 12px; color: #777;">Keep this ID
+                                                            safe to track your application status.</p>
                                                     </div>
                                                 </li>
-                                                <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
-                                                    <i class="ri-time-line" style="color: #3498db; margin-top: 3px;"></i>
+                                                <li
+                                                    style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                    <i class="ri-time-line"
+                                                        style="color: #3498db; margin-top: 3px;"></i>
                                                     <div>
                                                         <strong>Processing Time</strong>
-                                                        <p style="margin: 0; font-size: 12px; color: #777;">Applications typically take 3-5 working days.</p>
+                                                        <p style="margin: 0; font-size: 12px; color: #777;">Applications
+                                                            typically take 3-5 working days.</p>
                                                     </div>
                                                 </li>
-                                                <li style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
-                                                    <i class="ri-notification-line" style="color: #3498db; margin-top: 3px;"></i>
+                                                <li
+                                                    style="padding: 8px 0; border-bottom: 1px solid #d1ecf1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                    <i class="ri-notification-line"
+                                                        style="color: #3498db; margin-top: 3px;"></i>
                                                     <div>
                                                         <strong>Status Updates</strong>
-                                                        <p style="margin: 0; font-size: 12px; color: #777;">You'll receive email notifications at each approval stage.</p>
+                                                        <p style="margin: 0; font-size: 12px; color: #777;">You'll
+                                                            receive email notifications at each approval stage.</p>
                                                     </div>
                                                 </li>
-                                                <li style="padding: 8px 0; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
-                                                    <i class="ri-search-line" style="color: #3498db; margin-top: 3px;"></i>
+                                                <li
+                                                    style="padding: 8px 0; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #555;">
+                                                    <i class="ri-search-line"
+                                                        style="color: #3498db; margin-top: 3px;"></i>
                                                     <div>
                                                         <strong>Track Progress</strong>
-                                                        <p style="margin: 0; font-size: 12px; color: #777;">Use the button below to track your application anytime.</p>
+                                                        <p style="margin: 0; font-size: 12px; color: #777;">Use the
+                                                            button below to track your application anytime.</p>
                                                     </div>
                                                 </li>
                                             </ul>
                                         </div>
 
-                                        <div class="action-buttons" style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
-                                            <a id="modalTrackBtn" href="#" class="btn btn-track" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                        <div class="action-buttons"
+                                            style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+                                            <a id="modalTrackBtn" href="#" class="btn btn-track"
+                                                style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
                                                 <i class="ri-search-line"></i> Track Application
                                             </a>
 
-                                            <button type="button" onclick="window.print()" class="btn btn-print" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #f8f9fa; color: #495057; border: 1px solid #dee2e6; cursor: pointer;">
+                                            <button type="button" onclick="window.print()" class="btn btn-print"
+                                                style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #f8f9fa; color: #495057; border: 1px solid #dee2e6; cursor: pointer;">
                                                 <i class="ri-printer-line"></i> Print Receipt
                                             </button>
 
-                                            <a href="/dashboard_leave_pass" class="btn btn-home" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #28a745; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
+                                            <a href="/dashboard_leave_pass" class="btn btn-home"
+                                                style="padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; background: #28a745; color: white; border: none; cursor: pointer; transition: all 0.3s ease;">
                                                 <i class="ri-home-line"></i> Back to Dashboard
                                             </a>
                                         </div>
@@ -647,131 +721,139 @@
                                 </div>
 
                                 <!-- Real-time Reliever Status Message Indicator -->
-                                <div id="reliever_status_container" style="margin-top: 15px; margin-bottom: 20px; display: none;">
-                                    <div id="reliever_status_badge" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s;">
+                                <div id="reliever_status_container"
+                                    style="margin-top: 15px; margin-bottom: 20px; display: none;">
+                                    <div id="reliever_status_badge"
+                                        style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s;">
                                         <span id="reliever_status_icon">⏳</span>
                                         <span id="reliever_status_text">Awaiting reliever request...</span>
                                     </div>
                                 </div>
 
                                 <!-- Fieldset to wrap everything below, disabled until accepted -->
-                                <fieldset id="leave_details_fieldset" disabled style="border: none; padding: 0; margin: 0; opacity: 0.6; pointer-events: none;">
-                                <!-- Conditional fields -->
+                                <fieldset id="leave_details_fieldset" disabled
+                                    style="border: none; padding: 0; margin: 0; opacity: 0.6; pointer-events: none;">
+                                    <!-- Conditional fields -->
 
-                                <!-- Maternity -->
-                                <div class="conditional-field" id="maternity_fields">
+                                    <!-- Maternity -->
+                                    <div class="conditional-field" id="maternity_fields">
+                                        <div class="form-group">
+                                            <label for="expected_delivery_date">Expected Delivery Date (EDD) <span
+                                                    style="color:red;">*</span></label>
+                                            <input type="date" id="expected_delivery_date"
+                                                name="expected_delivery_date">
+                                        </div>
+                                    </div>
+
+                                    <!-- Disembarkation -->
+                                    <div class="conditional-field" id="disembarkation_fields">
+                                        <div class="form-group">
+                                            <label for="attachment_months">Duration of Course / Operational Attachment
+                                                (months)
+                                                <span style="color:red;">*</span></label>
+                                            <input type="number" id="attachment_months" name="attachment_months" min="1"
+                                                max="60">
+                                        </div>
+                                    </div>
+
+                                    <!-- Sick -->
+                                    <div class="conditional-field" id="sick_fields">
+                                        <div class="form-group">
+                                            <label>
+                                                <input type="checkbox" name="has_medical_certificate" value="true">
+                                                I will attach a medical certificate from a government hospital
+                                            </label>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>
+                                                <input type="checkbox" name="hospitalized" id="hospitalized_check"
+                                                    value="true">
+                                                This period includes hospital admission
+                                            </label>
+                                        </div>
+                                        <div class="form-group conditional-field" id="first_hospitalization_field">
+                                            <label>
+                                                <input type="checkbox" name="first_hospitalization" value="true">
+                                                This is the first hospitalization for this condition
+                                            </label>
+                                        </div>
+                                    </div>
+
                                     <div class="form-group">
-                                        <label for="expected_delivery_date">Expected Delivery Date (EDD) <span
-                                                style="color:red;">*</span></label>
-                                        <input type="date" id="expected_delivery_date" name="expected_delivery_date">
-                                    </div>
-                                </div>
-
-                                <!-- Disembarkation -->
-                                <div class="conditional-field" id="disembarkation_fields">
-                                    <div class="form-group">
-                                        <label for="attachment_months">Duration of Course / Operational Attachment
-                                            (months)
-                                            <span style="color:red;">*</span></label>
-                                        <input type="number" id="attachment_months" name="attachment_months" min="1"
-                                            max="60">
-                                    </div>
-                                </div>
-
-                                <!-- Sick -->
-                                <div class="conditional-field" id="sick_fields">
-                                    <div class="form-group">
-                                        <label>
-                                            <input type="checkbox" name="has_medical_certificate" value="true">
-                                            I will attach a medical certificate from a government hospital
-                                        </label>
+                                        <label for="previous_leave_pass_date">Date of Previous Leave/Pass</label>
+                                        <input type="text" autocomplete="off" id="previous_leave_pass_date"
+                                            name="previous_leave_pass_date"
+                                            value="{{ leave_data.previous_leave_date_str }}" readonly
+                                            style="background-color: #f7fafc; border: 1px solid #e2e8f0; cursor: not-allowed; padding: 10px; border-radius: 6px; width: 100%;">
                                     </div>
                                     <div class="form-group">
-                                        <label>
-                                            <input type="checkbox" name="hospitalized" id="hospitalized_check"
-                                                value="true">
-                                            This period includes hospital admission
-                                        </label>
+                                        <label for="start_date">Start Date</label>
+                                        <input type="date" autocomplete="off" id="start_date" name="start_date"
+                                            placeholder="">
                                     </div>
-                                    <div class="form-group conditional-field" id="first_hospitalization_field">
-                                        <label>
-                                            <input type="checkbox" name="first_hospitalization" value="true">
-                                            This is the first hospitalization for this condition
-                                        </label>
+                                    <div class="form-group">
+                                        <label for="end_date">End Date</label>
+                                        <input type="date" autocomplete="off" id="end_date" name="end_date"
+                                            placeholder="">
                                     </div>
-                                </div>
+                                    <div class="form-group">
+                                        <label for="effective_date">Effective Date / Date of Proceeding on Leave
+                                            *</label>
+                                        <input type="date" id="effective_date" name="effective_date" required>
+                                        <small>→ The actual date you plan to leave the office / begin absence (Change
+                                            only
+                                            if
+                                            different)</small>
+                                    </div>
 
-                                <div class="form-group">
-                                    <label for="previous_leave_pass_date">Date of Previous Leave/Pass</label>
-                                    <input type="text" autocomplete="off" id="previous_leave_pass_date"
-                                        name="previous_leave_pass_date" value="{{ leave_data.previous_leave_date_str }}" readonly
-                                        style="background-color: #f7fafc; border: 1px solid #e2e8f0; cursor: not-allowed; padding: 10px; border-radius: 6px; width: 100%;">
-                                </div>
-                                <div class="form-group">
-                                    <label for="start_date">Start Date</label>
-                                    <input type="date" autocomplete="off" id="start_date" name="start_date"
-                                        placeholder="">
-                                </div>
-                                <div class="form-group">
-                                    <label for="end_date">End Date</label>
-                                    <input type="date" autocomplete="off" id="end_date" name="end_date" placeholder="">
-                                </div>
-                                <div class="form-group">
-                                    <label for="effective_date">Effective Date / Date of Proceeding on Leave *</label>
-                                    <input type="date" id="effective_date" name="effective_date" required>
-                                    <small>→ The actual date you plan to leave the office / begin absence (Change only
-                                        if
-                                        different)</small>
-                                </div>
-
-                                <!-- Calculated days display -->
-                                <div class="form-group" id="calculated-days-container">
-                                    <small id="days_message" class="info-note"></small>
-                                    <input type="hidden" id="calculated_days_actual" name="calculated_days_actual"
-                                        value="">
-                                </div>
+                                    <!-- Calculated days display -->
+                                    <div class="form-group" id="calculated-days-container">
+                                        <small id="days_message" class="info-note"></small>
+                                        <input type="hidden" id="calculated_days_actual" name="calculated_days_actual"
+                                            value="">
+                                    </div>
 
 
-                                <!-- Effective date warning -->
-                                <div id="effective-warning" class="warning-note" style="display:none;">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                    Note: Effective date is different from proposed start date.
-                                    Please confirm this is intentional.
-                                </div>
+                                    <!-- Effective date warning -->
+                                    <div id="effective-warning" class="warning-note" style="display:none;">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        Note: Effective date is different from proposed start date.
+                                        Please confirm this is intentional.
+                                    </div>
 
-                                <!-- Old Reliever position removed -->
+                                    <!-- Old Reliever position removed -->
 
-                                <div class="form-group">
-                                    <label>Reason(s) for the Application</label>
-                                    <textarea autocomplete="off" id="reasons_for_application"
-                                        name="reasons_for_application" placeholder="">
+                                    <div class="form-group">
+                                        <label>Reason(s) for the Application</label>
+                                        <textarea autocomplete="off" id="reasons_for_application"
+                                            name="reasons_for_application" placeholder="">
                                     </textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label>Supporting Documents (medical certificate, hospital papers, etc.)</label>
-                                    <div class="upload-area" id="uploadBox">
-                                        <p>Click to upload file he</p>
-                                        <input type="file" id="fileInput" name="attachments" multiple
-                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
                                     </div>
-                                    <div class="file-list" id="fileList"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="place_intended">Place of intended travel</label>
-                                    <input type="text" autocomplete="off" id="place_intended" name="place_intended"
-                                        placeholder="">
-                                </div>
-                                <div class="form-group">
-                                    <label for="Telephone">Telephone</label>
-                                    <input type="number" autocomplete="off" id="telephone" name="telephone"
-                                        placeholder="">
-                                </div>
+                                    <div class="form-group">
+                                        <label>Supporting Documents (medical certificate, hospital papers, etc.)</label>
+                                        <div class="upload-area" id="uploadBox">
+                                            <p>Click to upload file he</p>
+                                            <input type="file" id="fileInput" name="attachments" multiple
+                                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                                        </div>
+                                        <div class="file-list" id="fileList"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="place_intended">Place of intended travel</label>
+                                        <input type="text" autocomplete="off" id="place_intended" name="place_intended"
+                                            placeholder="">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="Telephone">Telephone</label>
+                                        <input type="number" autocomplete="off" id="telephone" name="telephone"
+                                            placeholder="">
+                                    </div>
 
-                                <div class="form-group">
-                                    <label for="contact_address">Contact Address</label>
-                                    <input type="text" autocomplete="off" id="contact_address" name="contact_address"
-                                        placeholder="">
-                                </div>
+                                    <div class="form-group">
+                                        <label for="contact_address">Contact Address</label>
+                                        <input type="text" autocomplete="off" id="contact_address"
+                                            name="contact_address" placeholder="">
+                                    </div>
 
                                 </fieldset>
                                 <button type="submit" class="login-btn">Submit Application</button>
@@ -970,24 +1052,24 @@
             const apptInput = document.getElementById('appt_of_reliever');
             const nameInput = document.getElementById('name_of_reliever');
             const fieldset = document.getElementById('leave_details_fieldset');
-            
+
             const statusContainer = document.getElementById('reliever_status_container');
             const statusBadge = document.getElementById('reliever_status_badge');
             const statusIcon = document.getElementById('reliever_status_icon');
             const statusText = document.getElementById('reliever_status_text');
-            
+
             const modal = document.getElementById('relieverConfirmModal');
             const modalText = document.getElementById('relieverModalText');
             const confirmBtn = document.getElementById('confirmRelieverBtn');
             const cancelBtn = document.getElementById('cancelRelieverBtn');
-            
+
             let pendingOption = null;
             let pollingInterval = null;
 
             function updateStatus(state, message) {
                 statusContainer.style.display = 'block';
                 statusText.innerHTML = message;
-                
+
                 if (state === 'pending') {
                     statusIcon.innerHTML = '⏳';
                     statusBadge.style.backgroundColor = '#feebc8';
@@ -1048,7 +1130,7 @@
                         pendingOption = selectedOption;
                         const name = selectedOption.text || '';
                         modalText.innerHTML = `Send a request to <strong>${name}</strong> to stand as reliever?`;
-                        
+
                         // Show modal
                         modal.style.display = 'flex';
                         setTimeout(() => {
@@ -1068,15 +1150,15 @@
                     setTimeout(() => {
                         modal.style.display = 'none';
                     }, 200);
-                    
+
                     if (pendingOption) {
                         const relieverEmail = relieverSelect.value;
                         const name = pendingOption.text || '';
                         updateStatus('pending', `Sending request to <strong>${name}</strong>...`);
-                        
+
                         // Set the hidden input value so it submits correctly
                         relieverEmailHidden.value = relieverEmail;
-                        
+
                         // Send request via AJAX
                         fetch('/api/reliever-request/send', {
                             method: 'POST',
@@ -1086,19 +1168,19 @@
                             },
                             body: JSON.stringify({ reliever_email: relieverEmail })
                         })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                updateStatus('pending', `Awaiting acceptance from <strong>${name}</strong>...`);
-                                startPolling(data.request_id);
-                            } else {
-                                updateStatus('declined', `Error: ${data.error || 'Could not send request'}`);
-                            }
-                        })
-                        .catch(err => {
-                            updateStatus('declined', `Network error sending request.`);
-                            console.error(err);
-                        });
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    updateStatus('pending', `Awaiting acceptance from <strong>${name}</strong>...`);
+                                    startPolling(data.request_id);
+                                } else {
+                                    updateStatus('declined', `Error: ${data.error || 'Could not send request'}`);
+                                }
+                            })
+                            .catch(err => {
+                                updateStatus('declined', `Network error sending request.`);
+                                console.error(err);
+                            });
                     }
                 });
             }
@@ -1368,7 +1450,7 @@
             }, 50);
         }
 
-        window.closeValidationErrorModal = function() {
+        window.closeValidationErrorModal = function () {
             const modal = document.getElementById('validationErrorModal');
             modal.children[0].style.transform = 'scale(0.9)';
             setTimeout(() => {
@@ -1377,13 +1459,13 @@
         }
 
         // === Form Submit Interceptor to show Success Modal ===
-        document.getElementById('registerForm')?.addEventListener('submit', function(e) {
+        document.getElementById('registerForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
-            
+
             const formData = new FormData(this);
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Submit Application';
-            
+
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
@@ -1415,7 +1497,7 @@
                 }
                 return;
             }
-            
+
             fetch(this.action, {
                 method: 'POST',
                 headers: {
@@ -1424,48 +1506,48 @@
                 },
                 body: formData
             })
-            .then(response => {
-                if (response.redirected) {
-                    window.location.href = response.url;
-                    return null;
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data === null) {
-                    return;
-                }
-                if (data && data.success) {
-                    // Populate success modal values
-                    document.getElementById('successRefIdValue').textContent = data.referenceId;
-                    document.getElementById('modalTrackBtn').href = `/track_application?reference_id=${data.referenceId}`;
-                    
-                    // Show success modal
-                    const successModal = document.getElementById('applicationSuccessModal');
-                    successModal.style.display = 'flex';
-                    setTimeout(() => {
-                        successModal.children[0].style.transform = 'scale(1)';
-                    }, 50);
-                } else {
-                    alert(data && data.error ? data.error : 'An error occurred during submission.');
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                        return null;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data === null) {
+                        return;
+                    }
+                    if (data && data.success) {
+                        // Populate success modal values
+                        document.getElementById('successRefIdValue').textContent = data.referenceId;
+                        document.getElementById('modalTrackBtn').href = `/track_application?reference_id=${data.referenceId}`;
+
+                        // Show success modal
+                        const successModal = document.getElementById('applicationSuccessModal');
+                        successModal.style.display = 'flex';
+                        setTimeout(() => {
+                            successModal.children[0].style.transform = 'scale(1)';
+                        }, 50);
+                    } else {
+                        alert(data && data.error ? data.error : 'An error occurred during submission.');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalBtnHtml;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Submission error:', error);
+                    alert('A network error occurred while submitting your application.');
                     if (submitBtn) {
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalBtnHtml;
                     }
-                }
-            })
-            .catch(error => {
-                console.error('Submission error:', error);
-                alert('A network error occurred while submitting your application.');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnHtml;
-                }
-            });
+                });
         });
 
         // Function to copy reference ID from success modal
-        window.copyModalReferenceId = function() {
+        window.copyModalReferenceId = function () {
             const refId = document.getElementById('successRefIdValue').textContent;
             navigator.clipboard.writeText(refId).then(() => {
                 const copyBtn = document.querySelector('#applicationSuccessModal .ref-id-copy');

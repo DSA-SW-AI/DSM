@@ -4,13 +4,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DSA Paperless - Leave & Pass </title>
+  <title>ODOGWU - Leave & Pass </title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
 
   <style>
@@ -64,8 +64,8 @@
       border: 1px solid #ffeeba;
     }
   </style>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  </head>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
 
 
 <body>
@@ -81,7 +81,12 @@
       </div>
       <nav class="sidebar-menu">
         <div class="menu-section-label">OVERVIEW</div>
-        <a href="{{ url_for('dashboard') }}" class="menu-item active">📊 Dashboard</a>
+        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
+
+        {% if user.role == 'super_admin' %}
+        <div class="menu-section-label">ADMINISTRATION</div>
+        <a href="/super-admin-dashboard" class="menu-item">🔑 Super Admin</a>
+        {% endif %}
 
         <div class="menu-section-label">REGISTRY</div>
         {% if "documents" in permissions.sidebar %}
@@ -96,19 +101,59 @@
 
         <div class="menu-section-label">HR MANAGEMENT</div>
         {% if "civilian_personnel" in permissions.sidebar %}
-        <a href="/personnel-view" class="menu-item">👥 Civilian & Personnel</a>
+        <a href="/personnel-view" class="menu-item">
+          👥 Civilian & Personnel
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
+          {% endif %}
+        </a>
         {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
         <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
         {% endif %} {% if "leave_pass" in permissions.sidebar %}
-        <a href="/dashboard_leave_pass" class="menu-item">📅 Leave & Pass</a>
-        {% endif %}
-      </nav>
-      <!-- Permanently Locked Footer Segment -->
-      <div class="sidebar-footer">
-        <a href="{{ url_for('logout') }}" class="logout-btn">
-          🚪 Logout
+        <a href="/dashboard_leave_pass" class="menu-item active">
+          📅 Leave & Pass
+          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+          {% endif %}
         </a>
-      </div>
+        {% endif %}
+
+        <!-- {% if user.role == 'super_admin' or user.is_approval_role or session.get('role') in ['cdsa', 'dcdsa',
+        'director', 'dd', 'ad', 'so', 'registry'] %}
+        <a href="/switch-view" class="menu-item"
+          style="background: rgba(21, 101, 216, 0.1); border: 1px dashed var(--blue); color: var(--blue); margin-top: 15px; text-align: center; justify-content: center; font-weight: 600;">
+          {% if session.get('is_approval_role') %}
+          🔄 Switch to Personal Account
+          {% else %}
+          🔄 Switch to Approval Account
+          {% endif %}
+        </a>
+        {% endif %} -->
+        <!-- Permanently Locked Footer Segment -->
+        <div class="sidebar-footer">
+          <div class="menu-section-label">General</div>
+          {% if "support" in permissions.sidebar %}
+          <a href="/support" class="menu-item">
+          👥 Supports
+          {% if unread_support_count and unread_support_count > 0 %}
+            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+          {% endif %}
+        </a>
+          {% endif %} {% if "notification" in permissions.sidebar %}
+          <a href="/notifications" class="menu-item">
+          🔄 Notifications
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
+          {% endif %}
+        </a>
+          {% endif %} {% if "setting" in permissions.sidebar %}
+          <a href="/setting" class="menu-item">📅 Setting</a>
+          {% endif %}
+          <a href="{{ url_for('logout') }}" class="logout-btn">
+            🚪 Sign out
+          </a>
+        </div>
+      </nav>
     </aside>
 
 
@@ -118,7 +163,7 @@
       <!-- Top Navbar Section -->
       <header class="top-navbar">
         <div class="breadcrumb">
-          📋 DSA PAPERLESS &gt; <span class="active-crumb"> Leave and Pass Applications</span>
+          📋 ODOGWU &gt; <span class="active-crumb"> Leave and Pass Applications</span>
         </div>
         <div class="user-profile-badge">
           <!-- Clean circle initials token frame -->
@@ -145,7 +190,7 @@
           <div class="reg_doc_header">
             <h1>Leave and Pass Applications</h1>
             <div class="reg_doc_actions" style="display: flex; flex-direction: row; gap: 10px; flex-wrap: wrap;">
-           
+
               {% if not is_approval_role %}
               <a href="{{ url_for('application_track.track_application') }}" class="add-document-btn">+
                 Track Application</a>
@@ -176,16 +221,25 @@
           <!-- Tab Navigation for different views -->
           <div class="table-tabs"
             style="display: flex; gap: 10px; border-bottom: 2px solid #e9ecef; margin-bottom: 20px;">
-            <button class="tab-btn active" style="border: 2px solid #ffe9a8;" onclick="switchTableTab('pending')" id="pending-tab-btn">
+            <button class="tab-btn active" style="border: 2px solid #ffe9a8;" onclick="switchTableTab('pending')"
+              id="pending-tab-btn">
               <i class="ri-time-line"></i> Pending (<span id="pending-count">{{ pending_count }}</span>)
             </button>
-            <button class="tab-btn" style="border: 2px solid #8dffa4;" onclick="switchTableTab('approved')" id="approved-tab-btn">
+            <button class="tab-btn" style="border: 2px solid #8dffa4;" onclick="switchTableTab('approved')"
+              id="approved-tab-btn">
               <i class="ri-checkbox-circle-line"></i> Issued/Approved (<span id="approved-count">{{ approved_count
                 }}</span>)
             </button>
-            <button class="tab-btn" style="border: 2px solid #ffb2a4;" onclick="switchTableTab('rejected')" id="rejected-tab-btn">
+            <button class="tab-btn" style="border: 2px solid #ffb2a4;" onclick="switchTableTab('rejected')"
+              id="rejected-tab-btn">
               <i class="ri-close-circle-line"></i> Rejected (<span id="rejected-count">{{ rejected_count }}</span>)
             </button>
+            {% if user.role == 'director' %}
+            <button class="tab-btn" style="border: 2px solid #a8c4ff;" onclick="switchTableTab('returns')"
+              id="returns-tab-btn">
+              <i class="ri-arrow-go-back-line"></i> Returns
+            </button>
+            {% endif %}
           </div>
 
           <!-- Pending Applications Table -->
@@ -235,7 +289,9 @@
                 <tbody>
 
                   {% for app in pending_apps %}
-                  <tr data-leave-type="{{ app.leave_type }}" onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')" style="cursor: pointer;">
+                  <tr data-leave-type="{{ app.leave_type }}"
+                    onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')"
+                    style="cursor: pointer;">
                     <td>{{ app.referenceId|string|truncate(12, True, '...') }}</td>
                     <td>{{ app.applicantName }}</td>
                     <td>{{ app.applicantId }}</td>
@@ -340,7 +396,9 @@
                 </thead>
                 <tbody>
                   {% for app in approved_apps %}
-                  <tr data-leave-type="{{ app.leave_type }}" onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')" style="cursor: pointer;">
+                  <tr data-leave-type="{{ app.leave_type }}"
+                    onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')"
+                    style="cursor: pointer;">
                     <td>{{ app.referenceId|string|truncate(12, True, '...') }}</td>
                     <td>{{ app.applicantName }}</td>
                     <td>{{ app.applicantId }}</td>
@@ -439,7 +497,9 @@
                 </thead>
                 <tbody>
                   {% for app in rejected_apps %}
-                  <tr data-leave-type="{{ app.leave_type }}" onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')" style="cursor: pointer;">
+                  <tr data-leave-type="{{ app.leave_type }}"
+                    onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')"
+                    style="cursor: pointer;">
                     <td>{{ app.referenceId|string|truncate(12, True, '...') }}</td>
                     <td>{{ app.applicantName }}</td>
                     <td>{{ app.applicantId }}</td>
@@ -485,20 +545,91 @@
             </div>
           </div>
 
+          <!-- Pending Leave Returns Table -->
+          {% if user.role == 'director' %}
+          <div id="returns-table" class="table-content" style="display: none;">
+            <div class="table-header">
+              <i class="ri-arrow-go-back-line"></i> Returns Awaiting Approval
+            </div>
+            
+            <div class="table-responsive">
+              {% set return_apps = [] %}
+              {% if applications %}
+                {% for app in applications %}
+                  {% if app.leave_pass_returned and app.leave_pass_returned.returned_status == 'pending' %}
+                    {% set _ = return_apps.append(app) %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+              
+              {% if return_apps %}
+              <table class="documents-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #edf2f7; color: #718096; font-weight: 700; text-transform: uppercase; font-size: 11px;">
+                    <th style="padding: 12px 16px;">Ref</th>
+                    <th style="padding: 12px 16px;">Applicant Name</th>
+                    <th style="padding: 12px 16px;">Leave Type</th>
+                    <th style="padding: 12px 16px;">Expected Return</th>
+                    <th style="padding: 12px 16px;">Actual Return</th>
+                    <th style="padding: 12px 16px;">Result</th>
+                    <th style="padding: 12px 16px; text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for app in return_apps %}
+                  <tr style="border-bottom: 1px solid #edf2f7; transition: background-color 0.2s;">
+                    <td style="padding: 16px; font-family: monospace; font-weight: 600; color: #2d3748;">{{ app.referenceId }}</td>
+                    <td style="padding: 16px; color: #4a5568;">{{ app.applicantName }}</td>
+                    <td style="padding: 16px; color: #4a5568;">{{ app.leave_type | title }}</td>
+                    <td style="padding: 16px; color: #4a5568;">{{ app.leave_pass_returned.expected_returned_date.strftime('%d %b %Y') if app.leave_pass_returned.expected_returned_date else 'N/A' }}</td>
+                    <td style="padding: 16px; font-weight: bold; color: #2d3748;">{{ app.leave_pass_returned.actual_returned_date.strftime('%d %b %Y') if app.leave_pass_returned.actual_returned_date else 'N/A' }}</td>
+                    <td style="padding: 16px;">
+                      {% set res = app.leave_pass_returned.returnedresult %}
+                      {% if res == 'returned early' %}
+                        <span style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #d1fae5; color: #065f46; border-radius: 4px; font-weight: bold;">Returned Early</span>
+                      {% elif res == 'returned on time' %}
+                        <span style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #e0f2fe; color: #0369a1; border-radius: 4px; font-weight: bold;">On Time</span>
+                      {% else %}
+                        <span style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #fee2e2; color: #991b1b; border-radius: 4px; font-weight: bold;">Overstayed</span>
+                      {% endif %}
+                    </td>
+                    <td style="padding: 16px; text-align: right;">
+                      <button type="button" class="add-document-btn" onclick="approveLeaveReturn(event, '{{ app._id|string }}')"
+                        style="padding: 6px 12px; font-size: 13px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        ✓ Approve Return
+                      </button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <div class="no-data">
+                <p>No pending leave return reports to approve.</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
         </div>
       </div>
       {% else %}
       <!-- Personal Submitted Applications Section -->
-      <div class="documents-table-container" style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.01); text-align: left;">
-        <h3 style="font-size: 16px; color: #1a202c; font-weight: 600; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-top: 0;">
+      <div class="documents-table-container"
+        style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.01); text-align: left;">
+        <h3
+          style="font-size: 16px; color: #1a202c; font-weight: 600; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-top: 0;">
           📋 Your Submitted Applications
         </h3>
 
         {% if submitted_applications %}
         <div style="overflow-x: auto;">
-          <table class="documents-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+          <table class="documents-table"
+            style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
             <thead>
-              <tr style="border-bottom: 2px solid #edf2f7; color: #718096; font-weight: 700; text-transform: uppercase; font-size: 11px;">
+              <tr
+                style="border-bottom: 2px solid #edf2f7; color: #718096; font-weight: 700; text-transform: uppercase; font-size: 11px;">
                 <th style="padding: 12px 16px;">Reference ID</th>
                 <th style="padding: 12px 16px;">Leave Type</th>
                 <th style="padding: 12px 16px;">Period</th>
@@ -509,17 +640,21 @@
             </thead>
             <tbody>
               {% for app in submitted_applications %}
-              <tr style="border-bottom: 1px solid #edf2f7; transition: background-color 0.2s; cursor: pointer;" onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')">
-                <td style="padding: 16px; font-weight: 600; color: #2d3748; font-family: monospace; font-size: 14px;">{{ app.referenceId }}</td>
+              <tr style="border-bottom: 1px solid #edf2f7; transition: background-color 0.2s; cursor: pointer;"
+                onclick="navigateToDetail(event, '{{ url_for('approver_dashboard.view_application', app_id=app._id|string) }}')">
+                <td style="padding: 16px; font-weight: 600; color: #2d3748; font-family: monospace; font-size: 14px;">{{
+                  app.referenceId }}</td>
                 <td style="padding: 16px; color: #4a5568;">{{ app.leave_type | title }}</td>
                 <td style="padding: 16px; color: #4a5568;">
-                  {{ app.startDate.strftime('%d %b %Y') if app.startDate else 'N/A' }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate else 'N/A' }}
+                  {{ app.startDate.strftime('%d %b %Y') if app.startDate else 'N/A' }} – {{ app.endDate.strftime('%d %b
+                  %Y') if app.endDate else 'N/A' }}
                 </td>
                 <td style="padding: 16px; color: #4a5568;">{{ app.numberOfDays }}</td>
                 <td style="padding: 16px;">
                   <div class="status-container">
                     {% if app.status == 'Approved' and app.role_bucket == 'civilian' %}
-                    <div class="status-pill pending" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                    <div class="status-pill pending"
+                      style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
                       <div class="status-dot" style="background: #0284c7;"></div>
                       <span>Awaiting Issuance</span>
                     </div>
@@ -547,13 +682,35 @@
                   </div>
                 </td>
                 <td style="padding: 16px; text-align: right;">
-                  <a href="/dashboard?track_id={{ app.referenceId }}" class="add-document-btn" style="padding: 6px 12px; font-size: 13px; text-decoration: none; display: inline-block;">
+                  <a href="/dashboard?track_id={{ app.referenceId }}" class="add-document-btn"
+                    style="padding: 6px 12px; font-size: 13px; text-decoration: none; display: inline-block;">
                     🔍 Track
                   </a>
                   {% if app.status == 'issued' %}
-                  <a href="{{ url_for('approver_dashboard.view_receipt', app_id=app._id|string) }}" class="add-document-btn" style="padding: 6px 12px; font-size: 13px; margin-left: 5px; background: #10b981; text-decoration: none; display: inline-block;">
+                  <a href="{{ url_for('approver_dashboard.view_receipt', app_id=app._id|string) }}"
+                    class="add-document-btn"
+                    style="padding: 6px 12px; font-size: 13px; margin-left: 5px; background: #10b981; text-decoration: none; display: inline-block;">
                     📄 View Receipt
                   </a>
+                  {% endif %}
+                  
+                  {% if app.status in ('approved', 'Approved', 'issued') %}
+                    {% set return_status = app.leave_pass_returned.returned_status if app.leave_pass_returned else 'not_submitted' %}
+                    {% set returned_result = app.leave_pass_returned.returnedresult if app.leave_pass_returned else '' %}
+                    {% if return_status == 'not_submitted' %}
+                    <button type="button" class="add-document-btn" onclick="openReturnModal(event, '{{ app._id|string }}', '{{ app.referenceId }}', '{{ app.startDate.strftime('%Y-%m-%d') if app.startDate else '' }}')"
+                      style="padding: 6px 12px; font-size: 13px; margin-left: 5px; background: #3b82f6; color: white; border: none; border-radius: 4px; display: inline-block; cursor: pointer;">
+                      ↩ Report Return
+                    </button>
+                    {% elif return_status == 'pending' %}
+                    <span style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #fef3c7; color: #d97706; border-radius: 4px; font-weight: bold; margin-left: 5px;">
+                      Awaiting Return Approval
+                    </span>
+                    {% elif return_status == 'approved' %}
+                    <span style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #d1fae5; color: #065f46; border-radius: 4px; font-weight: bold; margin-left: 5px;">
+                      Returned ({{ returned_result }})
+                    </span>
+                    {% endif %}
                   {% endif %}
                 </td>
               </tr>
@@ -574,6 +731,27 @@
 
 
 
+
+  <!-- Report Return Modal -->
+  <div id="returnModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div class="modal-box" style="background: white; padding: 25px; border-radius: 8px; max-width: 450px; width: 90%; position: relative;">
+      <h3 style="margin-top:0;">Report Return from Leave</h3>
+      <button class="close-modal" onclick="closeReturnModal()" style="position: absolute; top: 10px; right: 15px; border: none; background: none; font-size: 24px; cursor: pointer;">×</button>
+      
+      <form id="returnForm" onsubmit="submitReturnForm(event)" style="margin-top: 15px;">
+        <input type="hidden" id="return_app_id">
+        <div style="margin-bottom: 20px; text-align: left;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Actual Return Date <span style="color: #e53e3e;">*</span></label>
+          <input type="date" id="actual_return_date_input" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box;">
+        </div>
+        
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="cancel-btn" onclick="closeReturnModal()" style="padding: 10px 20px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+          <button type="submit" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Submit Return</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Receipt View Modal -->
   <div id="receiptModal" class="modal-overlay">
@@ -790,6 +968,8 @@
   <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.js"></script>
   <!-- Socket.IO client library -->
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <!-- Sleek Custom Toast notifications -->
+  <script src="{{ url_for('static', filename='js/app_notifications.js') }}"></script>
 
 
   <script id="current-user-data" type="application/json">
@@ -1121,10 +1301,10 @@
       const target = event.target;
       // Do not navigate if clicking on action button, link, dropdown menu, or interactive elements
       if (
-        target.closest('.action-cell') || 
-        target.closest('.floating-menu') || 
-        target.closest('.menu-btn') || 
-        target.closest('a') || 
+        target.closest('.action-cell') ||
+        target.closest('.floating-menu') ||
+        target.closest('.menu-btn') ||
+        target.closest('a') ||
         target.closest('button') ||
         target.closest('input')
       ) {
@@ -1134,6 +1314,109 @@
     }
 
     // LEAVE AND PASS ACTION DROPDOWN JS
+    function openReturnModal(event, appId, refId, startDateStr) {
+      if (event) event.stopPropagation();
+      document.getElementById('return_app_id').value = appId;
+      
+      const today = new Date().toISOString().split('T')[0];
+      const dateInput = document.getElementById('actual_return_date_input');
+      dateInput.value = today;
+      dateInput.max = today; // Future dates cannot be clicked
+      
+      if (startDateStr) {
+        dateInput.min = startDateStr; // Dates before leave starts cannot be clicked
+      } else {
+        dateInput.removeAttribute('min');
+      }
+      
+      document.getElementById('returnModal').style.display = 'flex';
+    }
+
+    function closeReturnModal() {
+      document.getElementById('returnModal').style.display = 'none';
+    }
+
+    async function submitReturnForm(event) {
+      event.preventDefault();
+      const appId = document.getElementById('return_app_id').value;
+      const actualReturnDate = document.getElementById('actual_return_date_input').value;
+      
+      const submitBtn = event.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting...";
+
+      try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.getElementById('quick_chat_csrf_token')?.value || document.querySelector('input[name="csrf_token"]')?.value || '';
+        const response = await fetch(`/api/leave-return/submit/${appId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({ actual_return_date: actualReturnDate })
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+          showAppToast(result.message || "Return report submitted successfully!", 'success');
+          closeReturnModal();
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          showAppToast(result.message || "Failed to submit return report: " + result.message, 'error', 'Submission Error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+      } catch (err) {
+        console.error(err);
+        showAppToast("Network error occurred.", 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
+    }
+
+    async function approveLeaveReturn(event, appId) {
+      if (event) event.stopPropagation();
+      
+      const confirmed = await showAppConfirm(
+        "Are you sure you want to approve this leave return? This will credit any unused days back to the staff's balance.",
+        "Approve Return"
+      );
+      if (!confirmed) return;
+      
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Processing...";
+
+      try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.getElementById('quick_chat_csrf_token')?.value || document.querySelector('input[name="csrf_token"]')?.value || '';
+        const response = await fetch(`/api/leave-return/approve/${appId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          }
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+          showAppToast(result.message || "Leave return approved and balance updated successfully!", 'success');
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          showAppToast(result.message || "Failed to approve return: " + result.message, 'error', 'Approval Error');
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      } catch (err) {
+        console.error(err);
+        showAppToast("Network error occurred.", 'error');
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+
     function toggleLeaveMenu(event, button, appId) {
       event.stopPropagation();
 
@@ -1526,11 +1809,15 @@
       document.getElementById('pending-table').style.display = 'none';
       document.getElementById('approved-table').style.display = 'none';
       document.getElementById('rejected-table').style.display = 'none';
+      const returnsTable = document.getElementById('returns-table');
+      if (returnsTable) returnsTable.style.display = 'none';
 
       // Remove active class from all tabs
       document.getElementById('pending-tab-btn').classList.remove('active');
       document.getElementById('approved-tab-btn').classList.remove('active');
       document.getElementById('rejected-tab-btn').classList.remove('active');
+      const returnsTabBtn = document.getElementById('returns-tab-btn');
+      if (returnsTabBtn) returnsTabBtn.classList.remove('active');
 
       // Show selected table and activate tab
       if (tab === 'pending') {
@@ -1542,6 +1829,9 @@
       } else if (tab === 'rejected') {
         document.getElementById('rejected-table').style.display = 'block';
         document.getElementById('rejected-tab-btn').classList.add('active');
+      } else if (tab === 'returns') {
+        if (returnsTable) returnsTable.style.display = 'block';
+        if (returnsTabBtn) returnsTabBtn.classList.add('active');
       }
     }
 

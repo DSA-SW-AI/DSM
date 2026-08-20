@@ -1,0 +1,47 @@
+<!-- Top Navbar Section -->
+<header class="top-navbar">
+  <div class="breadcrumb">
+    📋 ODOGWU &gt; <span class="active-crumb">
+      {% if active_page in ['setting', 'settings'] %}
+        Settings
+      {% elif active_page == 'notifications' %}
+        Notifications
+      {% elif active_page == 'support' %}
+        Support Center
+      {% else %}
+        Dashboard
+      {% endif %}
+    </span>
+  </div>
+  {% if user %}
+  <div class="user-profile-badge">
+    <!-- Clean circle initials token frame -->
+    <div class="user-avatar-circle" id="navAvatarIcon">
+      {{ user.name[:2] | upper if user.name else 'DS' }}
+    </div>
+    <!-- Multi-line text metadata stacking engine -->
+    <div class="user-meta-stack">
+      <h4 class="user-fullname-text">{{ user.name }}</h4>
+      <div class="user-role-row">
+        <span class="role-badge-pill">{{ (user.role or '') | replace('_', ' ') | title }}</span>
+        <span class="role-divider-dot">•</span>
+        <span class="directorate-text-code">{{ (user.directorate or '') | upper }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</header>
+
+<!-- Quick Chat Integration -->
+{% if session.get('user_email') %}
+<input type="hidden" id="quick_chat_csrf_token" name="csrf_token" value="{{ csrf_token() }}">
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+  window.currentUserEmail = "{{ session.get('user_email') }}";
+  window.CURRENT_USER = JSON.parse('{{ user|tojson if user else "null" }}');
+</script>
+<script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quick-chat.css') }}">
+<script src="{{ url_for('static', filename='js/quick-chat.js') }}"></script>
+{% endif %}
+
