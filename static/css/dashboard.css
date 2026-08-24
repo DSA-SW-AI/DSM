@@ -127,9 +127,14 @@ body {
     transition: all 0.2s;
 }
 
-.menu-item:hover,
+
 .menu-item.active {
-    background-color: #1A365D;
+    background-color: #2a71d4;
+    color: #FFFFFF;
+}
+
+.menu-item:hover{
+    background-color: #3d6398;
     color: #FFFFFF;
 }
 
@@ -335,4 +340,178 @@ body {
     color: #E50000;
     /* Signature military red indicator accent */
     letter-spacing: 0.5px;
+}
+
+/* ================= RESPONSIVE LAYOUT & HAMBURGER DRAWER ================= */
+
+/* Default button/overlay styles (hidden on desktop) */
+.hamburger-btn {
+    display: none;
+}
+
+.sidebar-close-btn {
+    display: none;
+}
+
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 1040;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Responsive Breakpoint for Tablets and Mobile (<= 1024px) */
+@media (max-width: 1024px) {
+    .dashboard-wrapper {
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        width: 280px;
+        z-index: 1050;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .sidebar-close-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        border-radius: 50%;
+        color: #FFFFFF;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .sidebar-close-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .hamburger-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        color: #15305B;
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        margin-right: 12px;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+
+    .hamburger-btn:hover {
+        background: #F1F5F9;
+        border-color: #CBD5E1;
+    }
+
+    .main-content {
+        width: 100%;
+        min-width: 0;
+        padding: 15px;
+    }
+
+    .top-navbar {
+        padding: 10px 15px;
+        margin-bottom: 20px;
+    }
+
+    /* Wrap modules grid cleanly on tablet */
+    .modules-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 15px;
+    }
+}
+
+/* Mobile Breakpoint (< 768px) */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 10px;
+    }
+
+    .live-clock {
+        font-size: 0.8em;
+    }
+
+    .top-navbar {
+        border-radius: 8px;
+    }
+
+    /* Hide text metadata in user badge on small screens to fit layout */
+    .user-profile-badge .user-meta-stack {
+        display: none;
+    }
+
+    .user-profile-badge {
+        padding: 4px;
+        border-radius: 50%;
+    }
+
+    .breadcrumb {
+        font-size: 13px;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Table horizontal scroll safety wrapper */
+    .table-responsive,
+    .table-scroll {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+
+    .table-scroll table,
+    .table-responsive table {
+        margin-top: 0 !important;
+        width: 100%;
+        min-width: 600px; /* Force minimum table width for readable scroll */
+    }
+
+    /* Card padding adjustments */
+    .metric-card {
+        padding: 15px;
+    }
+
+    .modules-grid {
+        grid-template-columns: 1fr;
+    }
 }

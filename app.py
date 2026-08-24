@@ -263,11 +263,11 @@ def index():
             status = user_data.get('status', 'In Progress')
             # Route users dynamically based on their live database tracking status
             if status == 'Awaiting Approval':
-                return redirect(url_for('pending_approval_notice'))
+                return redirect(url_for('onboarding_routes.pending_approval_notice'))
             elif user_data.get('is_onboarded', False) and status == 'Approved':
                 return redirect(url_for('dashboard'))
             else:
-                return redirect(url_for('onboarding_portal'))
+                return redirect(url_for('onboarding_routes.onboarding_portal'))
     return render_template('login.html')
 
 
@@ -328,7 +328,7 @@ def dashboard():
     if not user_data: return redirect(url_for('index'))
 
     status = user_data.get('status', 'In Progress')
-    if status in ['Awaiting Approval', 'Rejected']: return redirect(url_for('pending_approval_notice'))
+    if status in ['Awaiting Approval', 'Rejected']: return redirect(url_for('onboarding_routes.pending_approval_notice'))
     elif status != 'Approved': return redirect(url_for('onboarding_routes.onboarding_portal'))
 
     user_role = user_data.get('role', 'civilian')
@@ -393,7 +393,7 @@ def dashboard():
     user_dir_clean = user_dir.strip().upper()
     is_global_scope = (user_role_clean in ['cdsa', 'dcdsa']) or (user_role_clean in ['director', 'registry'] and user_dir_clean == 'DOA')
 
-    target_stat_roles = ['cdsa', 'dcdsa', 'director', 'civilianhead', 'registry', 'so', 'so2', 'so1', 'dd', 'ad', 'centralregistry']
+    target_stat_roles = ['cdsa', 'dcdsa', 'director', 'civilian_head', 'civilian_head_cao', 'registry', 'so', 'so2', 'so1', 'dd', 'ad', 'central_registry']
 
     directorate_stats = None
     personnel_stats = None
@@ -502,21 +502,50 @@ def get_attachment(file_id):
         return "Attachment file not found", 404
 
 
+@app.route('/documents-view')
+@app.route('/incoming-view')
+@app.route('/outgoing-view')
+@app.route('/cabinet-view')
+def undeveloped_views():
+    if 'user_email' not in session: return redirect(url_for('index'))
+    user_data = db.users.find_one({"email": session['user_email']})
+    if not user_data: return redirect(url_for('index'))
 
+    # Determine title based on request path
+    path = request.path
+    title_map = {
+        '/documents-view': 'Documents Registry',
+        '/incoming-view': 'Incoming Mail Registry',
+        '/outgoing-view': 'Outgoing Mail Registry',
+        '/cabinet-view': 'Filing Cabinets'
+    }
+    page_title = title_map.get(path, 'Module')
 
+    user_role = user_data.get('role', 'civilian')
+    user_dir = str(user_data.get('directorate', 'doa')).upper()
 
+    if not session.get("is_approval_role"):
+        user_allowed_features = ROLE_PERMISSIONS['civilian']
+    else:
+        user_allowed_features = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS['civilian'])
 
+    ui_user_profile = {
+        "email": user_data.get("email"),
+        "name": user_data.get("name", "Officer"),
+        "role": user_role,
+        "category": user_data.get("category", "civilian"),
+        "appt": user_data.get("appt"),
+        "directorate": user_dir,
+        "is_approval_role": session.get("is_approval_role", False),
+        "service_number": user_data.get("service_number") or session.get("service_number")
+    }
 
-
-
-
-
-
-
-
-
-
-
+    return render_template(
+        'under_development.html',
+        user=ui_user_profile,
+        permissions=user_allowed_features,
+        page_title=page_title
+    )
 
 
 # START THE FLASK-SOCKETIO SERVER INSTANCE

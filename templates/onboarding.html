@@ -15,22 +15,7 @@
 <body>
   <div class="dashboard-wrapper">
     <!-- Sidebar Navigation -->
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
-        <div>
-          <h2>Defence Space Administration</h2>
-          <p>{{ user.directorate | upper }}</p>
-        </div>
-      </div>
-      <nav class="sidebar-menu">
-        <div class="menu-section-label">OVERVIEW</div>
-        <a href="#" class="menu-item active">🔲 Dashboard</a>
-      </nav>
-      <div class="sidebar-footer">
-        <a href="{{ url_for('logout') }}" class="logout-btn">🚪 Logout </a>
-      </div>
-    </aside>
+    {% include "sidebar.html" %}
 
     <!-- Main View Area -->
     <main class="main-content">
@@ -1485,6 +1470,7 @@
 
   <script src="{{ url_for('static', filename='js/app_notifications.js') }}"></script>
   <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
 </body>
 
 </html>

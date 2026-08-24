@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title }} - Under Development</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <style>
+    .dev-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 120px);
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .dev-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 600px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 25px;
+    }
+    .dev-logos {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .dev-dsa-logo {
+      height: 70px;
+      width: auto;
+      object-fit: contain;
+    }
+    .dev-badge-pill {
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border: 1px solid #dbeafe;
+    }
+    .dev-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+    .dev-desc {
+      font-size: 0.95rem;
+      color: #475569;
+      line-height: 1.6;
+      margin: 0;
+    }
+    .dev-btn {
+      background: #15305B;
+      color: white;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: background 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dev-btn:hover {
+      background: #0f213f;
+      color: white;
+    }
+    .dev-vector-svg-cw {
+      animation: gear-spin-cw 8s linear infinite;
+    }
+    .dev-vector-svg-ccw {
+      animation: gear-spin-ccw 6s linear infinite;
+    }
+    @keyframes gear-spin-cw {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes gear-spin-ccw {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(-360deg); }
+    }
+    .dev-vector-container {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    @media (max-width: 576px) {
+      .dev-card {
+        padding: 25px 20px;
+      }
+      .dev-title {
+        font-size: 1.35rem;
+      }
+      .dev-desc {
+        font-size: 0.88rem;
+      }
+    }
+  </style>
+</head>
+<body data-active-page="dashboard">
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    {% include "sidebar.html" %}
+
+    <div class="main-content">
+      <!-- Top Navbar Section -->
+      {% include "base.html" %}
+
+      <div class="dev-container">
+        <div class="dev-card">
+          <!-- DSA Logo -->
+          <div class="dev-logos">
+            <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="dev-dsa-logo" alt="DSA Logo" />
+          </div>
+
+          <div class="dev-badge-pill">
+            ⚙️ Under Construction
+          </div>
+
+          <!-- Vector Animation gears and folder -->
+          <div class="dev-vector-container">
+            <svg viewBox="0 0 200 200" width="160" height="160" fill="none">
+              <!-- Grid Background pattern -->
+              <defs>
+                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f1f5f9" stroke-width="1" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+
+              <!-- Folder/Document Drawing -->
+              <path d="M 45,135 L 45,75 A 5,5 0 0,1 50,70 L 80,70 L 95,85 L 145,85 A 5,5 0 0,1 150,90 L 150,135 A 5,5 0 0,1 145,140 L 50,140 A 5,5 0 0,1 45,135 Z" fill="#eff6ff" stroke="#3b82f6" stroke-width="2.5" />
+              <path d="M 45,95 L 150,95" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4 4" />
+
+              <!-- Gear 1 (Clockwise rotating) -->
+              <g class="dev-vector-svg-cw" style="transform-origin: 125px 75px;">
+                <circle cx="125" cy="75" r="22" fill="#1e3a8a" />
+                <!-- Gear teeth -->
+                <path d="M125 45 l0 10 M125 95 l0 10 M95 75 l10 0 M145 75 l10 0" stroke="#1e3a8a" stroke-width="6" stroke-linecap="round"/>
+                <path d="M104 54 l7 7 M139 89 l7 7 M104 96 l7 -7 M139 54 l7 -7" stroke="#1e3a8a" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="125" cy="75" r="10" fill="white" />
+                <circle cx="125" cy="75" r="5" fill="#1e3a8a" />
+              </g>
+
+              <!-- Gear 2 (Counter-Clockwise rotating) -->
+              <g class="dev-vector-svg-ccw" style="transform-origin: 75px 120px;">
+                <circle cx="75" cy="120" r="16" fill="#3b82f6" />
+                <!-- Gear teeth -->
+                <path d="M75 98 l0 8 M75 134 l0 8 M53 120 l8 0 M89 120 l8 0" stroke="#3b82f6" stroke-width="5" stroke-linecap="round"/>
+                <path d="M59 104 l6 6 M85 130 l6 6 M59 136 l6 -6 M85 104 l6 -6" stroke="#3b82f6" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="75" cy="120" r="7" fill="white" />
+                <circle cx="75" cy="120" r="3.5" fill="#3b82f6" />
+              </g>
+            </svg>
+          </div>
+
+          <h2 class="dev-title">{{ page_title }} Under Development</h2>
+          
+          <p class="dev-desc">
+            The <strong>{{ page_title }}</strong> module is currently undergoing system integration and security checks. It will be enabled in an upcoming release.
+          </p>
+
+          <a href="{{ url_for('dashboard') }}" class="dev-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Back to Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
+</body>
+</html>

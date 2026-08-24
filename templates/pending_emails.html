@@ -91,77 +91,7 @@
 <body>
   <div class="dashboard-wrapper">
     <!-- ================= SIDEBAR COMPONENT ================= -->
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
-        <div>
-          <h2>Defence Space Administration</h2>
-          <p>{{ user.directorate }}</p>
-        </div>
-      </div>
-      <nav class="sidebar-menu">
-        <div class="menu-section-label">OVERVIEW</div>
-        <a href="{{ url_for('dashboard') }}" class="menu-item">📊 Dashboard</a>
-
-        <div class="menu-section-label">REGISTRY</div>
-        {% if "documents" in permissions.sidebar %}
-        <a href="/documents-view" class="menu-item">📁 Documents</a>
-        {% endif %} {% if "incoming" in permissions.sidebar %}
-        <a href="/incoming-view" class="menu-item">📥 Incoming</a>
-        {% endif %} {% if "outgoing" in permissions.sidebar %}
-        <a href="/outgoing-view" class="menu-item">📤 Outgoing</a>
-        {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
-        <a href="/cabinet-view" class="menu-item">🗄️ Filing Cabinets</a>
-        {% endif %}
-        {% if user.role == 'registry' and user.directorate|lower == 'doa' %}
-        <a href="/pending-emails-view" class="menu-item active">✉️ Pending Mail Queue</a>
-        {% endif %}
-
-        <div class="menu-section-label">HR MANAGEMENT</div>
-        {% if "civilian_personnel" in permissions.sidebar %}
-        <a href="/personnel-view" class="menu-item">
-          👥 Civilian & Personnel
-          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
-            <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
-          {% endif %}
-        </a>
-        {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
-        <a href="/transfers-view" class="menu-item">🔄 Recruitment & Transfers</a>
-        {% endif %} {% if "leave_pass" in permissions.sidebar %}
-        <a href="/dashboard_leave_pass" class="menu-item">
-          📅 Leave & Pass
-          {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
-            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
-          {% endif %}
-        </a>
-        {% endif %}
-      <!-- Permanently Locked Footer Segment -->
-      <div class="sidebar-footer">
-        <div class="menu-section-label">General</div>
-        {% if "support" in permissions.sidebar %}
-        <a href="/support" class="menu-item">
-          👥 Supports
-          {% if unread_support_count and unread_support_count > 0 %}
-            <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
-          {% endif %}
-        </a>
-        {% endif %} {% if "notification" in permissions.sidebar %}
-        <a href="/notifications" class="menu-item">
-          🔄 Notifications
-          {% if unread_notifications_count and unread_notifications_count > 0 %}
-            <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
-          {% endif %}
-        </a>
-        {% endif %} {% if "setting" in permissions.sidebar %}
-        <a href="/setting" class="menu-item">📅 Setting</a>
-        {% endif %}
-
-        <a href="{{ url_for('logout') }}" class="logout-btn">
-          Sign out
-        </a>
-      </div>
-      </nav>
-    </aside>
+    {% include "sidebar.html" %}
 
     <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
     <main class="main-content">
@@ -365,6 +295,7 @@
   </script>
 
   <script src="{{ url_for('static', filename='js/app_notifications.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
 </body>
 
 </html>
