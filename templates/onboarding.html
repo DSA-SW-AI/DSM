@@ -150,11 +150,11 @@
             <div class="form-row-grid">
               <div class="field-group">
                 <label>DSA File No. <span class="required">*</span></label>
-                <input type="text" id="dsaFileNo" required value="{{ user.file_no }}" readonly />
+                <input type="text" id="dsaFileNo" required value="{{ user.service_number }}" readonly />
               </div>
               <div class="field-group">
                 <label>Title <span class="required">*</span></label>
-                <input type="text" id="staffTitle" placeholder="e.g. Mr, Mrs etc" required />
+                <input type="text" id="staffTitle" placeholder="e.g. Mr, Mrs etc" />
               </div>
             </div>
 
@@ -171,7 +171,7 @@
               </div>
               <div class="field-group">
                 <label>First Name <span class="required">*</span></label>
-                <input type="text" id="firstName" value="{{ firstname }}" placeholder="e.g. Musa" required
+                <input type="text" id="firstName" value="{{ user.firstname }}" placeholder="e.g. Musa" required
                   autocomplete="off" />
               </div>
             </div>
@@ -179,7 +179,7 @@
             <div class="form-row-grid">
               <div class="field-group">
                 <label>Appointment <span class="required">*</span></label>
-                <input type="text" id="appointment" placeholder="e.g. CLERK 1" required />
+                <input type="text" id="appt" placeholder="e.g. CLERK 1" required />
               </div>
               <div class="field-group">
                 <label>Official Email
@@ -199,7 +199,7 @@
                 <input type="tel" id="phoneNo" placeholder="e.g. 08031234567" required />
               </div>
               <div class="field-group">
-                <label>{% if user.category == 'military' %}Rank / Grade{% else %}Grade Level{% endif %}</label>
+                <label>{% if user.category == 'military' %}Rank{% else %}Grade Level{% endif %}</label>
                 <input type="text" id="rankOrGrade"
                   placeholder="{% if user.category == 'military' %}e.g. Lt Col / Wg Cdr / Cdr{% else %}e.g. Grade Level 8{% endif %}" />
               </div>
@@ -474,8 +474,16 @@
                 </tr>
               </tbody>
             </table>
-          </form>
           {% endif %}
+          </form>
+        </div>
+        <div class="onboarding-controls-bar" style="margin: 25px;">
+          <button type="button" class="round-back-btn" onclick="goToStep(0)">
+            ←
+          </button>
+          <button type="button" class="save-changes-btn" onclick="submitStepForm(1)">
+            Submit and Next
+          </button>
         </div>
       </div>
 
@@ -683,14 +691,14 @@
               </div>
               <div class="field-group">
                 <label>Account Number <span class="required">*</span></label>
-                <input type="text" id="accNumber" required maxlength="10" />
+                <input type="number" id="accNumber" required maxlength="10" />
               </div>
             </div>
 
             <div class="form-row-grid">
               <div class="field-group">
                 <label>Sort Code <span class="required">*</span></label>
-                <input type="text" id="sortCode" required />
+                <input type="number" id="sortCode" required />
               </div>
               <div class="field-group">
                 <label>Date</label>
@@ -736,12 +744,12 @@
             <div class="form-row-grid tri-grid" style="text-align: left">
               <div class="field-group">
                 <label>a. Service No. <span class="required">*</span></label>
-                <input type="text" id="serviceNo" value="{{ user.file_no }}" required readonly
+                <input type="text" id="serviceNo" value="{{ user.service_number }}" required readonly
                   style="background-color: #f1f5f9; font-weight: 600;" />
               </div>
               <div class="field-group">
                 <label>b. Rank <span class="required">*</span></label>
-                <input type="text" id="milRank" placeholder="e.g. Lt Col / Wg Cdr / Cdr" required autocomplete="off" />
+                <input type="text" id="milRank" value="{{ user.rankOrGrade }}" placeholder="e.g. Lt Col / Wg Cdr / Cdr" required autocomplete="off" />
               </div>
               <div class="field-group">
                 <label>c. Name (In Full) <span class="required">*</span></label>
@@ -1332,7 +1340,17 @@
           </form>
         </div>
         {% endif %}
+        <div class="onboarding-controls-bar" style="margin: 25px;">
+          <button type="button" class="round-back-btn" onclick="goToStep(4)">
+            ←
+          </button>
+          <button type="button" class="save-changes-btn" onclick="submitStepForm(5)">
+            Submit Onboarding
+          </button>
+        </div>
       </div>
+      
+      
 
       <!-- ================= SUCCESS POPUP MODAL DIALOG CONTAINER ================= -->
       <div id="successModal" class="success-overlay-mask" style="display: none">

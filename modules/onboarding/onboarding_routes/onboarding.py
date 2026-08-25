@@ -317,8 +317,12 @@ def onboarding_portal():
         "directorate": str(user_data.get("directorate", "DOA")).upper(),
         "file_no": generated_file_no,
         "training_request_active": user_data.get("training_request_active", False),
-        "appt": user_data.get("onboarding_data", {}).get("step_1", {}).get("appt"),
-        "middlename": user_data.get("middlename")
+        "appt": user_data.get("onboarding_data", {}).get("step_1", {}).get("appt").upper(),
+        "rankOrGrade": user_data.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade").upper(),
+        "middlename": user_data.get("middlename"),
+        "firstname": user_data.get("firstname"),
+        "service_number": user_data.get("service_number"),
+
     }
 
 
