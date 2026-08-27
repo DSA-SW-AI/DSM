@@ -95,11 +95,15 @@ def super_admin_dashboard():
 
     recent_support_tickets = list(db.support_tickets.find().sort("created_at", -1))
     
+    # Load meal ticket users
+    meal_ticket_users = list(db.meal_tickets.find().sort("created_at", -1))
+    
     return render_template(
         'super_admin_dashboard.html',
         user=ui_user_profile,
         permissions=user_allowed_features,
         users=all_users,
+        meal_ticket_users=meal_ticket_users,
         directorate_stats=directorate_counts,
         category_stats=category_counts,
         active_page='super_admin_dashboard',

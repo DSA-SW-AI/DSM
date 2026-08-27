@@ -29,6 +29,7 @@ from modules.support.support_routes.supports import support_routes
 from modules.chats.chat_routes.chats import chat_routes
 from modules.onboarding.onboarding_routes.onboarding import onboarding_routes
 from modules.super_admin.super_admin_routes.super_admin import super_admin_routes
+from modules.super_admin.super_admin_routes.meal_ticket_bulk import meal_ticket_upload_routes
 
 
 
@@ -74,6 +75,7 @@ daily_parade_states = db["daily_parade_states"]
 support_tickets_collection = db["support_tickets"]
 chats_collection = db["chats"]
 systems_collection = db["system_settings"]
+meal_tickets_collection = db["meal_tickets"]
 
 
 
@@ -89,6 +91,7 @@ app.register_blueprint(setting_routes)
 app.register_blueprint(chat_routes)
 app.register_blueprint(onboarding_routes)
 app.register_blueprint(super_admin_routes)
+app.register_blueprint(meal_ticket_upload_routes)
 
 
 app.users_collection = users_collection
@@ -101,6 +104,7 @@ app.support_tickets_collection = support_tickets_collection
 app.support_tickets = support_tickets_collection
 app.chats_collection = chats_collection
 app.systems_collection = systems_collection
+app.meal_tickets_collection = meal_tickets_collection
 
 
 
