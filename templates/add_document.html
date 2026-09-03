@@ -1,0 +1,2153 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Document</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" /> -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Quill -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+
+  <style>
+    /* Style signature images inside Quill editor and preview */
+    .ql-editor img[src^="data:image/"],
+    .memo-document img[src^="data:image/"] {
+      max-width: 120px !important;
+      height: auto !important;
+      display: block;
+      margin-left: auto !important;
+      margin-right: 0 !important;
+    }
+
+    /*.ck-rounded-corners .ck.ck-editor__main>.ck-editor__editable,
+    .ck.ck-editor__main>.ck-editor__editable.ck-rounded-corners {
+      min-height: 601px;
+    }*/
+
+    .attachment-item {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      display: flex;
+      min-height: 120px;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transition: all .18s ease;
+    }
+
+    .attachment-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+
+
+    .attachment-name {
+      font-weight: 800;
+      color: #1041aa;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .attachment-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .attachment-btn {
+      border: none;
+      background: #f3f4f6;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .attachment-btn:hover {
+      background: #e5e7eb;
+    }
+
+
+    .attachment-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .attachment-code {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1d4ed8;
+      letter-spacing: .03em;
+    }
+
+    .attachment-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .attachment-file {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .attachment-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .attachment-btn {
+      border: none;
+      background: #f3f4f6;
+      padding: 7px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .attachment-btn:hover {
+      background: #e5e7eb;
+    }
+
+
+    /* ─────────────────────────────────────────
+       MEMO HEADER  (rendered above Quill)
+    ───────────────────────────────────────── */
+    #memo-header-wrap {
+      display: none;
+      /* shown only for memorandum template */
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      padding: 12mm 16mm 6mm;
+      font-family: 'Crimson Text', Georgia, serif;
+      margin-bottom: 0;
+    }
+
+    /* ── Mini fields bar inside the memo header ── */
+    .memo-fields-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      background: #f8f9fb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+    }
+
+    .memo-fields-bar label {
+      color: #374151;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .memo-fields-bar input {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
+      width: 120px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .memo-fields-bar input:focus {
+      border-color: #2563eb;
+    }
+
+    .memo-fields-bar input[readonly] {
+      background: #f3f4f6;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+
+    /* ── A4-styled header block ── */
+    .memo-a4-header {
+      font-family: 'Crimson Text', Georgia, serif;
+    }
+
+    .memo-restricted-band {
+      text-align: center;
+      font-size: 10pt;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #1a1a1a;
+      margin-bottom: 8mm;
+    }
+
+    .memo-org-name {
+      text-align: center;
+      font-weight: 600;
+      font-size: 13.5pt;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 4mm;
+      color: #111;
+    }
+
+    .memo-logo-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 5mm;
+    }
+
+    .memo-logo-wrap img,
+    .memo-crest-svg {
+      width: 24mm;
+      height: 24mm;
+      object-fit: contain;
+    }
+
+    .memo-title-band {
+      text-align: center;
+      font-family: 'IM Fell English', serif;
+      font-size: 15pt;
+      letter-spacing: .04em;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+      color: #111;
+      margin-bottom: 6mm;
+    }
+
+    /* ── Address grid ── */
+    .memo-address-grid {
+      display: grid;
+      grid-template-columns: 1fr 2px 1fr;
+      border-top: 1px solid #444;
+      border-bottom: 1px solid #444;
+      margin-bottom: 0;
+    }
+
+    .memo-addr-cell {
+      padding: 3mm 4mm;
+    }
+
+    .memo-addr-divider {
+      background: #444;
+      align-self: stretch;
+    }
+
+    .memo-addr-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      line-height: 2.1;
+      font-size: 11pt;
+      color: #111;
+    }
+
+    .memo-addr-label {
+      font-weight: 600;
+      min-width: 38px;
+    }
+
+    .memo-live-field {
+      color: #1a3060;
+    }
+
+    /* ── Quill container tweaks when memo mode is active ── */
+    #memo-header-wrap.visible {
+      display: block;
+    }
+
+    .memo-active .ql-toolbar {
+      border-radius: 0 !important;
+      border-top: 1px solid #e5e7eb !important;
+    }
+
+    .memo-active .ql-container {
+      border-radius: 0 0 6px 6px !important;
+    }
+
+    /* ── Quill label for memo body ── */
+    .memo-body-label {
+      display: none;
+      font-size: 11px;
+      font-family: 'Inter', sans-serif;
+      color: #9ca3af;
+      padding: 6px 14px 2px;
+      background: #fff;
+      border-left: 1px solid #e5e7eb;
+      border-right: 1px solid #e5e7eb;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .memo-body-label.visible {
+      display: block;
+    }
+
+    /* ─────────────────────────────────────────
+       REST OF PAGE STYLES (unchanged from yours)
+    ───────────────────────────────────────── */
+    .mode-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.8rem;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      width: fit-content;
+    }
+
+    .mode-tab {
+      padding: 10px 28px;
+      background: #f3f4f6;
+      border: none;
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+      font-weight: 500;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .mode-tab.active {
+      background: #0d1b45;
+      color: #fff;
+    }
+
+    .mode-tab:first-child {
+      border-right: 1px solid #e5e7eb;
+    }
+
+    .mode-section {
+      display: none;
+    }
+
+    .mode-section.visible {
+      display: block;
+    }
+
+    #quill-editor {
+      min-height: 400px;
+      background: #fff;
+      border-radius: 0 0 6px 6px;
+    }
+
+
+    .ql-toolbar {
+      border-radius: 6px 6px 0 0;
+      border-color: #e5e7eb !important;
+    }
+
+    .ql-container {
+      border-color: #e5e7eb !important;
+      min-height: 400px;
+      font-family: 'Crimson Text', Georgia, serif;
+      font-size: 12pt;
+    }
+
+    .upload-zone {
+      border: 2px dashed #c7d2fe;
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      background: #f5f7ff;
+      cursor: pointer;
+      transition: background 0.2s;
+      position: relative;
+    }
+
+    .upload-zone:hover {
+      background: #eef0ff;
+    }
+
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-zone .upload-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .upload-zone .upload-label {
+      color: #4b5563;
+      font-size: 0.95rem;
+    }
+
+    .upload-zone .upload-hint {
+      color: #9ca3af;
+      font-size: 0.82rem;
+      margin-top: 4px;
+    }
+
+    #file-name-display {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: #0d1b45;
+      font-weight: 500;
+    }
+  </style>
+</head>
+
+<body data-active-page="add_document">
+  <div class="dashboard-wrapper">
+    {% include "sidebar.html" %}
+
+    <div class="main-content">
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 ODOGWU &gt; <span class="active-crumb"> Add Document</span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="dashboard-content">
+        <div class="background-welcome">
+          <div class="container-welcome">
+            <div class="welcome-card" style="max-width: 1050px; padding: 2rem; margin: 0 auto">
+
+              <h2 class="welcome-tag" id="page-title" style="margin-bottom: 8px">
+                Add Document
+              </h2>
+              <br>
+
+
+
+              <!-- ── PARENT DOCUMENT BANNER ── -->
+              {% if parent_document %}
+              <div style="
+                  background: #fffbeb;
+                  border: 1px solid #fcd34d;
+                  border-left: 4px solid #f59e0b;
+                  border-radius: 8px;
+                  padding: 14px 18px;
+                  margin-bottom: 20px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  gap: 16px;
+                ">
+                <div style="display:flex; align-items:flex-start; gap:12px;">
+                  <span style="font-size:1.4rem; margin-top:2px;">🔗</span>
+                  <div>
+                    <div
+                      style="font-size:0.75rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:.05em; margin-bottom:3px;">
+                      Correspondence raised in response to
+                    </div>
+                    <div style="font-size:1rem; font-weight:700; color:#111827;">
+                      {{ parent_document.get('memo_title', 'Untitled Document') }}
+                    </div>
+                    <div style="font-size:0.82rem; color:#6b7280; margin-top:2px;">
+                      <strong>Ref:</strong> {{ parent_document.get('reference_number', 'N/A') }}
+                      &nbsp;·&nbsp;
+                      <strong>Subject:</strong> {{ parent_document.get('subject', 'N/A') }}
+                    </div>
+                    {% if parent_document.get('sender') %}
+                    <div style="font-size:0.78rem; color:#9ca3af; margin-top:2px;">
+                      From: {{ parent_document.get('sender') }}
+                    </div>
+                    {% endif %}
+                    <div style="font-size:0.78rem; color:#9ca3af; margin-top:2px;">
+                      Imported by {{ parent_document.get('created_by', '') }}
+                      {% if parent_document.get('created_at') %}
+                      · {{ parent_document['created_at'].strftime('%d %b %Y') }}
+                      {% endif %}
+                    </div>
+                  </div>
+
+                </div>
+                <a href="{{ url_for('open_document_routes.open_document', doc_id=parent_document._id) }}"
+                  target="_blank" style="
+       background: #f59e0b;
+       color: white;
+       padding: 8px 16px;
+       border-radius: 6px;
+       font-size: 12px;
+       font-weight: 600;
+       text-decoration: none;
+       white-space: nowrap;
+       flex-shrink: 0;
+     ">
+                  View Original →
+                </a>
+              </div>
+              {% endif %}
+              <!-- ── END PARENT DOCUMENT BANNER ── -->
+
+              <div>
+                <!-- ── PARENT DOCUMENT PREVIEW ── -->
+                {% if parent_document %}
+
+                {% if parent_document.get('main_file_id') %}
+
+                {% set filename = parent_document.get('main_filename', '')|lower %}
+
+                <div style="
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:16px;
+      margin-bottom:24px;
+    ">
+
+                  <div style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        margin-bottom:12px;
+      ">
+
+                    <div>
+                      <div style="
+            font-size:0.75rem;
+            font-weight:700;
+            color:#6b7280;
+            text-transform:uppercase;
+            letter-spacing:.05em;
+          ">
+                        Parent Correspondence Preview
+                      </div>
+
+                      <div style="
+            font-size:1rem;
+            font-weight:700;
+            color:#111827;
+            margin-top:2px;
+          ">
+                        {{ parent_document.get('main_filename', 'Document') }}
+                      </div>
+                    </div>
+
+                    <a href="{{ url_for('open_document_routes.view_main_document', doc_id=parent_document._id) }}"
+                      target="_blank" style="
+            background:#0d1b45;
+            color:white;
+            padding:8px 14px;
+            border-radius:6px;
+            text-decoration:none;
+            font-size:12px;
+            font-weight:600;
+          ">
+                      Open Fullscreen
+                    </a>
+
+                  </div>
+
+                  <!-- PDF PREVIEW -->
+                  {% if filename.endswith('.pdf') %}
+
+                  <iframe src="{{ url_for('open_document_routes.view_main_document', doc_id=parent_document._id) }}"
+                    width="100%" height="700" style="
+            border:1px solid #d1d5db;
+            border-radius:8px;
+          ">
+                  </iframe>
+
+                  <!-- DOCX / DOC -->
+                  {% elif filename.endswith('.doc') or filename.endswith('.docx') %}
+
+                  {% if preview_html %}
+                  <div style="
+            border:1px solid #d1d5db;
+            border-radius:8px;
+            padding:24px;
+            background:white;
+          ">
+                    {{ preview_html|safe }}
+                  </div>
+                  {% else %}
+                  <div style="
+            padding:20px;
+            background:#f9fafb;
+            border-radius:8px;
+            color:#6b7280;
+          ">
+                    Preview unavailable for this document type.
+                  </div>
+                  {% endif %}
+
+                  {% endif %}
+
+                </div>
+
+                {% endif %}
+
+                {% endif %}
+              </div>
+
+              <div>
+                <!-- ══════════════════════════════════════════
+     PARENT DOCUMENT ENCLOSURES / ANNEXES
+     (attachments that came with the original correspondence)
+══════════════════════════════════════════ -->
+                {% if parent_document and parent_document.get('attachments') and parent_document.get('attachments') |
+                length > 0 %}
+                <div style="
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #f59e0b;
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  margin-bottom: 24px;
+">
+
+                  <h4 style="
+    margin: 0 0 14px 0;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  ">
+                    📎 Enclosures / Annexes from Original Correspondence
+                    <span style="
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+    ">{{ parent_document.get('attachments') | length }}</span>
+                  </h4>
+
+                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                    {% for att in parent_document.get('attachments', []) %}
+                    <div style="
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    ">
+                      <!-- Left: attachment info -->
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <div
+                          style="font-size: 11px; font-weight: 700; color: #b45309; letter-spacing: .04em; text-transform: uppercase;">
+                          {{ att.code }}
+                        </div>
+                        <div style="font-size: 14px; font-weight: 600; color: #111827;">
+                          {{ att.title }}
+                        </div>
+                        <div style="font-size: 12px; color: #6b7280;">
+                          📄 {{ att.filename }}
+                        </div>
+                        <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">
+                          Uploaded by {{ att.uploaded_by }}
+                          {% if att.uploaded_at %}
+                          · {{ att.uploaded_at.strftime('%d %b %Y %H:%M') }}
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      <!-- Right: action buttons -->
+                      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
+                        <a href="{{ url_for('document_attachment_routes.view_attachment', file_id=att.file_id) }}"
+                          target="_blank" style="
+             background: #fef3c7;
+             color: #92400e;
+             padding: 8px 14px;
+             border-radius: 6px;
+             font-size: 12px;
+             font-weight: 500;
+             text-decoration: none;
+             border: 1px solid #fde68a;
+           ">
+                          👁 View
+                        </a>
+                        <a href="{{ url_for('document_attachment_routes.download_attachment', file_id=att.file_id, filename=att.filename) }}"
+                          style="
+             background: #92400e;
+             color: #fff;
+             padding: 8px 14px;
+             border-radius: 6px;
+             font-size: 12px;
+             font-weight: 500;
+             text-decoration: none;
+           ">
+                          ⬇ Download
+                        </a>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  </div>
+
+                </div>
+                {% endif %}
+                <!-- ══ END PARENT ENCLOSURES / ANNEXES ══ -->
+              </div>
+
+              <form action="{{ url_for('add_document_routes.add_document') }}" method="POST"
+                enctype="multipart/form-data" style="text-align:left" id="doc-form">
+
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="doc_mode" id="doc_mode" value="create" />
+                <!-- Stores the full combined HTML (memo header + quill body) on submit -->
+                <input type="hidden" name="content_html" id="content_html_input" />
+                <!-- Stores just the template type so backend can know -->
+                <input type="hidden" name="template_type" id="template_type_input" value="" />
+
+                <!-- ── NEW: links this correspondence back to its parent document ── -->
+                <input type="hidden" name="parent_doc_id" id="parent_doc_id" value="" />
+
+                <!-- ── Shared metadata ── -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:30px; margin-bottom:1.5rem;">
+                  <input type="hidden" name="attachments_metadata" id="attachments_metadata">
+                  <!-- Left Column -->
+                  <div>
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label for="directorate_from" style="display:block;margin-bottom:5px;font-weight:500;">
+                        From (Originating Directorate)
+                      </label>
+                      <input type="text" id="directorate_from" value="{{ user_directorate or 'N/A' }}" readonly
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;cursor:not-allowed;" />
+                    </div>
+
+                    <div class="form-group" id="sender-recipient-group" style="margin-bottom:15px">
+                      <label for="sender" style="display:block;margin-bottom:5px;font-weight:500;">
+                        Sender
+                      </label>
+                      <input type="text" id="sender" name="sender"
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label for="document_type" style="display:block;margin-bottom:5px;font-weight:500;">
+                        Select Reference Number and Subject
+                      </label>
+                      <select id="document_type"
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;" required>
+                        <option value="">-- Select Reference Number and Subject --</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label for="reference_number" style="display:block;margin-bottom:5px;font-weight:500;">
+                        Reference Number
+                      </label>
+                      <input type="text" id="reference_number" name="reference_number" readonly required
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;cursor:not-allowed;" />
+                    </div>
+                  </div>
+
+                  <!-- Right Column -->
+                  <div>
+                    <!-- <div class="form-group" style="margin-bottom:15px">
+                      <label for="recipient_email" style="display:block;margin-bottom:5px;font-weight:500;">
+                        To (Select Office to Send To)
+                      </label>
+                      <select id="recipient_email" name="recipient_email" required
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;">
+                        <option value="" disabled selected>Select User...</option>
+                        {% if users %}{% for u in users %}
+                        <option value="{{ u.email }}">
+                          {{ u.name }} ({{ u.directorate or 'No Directorate' }}) - {{ u.role }}
+                        </option>
+                        {% endfor %}{% else %}
+                        <option value="">No Users Found</option>
+                        {% endif %}
+                      </select>
+                    </div> -->
+
+                    <div class="form-group" id="precedence-group" style="margin-bottom: 15px;">
+                      <label for="precedence"
+                        style="display: block; margin-bottom: 5px; font-weight: 500;">Precedence</label>
+                      <select id="precedence" name="precedence"
+                        style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                        <option value="routine">Routine</option>
+                        <option value="priority">Priority</option>
+                        <option value="confidential">Confidential</option>
+                        <option value="top-secret">Top Secret</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group" id="correspondence-type-group" style="margin-bottom: 15px;">
+                      <label for="correspondence-type"
+                        style="display: block; margin-bottom: 5px; font-weight: 500;">Correspondence
+                        Type</label>
+                      <select id="correspondence-type" name="correspondence_type"
+                        style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                        <option value="incoming">Incoming</option>
+                        <option value="outgoing">Outgoing</option>
+                      </select>
+                    </div>
+
+                    <!-- <div class="form-group" id="folder-name-group" style="margin-bottom: 15px; display: none;">
+                      <label for="folder_name"
+                        style="display: block; margin-bottom: 5px; font-weight: 500;">Filing Folder</label>
+                      <input type="text" id="folder_name" name="folder_name" list="folders-list" placeholder="e.g. Partnerships 2026"
+                        style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;" />
+                      <datalist id="folders-list">
+                        {% for folder in existing_folders %}
+                        <option value="{{ folder }}"></option>
+                        {% endfor %}
+                      </datalist>
+                    </div> -->
+
+                    <div class="form-group" style="margin-bottom: 15px;">
+                      <label for="memo_title" style="display: block; margin-bottom: 5px; font-weight: 500;">Memo
+                        Title</label>
+                      <input type="text" id="memo_title" name="memo_title" required
+                        style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label for="subject" style="display:block;margin-bottom:5px;font-weight:500;">Reference
+                        Subject</label>
+                      <input type="text" id="subject" name="subject" readonly required
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;cursor:not-allowed;" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ── CREATE / EDITOR section ── -->
+                <div class="mode-section visible" id="section-create">
+                  <div style="margin-bottom:1.5rem;">
+                    <label style="display:block;margin-bottom:8px;font-weight:500;">
+                      Type below using the rich text editor. You can format the text, add links, create lists and more.
+                    </label>
+
+                    <!-- ══ MEMO HEADER (injected here for structured templates) ══ -->
+                    <div id="memo-header-wrap">
+                      <!-- Fields bar: To / From / Date inputs that sync live into the header -->
+                      <div class="memo-fields-bar">
+                        <label>To:
+                          <input type="text" id="memo-inp-to" placeholder="CDSA" />
+                        </label>
+                        <label>From:
+                          <!-- Auto-filled from user directorate; read-only -->
+                          <input type="text" id="memo-inp-from" readonly />
+                        </label>
+                        <label>Ref:
+                          <!-- Auto-filled from reference_number field above; read-only -->
+                          <input type="text" id="memo-inp-ref" readonly placeholder="Select ref above" />
+                        </label>
+                        <label>Date:
+                          <input type="text" id="memo-inp-date" placeholder="e.g. 19 May 25" />
+                        </label>
+                      </div>
+
+                      <!-- The actual A4-styled header — built by templates.js -->
+                      <div id="memo-header-content"></div>
+                    </div>
+
+                    <!-- Label that appears between header and Quill body -->
+                    <div class="memo-body-label" id="memo-body-label">
+                      ✏ &nbsp;Correspondence Body — type below
+                    </div>
+
+                    <!-- Quill editor -->
+                    <div id="quill-editor"></div>
+                    <!-- CKEDITOR editor -->
+                    <!-- <div id="editor"></div> -->
+
+                    <!-- <input type="hidden" name="body_html" id="body_html">
+                    <input type="hidden" name="header_json" id="header_json"> -->
+
+                  </div>
+                </div>
+
+                <!-- ── UPLOAD section ── -->
+                <div class="mode-section" id="section-upload">
+                  <div style="margin-bottom:1.5rem;">
+                    <label style="display:block;margin-bottom:8px;font-weight:500;">
+                      Upload Correspondence (PDF / DOC / DOCX)
+                    </label>
+                    <div class="upload-zone" id="upload-zone">
+                      <input type="file" id="pdf_file" name="pdf_file" accept=".pdf,.doc,.docx"
+                        onchange="showFileName(this)" />
+                      <div class="upload-icon">📄</div>
+                      <div class="upload-label">Click or drag a file here</div>
+                      <div class="upload-hint">Supported: PDF, DOC, DOCX (max 20 MB)</div>
+                      <div id="file-name-display"></div>
+                    </div>
+                  </div>
+                </div>
+
+
+                <!-- ── Shared metadata ── -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:30px; margin-bottom:1.5rem;">
+
+                  <!-- Left Column -->
+                  <div>
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label for="directorate_from" style="display:block;margin-bottom:5px;font-weight:500;">
+                        Name
+                      </label>
+                      <input type="text" id="name" name="name" required
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label for="document_type" style="display:block;margin-bottom:5px;font-weight:500;">
+                        Appt
+                      </label>
+                      <input type="text" id="appt" name="appt"
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                    </div>
+                  </div>
+
+                  <!-- Right Column -->
+                  <div>
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label for="reference_number" style="display:block;margin-bottom:5px;font-weight:500;">
+                        Rank
+                      </label>
+                      <input type="text" id="rank" name="rank"
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label for="signature" style="display:block;margin-bottom:5px;font-weight:500;">Signature</label>
+                      <div style="display:flex; gap:8px;">
+                        <input type="text" id="signature" name="signature" readonly placeholder="Not Signed"
+                          style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                        {% if session.get('role') in ['registry', 'central_registry'] %}
+                        <button type="button" id="verifySigBtn" disabled title="You cannot Sign added document"
+                          style="background:#9ca3af; color:white; border:none; padding:10px 16px; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:not-allowed; white-space:nowrap; opacity:0.6;">
+                          ✍️ Verify & Sign
+                        </button>
+                        {% else %}
+                        <button type="button" onclick="openVerifySignatureModal()" id="verifySigBtn"
+                          style="background:#0d1b45; color:white; border:none; padding:10px 16px; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                          ✍️ Verify & Sign
+                        </button>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ENCLOSURES AND ANNEXES -->
+
+                <!-- ── UPLOAD section ── -->
+
+                <!-- ENCLOSURES / ANNEXES -->
+                <div class="mode-enclosures" id="section-enclosures">
+
+                  <div style="margin-bottom:1.5rem;">
+
+                    <label style="display:block;margin-bottom:8px;font-weight:500;">
+                      Attach Enclosures / Annexes
+                    </label>
+
+                    <!-- CONTROLS -->
+                    <div style="
+      display:flex;
+      gap:10px;
+      margin-bottom:12px;
+      flex-wrap:wrap;
+    ">
+
+                      <!-- TYPE -->
+                      <select id="attachment-type" style="
+          padding:10px;
+          border:1px solid #e5e7eb;
+          border-radius:6px;
+        ">
+
+                        <option value="enclosure">
+                          Enclosure
+                        </option>
+
+                        <option value="annex">
+                          Annex
+                        </option>
+
+                      </select>
+
+                      <!-- TITLE -->
+                      <input type="text" id="attachment-title" placeholder="e.g. List of Employees" style="
+          flex:1;
+          min-width:250px;
+          padding:10px;
+          border:1px solid #e5e7eb;
+          border-radius:6px;
+        " />
+
+                      <!-- FILE -->
+                      <input type="file" id="attachment-file" accept=".pdf,.doc,.docx" multiple style="display:none;" />
+
+                      <!-- BUTTON -->
+                      <button type="button" onclick="triggerAttachmentUpload()" style="
+          background:#0d1b45;
+          color:white;
+          border:none;
+          padding:10px 18px;
+          border-radius:6px;
+          cursor:pointer;
+          font-weight:600;
+        ">
+
+                        + Add Attachment
+
+                      </button>
+
+                    </div>
+
+                    <!-- LIST -->
+                    <div id="attachment-list"></div>
+
+                  </div>
+
+                </div>
+
+
+                <!-- ── Submit buttons ── -->
+                <div style="margin-top:2rem;display:flex;justify-content:flex-end;gap:1rem;">
+                  <!-- <input type="button" value="Preview"
+                    style="padding: 0 10px; width:auto; font-weight: 800; border: 1px solid rgb(35, 84, 182); border-radius: 10px; color:rgb(35, 84, 182); text-decoration:none;"
+                    id="preview-btn"> -->
+
+                  <button type="button" class="login-btn" style="width:auto;" id="submit-btn"
+                    onclick="handleFormSubmit()">
+                    ✍️ Save
+                  </button>
+                </div>
+              </form>
+            </div>
+
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verify Signature Modal -->
+  <div id="verifySigModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+    <div
+      style="background:white; border-radius:14px; padding:28px; width:450px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); font-family:'Inter', sans-serif;">
+      <h3 style="margin:0 0 10px 0; font-size:1rem; color:#111827; font-weight:600;">Verify Signature</h3>
+      <p style="font-size:0.82rem; color:#6b7280; margin-bottom:18px;">Please enter your signing password to verify and
+        apply your profile signature.</p>
+
+      <label style="display:block; font-size:0.82rem; font-weight:600; color:#374151; margin-bottom:6px;">Signing
+        Password</label>
+      <input type="password" id="verifySigPasswordInput" placeholder="Enter signing password"
+        style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; margin-bottom:10px; box-sizing:border-box;" />
+
+      <p id="verifySigModalError" style="display:none; color:#dc2626; font-size:0.8rem; margin-bottom:12px;"></p>
+
+      <div style="display:flex; gap:10px;">
+        <button type="button" onclick="submitVerifySignature()"
+          style="background:#16a34a; color:white; border:none; padding:10px 18px; border-radius:8px; font-size:0.9rem; font-weight:600; cursor:pointer; flex:1;">✔
+          Verify & Apply</button>
+        <button type="button" onclick="closeVerifySignatureModal()"
+          style="background:#e5e7eb; color:#374151; border:none; padding:10px 18px; border-radius:8px; font-size:0.9rem; cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Alert Modal -->
+  <div id="customAlertModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:10000; align-items:center; justify-content:center;">
+    <div
+      style="background:white; border-radius:14px; padding:28px; width:400px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); font-family:'Inter', sans-serif; text-align:center;">
+      <div style="font-size: 2.5rem; margin-bottom: 12px;">⚠️</div>
+      <h3 style="margin:0 0 10px 0; font-size:1.1rem; color:#111827; font-weight:600;">Attention Required</h3>
+      <p id="customAlertMessage" style="font-size:0.875rem; color:#4b5563; margin-bottom:20px; line-height:1.5;">Enter
+        Attachment Title before proceeding to upload</p>
+      <button type="button" onclick="closeCustomAlert()"
+        style="background:#2563eb; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:0.9rem; font-weight:600; cursor:pointer; width:100%; transition: background 0.2s;">OK</button>
+    </div>
+  </div>
+
+  <!-- Load templates first so they're available to the inline script -->
+  <script src="{{ url_for('static', filename='js/templates.js') }}"></script>
+  <!-- <script src="{{ url_for('static', filename='main.js') }}"></script> -->
+
+  <script>
+    lucide.createIcons();
+
+    // ─────────────────────────────────────────────
+    // DOCUMENT UI CONFIGURATION
+    // ─────────────────────────────────────────────
+
+    const documentUIConfig = {
+
+      upload: {
+        title: 'Import Correspondence',
+        showPrecedence: false,
+        showCorrespondenceType: true,
+        showSenderRecipient: true
+      },
+
+      memorandum: {
+        title: 'Add Correspondence',
+        showPrecedence: false,
+        showCorrespondenceType: false,
+        showSenderRecipient: false
+      },
+
+      loose_minute: {
+        title: 'Add Loose Minute',
+        showPrecedence: true,
+        showCorrespondenceType: false,
+        showSenderRecipient: false
+      },
+
+      draft: {
+        title: 'Add Draft',
+        showPrecedence: false,
+        showCorrespondenceType: false,
+        showSenderRecipient: false
+      },
+
+      letter: {
+        title: 'Add Official Letter',
+        showPrecedence: false,
+        showCorrespondenceType: false,
+        showSenderRecipient: false
+      },
+
+      circular: {
+        title: 'Add Circular',
+        showPrecedence: false,
+        showCorrespondenceType: false,
+        showSenderRecipient: false
+      }
+    };
+
+
+
+    // ─────────────────────────────────────────
+    // PRECEDENCE ACCESS CONTROL
+    // ─────────────────────────────────────────
+
+    const precedencePermissions = {
+
+      admin_officer: [''],
+      civilian_head: [''],
+      civilian_head_cao: [''],
+
+      registry: ['routine'],
+      so: ['routine', 'priority'],
+      ad: ['routine', 'priority'],
+
+      director: [
+        'routine',
+        'priority',
+        'confidential',
+        'top-secret'
+      ],
+
+      dd: [
+        'routine',
+        'priority',
+        'confidential',
+        'top-secret'
+      ],
+
+      dcdsa: [
+        'routine',
+        'priority',
+        'confidential',
+        'top-secret'
+      ],
+
+      cdsa: [
+        'routine',
+        'priority',
+        'confidential',
+        'top-secret'
+      ]
+    };
+
+
+
+    function applyDocumentUI(type) {
+
+      const config = documentUIConfig[type];
+
+      const precedenceEl = document.getElementById('precedence');
+      precedenceEl.required = config.showPrecedence;
+
+      const correspondenceTypeEl = document.getElementById('correspondence-type');
+      correspondenceTypeEl.required = config.showCorrespondenceType;
+
+      const senderEl = document.getElementById('sender');
+      senderEl.required = config.showSenderRecipient;
+
+
+
+      if (!config) return;
+
+      // HEADER TITLE
+      document.getElementById('page-title').textContent =
+        config.title;
+
+      // PRECEDENCE
+      document.getElementById('precedence-group').style.display =
+        config.showPrecedence ? 'block' : 'none';
+
+      // CORRESPONDENCE TYPE
+      document.getElementById('correspondence-type-group').style.display =
+        config.showCorrespondenceType ? 'block' : 'none';
+
+      // SENDER/RECIPIENT
+      document.getElementById('sender-recipient-group').style.display =
+        config.showSenderRecipient ? 'block' : 'none';
+    }
+
+
+
+    // ─────────────────────────────────────────
+    // APPLY ROLE-BASED PRECEDENCE OPTIONS
+    // ─────────────────────────────────────────
+
+    function applyPrecedencePermissions() {
+
+      const precedenceSelect =
+        document.getElementById('precedence');
+
+      const allowedOptions =
+        precedencePermissions[currentUserRole] || ['routine'];
+
+      // LOOP THROUGH OPTIONS
+      Array.from(precedenceSelect.options)
+        .forEach(option => {
+
+          option.hidden =
+            !allowedOptions.includes(option.value);
+
+        });
+
+      // AUTO-SELECT FIRST ALLOWED OPTION
+      precedenceSelect.value = allowedOptions[0];
+
+      // Hide dropdown entirely for restricted roles
+      if (
+        currentUserRole === 'admin_officer' ||
+        currentUserRole === 'civilian_head' ||
+        currentUserRole === 'civilian_head_cao'
+
+      ) {
+
+        precedenceSelect.disabled = true;
+
+        precedenceSelect.style.background =
+          '#f3f4f6';
+
+        precedenceSelect.style.cursor =
+          'not-allowed';
+
+      } else {
+
+        precedenceSelect.disabled = false;
+
+        precedenceSelect.style.background =
+          '';
+
+        precedenceSelect.style.cursor =
+          '';
+
+      }
+
+      // Refresh loose minute immediately
+      renderLooseMinute();
+    }
+
+
+    // ── Quill init ──────────────────────────────────────────────
+    const toolbarOptions = [
+      ['bold', 'italic', 'underline', 'strike'],
+      ['blockquote', 'code-block'],
+      ['link', 'image'],
+      [{ 'header': 1 }, { 'header': 2 }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
+      [{ 'script': 'sub' }, { 'script': 'super' }],
+      [{ 'indent': '-1' }, { 'indent': '+1' }],
+      [{ 'direction': 'rtl' }],
+      [{ 'size': ['small', false, 'large', 'huge'] }],
+      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      [{ 'color': [] }, { 'background': [] }],
+      [{ 'font': [] }],
+      [{ 'align': [] }],
+      ['clean']
+    ];
+
+
+    const quill = new Quill('#quill-editor', {
+      theme: 'snow',
+      placeholder: 'Type your document content here...',
+      modules: { toolbar: toolbarOptions }
+    });
+
+
+    // ── Refs to key elements ────────────────────────────────────
+    const memoHeaderWrap = document.getElementById('memo-header-wrap');
+    const memoHeaderContent = document.getElementById('memo-header-content');
+    const memoBodyLabel = document.getElementById('memo-body-label');
+    const memoInpTo = document.getElementById('memo-inp-to');
+    const memoInpFrom = document.getElementById('memo-inp-from');
+    const memoInpRef = document.getElementById('memo-inp-ref');
+    const memoInpDate = document.getElementById('memo-inp-date');
+    const referenceInput = document.getElementById('reference_number');
+    const directorateInput = document.getElementById('directorate_from');
+    const sectionCreate = document.getElementById('section-create');
+    const quillEditorEl = document.getElementById('quill-editor');
+
+    let activeTemplateType = '';   // tracks which structured template is active
+
+    // ── Render memo header from current field values ─────────────
+    function renderMemoHeader() {
+      if (activeTemplateType !== 'memorandum') return;
+      const tmpl = documentTemplates.memorandum;
+      memoHeaderContent.innerHTML = tmpl.buildHeader({
+        to: memoInpTo.value,
+        from: memoInpFrom.value,
+        ref: memoInpRef.value,
+        date: memoInpDate.value
+      });
+    }
+
+    // RENDEER LOOSE MINUTE HEADER from current field values
+    // ─────────────────────────────────────────
+    // RENDER / UPDATE LOOSE MINUTE HEADER
+    // ─────────────────────────────────────────
+    function renderLooseMinute() {
+
+      if (activeTemplateType !== 'loose_minute') return;
+
+      const precedenceSelect = document.getElementById('precedence');
+
+      const precedence =
+        precedenceSelect.options[
+          precedenceSelect.selectedIndex
+        ].text.toUpperCase();
+
+      const ref = referenceInput.value || '';
+
+      const existingPrecedence =
+        document.getElementById('loose-minute-precedence');
+
+      const existingRef =
+        document.getElementById('loose-minute-ref');
+
+      // FIRST TIME INSERT
+      if (!existingPrecedence || !existingRef) {
+
+        const tmpl = documentTemplates.loose_minute;
+
+        quill.setContents([]);
+
+        quill.clipboard.dangerouslyPasteHTML(
+          0,
+          tmpl.buildBody({
+            precedence,
+            ref
+          })
+        );
+
+        return;
+      }
+
+      // LIVE UPDATE
+      existingPrecedence.textContent = precedence;
+      existingRef.textContent = ref;
+    }
+
+
+
+
+
+    // ── Live-sync: fields bar → header display ───────────────────
+    [memoInpTo, memoInpFrom, memoInpRef, memoInpDate].forEach(inp => {
+      inp.addEventListener('input', renderMemoHeader);
+    });
+
+    // Also catch programmatic .value = ... via the change event
+    referenceInput.addEventListener('change', () => {
+      memoInpRef.value = referenceInput.value;
+      renderMemoHeader();
+    });
+
+    function loadTemplate(templateType) {
+
+      const tmpl = documentTemplates[templateType];
+      if (!tmpl) return;
+
+      activeTemplateType = templateType;
+      document.getElementById('template_type_input').value = templateType;
+
+      const isStructured =
+        tmpl.type === 'structured' ||
+        tmpl.type === 'structured_loose_minute' ||
+        tmpl.type === 'structured_draft';
+
+      // =========================
+      // STRUCTURED TEMPLATES
+      // =========================
+      if (isStructured) {
+
+        memoHeaderWrap.classList.add('visible');
+        memoBodyLabel.classList.add('visible');
+        quillEditorEl.parentElement.classList.add('memo-active');
+
+        memoInpFrom.value = directorateInput.value || 'DCS';
+        memoInpRef.value = referenceInput.value || '';
+
+        const today = new Date();
+        memoInpDate.value = today.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: '2-digit'
+        });
+
+        renderMemoHeader();
+
+        // Seed Quill with the body placeholder
+        quill.setContents([]);
+        quill.clipboard.dangerouslyPasteHTML(0, tmpl.bodyPlaceholder);
+        quill.focus();
+      }
+
+      // =========================
+      // SIMPLE TEMPLATES
+      // =========================
+      else {
+
+        memoHeaderWrap.classList.remove('visible');
+        memoBodyLabel.classList.remove('visible');
+        quillEditorEl.parentElement.classList.remove('memo-active');
+
+        quill.setContents([]);
+        quill.clipboard.dangerouslyPasteHTML(0, tmpl.bodyHTML);
+      }
+
+      // =========================
+      // SPECIAL CASE: LOOSE MINUTE
+      // =========================
+      if (templateType === 'loose_minute') {
+
+        applyPrecedencePermissions?.();
+
+        memoHeaderWrap.classList.remove('visible');
+        memoBodyLabel.classList.remove('visible');
+        quillEditorEl.parentElement.classList.remove('memo-active');
+
+        renderLooseMinute();
+      }
+    }
+
+    // ── Folder organization: toggle input field visibility based on type ──
+    function toggleFolderVisibility() {
+      const mode = document.getElementById('doc_mode').value;
+      const folderGroup = document.getElementById('folder-name-group');
+      if (!folderGroup) return;
+
+      if (mode === 'create') {
+        folderGroup.style.display = 'block';
+      } else { // upload mode
+        const correspondenceType = document.getElementById('correspondence-type').value;
+        if (correspondenceType === 'outgoing') {
+          folderGroup.style.display = 'block';
+        } else {
+          folderGroup.style.display = 'none';
+          const folderInput = document.getElementById('folder_name');
+          if (folderInput) folderInput.value = ''; // clear it
+        }
+      }
+    }
+
+    // ── Tab switching (create vs upload) ─────────────────────────
+    function switchMode(mode) {
+      document.getElementById('doc_mode').value = mode;
+      const createSection = document.getElementById('section-create');
+      const uploadSection = document.getElementById('section-upload');
+      const submitBtn = document.getElementById('submit-btn');
+      const fileInput = document.getElementById('pdf_file');
+
+      if (mode === 'create') {
+        createSection.classList.add('visible');
+        uploadSection.classList.remove('visible');
+        submitBtn.textContent = '✍️ Submit/Send';
+        fileInput.removeAttribute('required');
+      } else {
+        uploadSection.classList.add('visible');
+        createSection.classList.remove('visible');
+        submitBtn.textContent = '📁 Upload Correspondence';
+        fileInput.setAttribute('required', 'required');
+        // Hide memo header if switching to upload
+        memoHeaderWrap.classList.remove('visible');
+        memoBodyLabel.classList.remove('visible');
+      }
+      toggleFolderVisibility();
+    }
+
+
+
+    // // ── On page load: read URL params ───────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+
+      const params = new URLSearchParams(window.location.search);
+
+      const modeParam = params.get('mode');
+      const templateParam = params.get('template');
+      const parentDocId = params.get('parent_doc_id');
+
+
+      // ── Set parent_doc_id if coming from open_document ──
+      if (parentDocId) {
+        document.getElementById('parent_doc_id').value = parentDocId;
+
+      }
+
+
+
+      // IMPORT / UPLOAD
+      if (modeParam === 'upload') {
+
+        switchMode('upload');
+
+        applyDocumentUI('upload');
+
+      } else {
+
+        switchMode('create');
+
+        // TEMPLATE
+        if (templateParam && documentTemplates[templateParam]) {
+
+          loadTemplate(templateParam);
+
+          applyDocumentUI(templateParam);
+
+        } else {
+
+          // DEFAULT FALLBACK
+          applyDocumentUI('memorandum');
+        }
+      }
+      toggleFolderVisibility();
+    });
+
+
+
+
+
+    // ── Keep Ref in sync when user selects a reference number ────
+    // (the docTypeSelect change event sets referenceInput.value programmatically, so we watch it)
+    document.getElementById('document_type').addEventListener('change', function () {
+      // small delay so the input has been updated
+      setTimeout(() => {
+        memoInpRef.value = referenceInput.value;
+        renderMemoHeader();
+      }, 50);
+    });
+
+    document.getElementById('correspondence-type').addEventListener('change', toggleFolderVisibility);
+
+
+
+    async function handleFormSubmit() {
+      // ── Clear hidden field values so they don't pollute the DB ──
+      const precedenceGroup = document.getElementById('precedence-group');
+      const correspondenceGroup = document.getElementById('correspondence-type-group');
+      const senderGroup = document.getElementById('sender-recipient-group');
+
+
+      if (precedenceGroup.style.display === 'none') {
+        document.getElementById('precedence').value = '';
+      }
+      if (correspondenceGroup.style.display === 'none') {
+        document.getElementById('correspondence-type').value = '';
+      }
+      if (senderGroup.style.display === 'none') {
+        document.getElementById('sender').value = '';
+        // document.getElementById('recipient').value = '';
+      }
+
+      const mode = document.getElementById('doc_mode').value;
+
+      // 1. Build content_html for create mode
+      // 1. Build content_html for create mode
+      if (mode === 'create') {
+        let fullHTML = '';
+
+        if (activeTemplateType === 'memorandum') {
+          const headerHTML = memoHeaderContent.innerHTML;
+          const bodyHTML = quill.root.innerHTML;
+
+          fullHTML = `
+            <div class="memo-document">
+              <div class="memo-restricted-band" style="text-align:center;font-family:serif;font-size:10pt;letter-spacing:.18em;text-transform:uppercase;margin-bottom:20px;">RESTRICTED</div>
+              ${headerHTML}
+              <div class="memo-document-body" style="margin-top:10mm;font-family:'Crimson Text',Georgia,serif;font-size:12pt;line-height:1.8;">
+                ${bodyHTML}
+              </div>
+              <div class="memo-restricted-band" style="text-align:center;font-family:serif;font-size:10pt;letter-spacing:.18em;text-transform:uppercase;margin-top:30px;">RESTRICTED</div>
+            </div>`;
+
+        } else if (activeTemplateType === 'loose_minute') {
+          const headerHTML = memoHeaderContent.innerHTML;
+          // loose_minute uses Quill only (no separate header panel)
+          const bodyHTML = quill.root.innerHTML;
+          fullHTML = `
+          <div class="memo-document">
+            <div class="memo-restricted-band" style="text-align:center;font-family:serif;font-size:10pt;letter-spacing:.18em;text-transform:uppercase;margin-bottom:20px;">RESTRICTED</div>
+              ${headerHTML}
+            <div class="memo-document-body" style="margin-top:10mm;font-family:'Crimson Text',Georgia,serif;font-size:12pt;line-height:1.8;">
+                ${bodyHTML}
+              </div>
+            <div class="memo-restricted-band" style="text-align:center;font-family:serif;font-size:10pt;letter-spacing:.18em;text-transform:uppercase;margin-top:30px;">RESTRICTED</div>
+          </div>`;
+
+        } else if (activeTemplateType === 'draft') {
+
+          const bodyHTML = quill.root.innerHTML;
+
+          fullHTML = `
+          <div class="memo-document">
+            <div class="memo-restricted-band" style="text-align:center;font-family:serif;font-size:10pt;letter-spacing:.18em;text-transform:uppercase;margin-bottom:20px;">RESTRICTED</div>
+            ${bodyHTML}
+            <div class="memo-restricted-band" style="text-align:center;font-family:serif;font-size:10pt;letter-spacing:.18em;text-transform:uppercase;margin-top:30px;">RESTRICTED</div>
+          </div>`;
+
+        } else {
+
+          // letter, circular — plain Quill content
+          fullHTML = quill.root.innerHTML;
+        }
+
+        document.getElementById('content_html_input').value = fullHTML;
+      }
+      // 2. Build attachments metadata
+      const metadata = attachments.map(att => ({
+        type: att.type,
+        code: att.code,
+        title: att.title,
+        fullLabel: att.fullLabel
+      }));
+      document.getElementById('attachments_metadata').value = JSON.stringify(metadata);
+
+      // 3. Build FormData manually so we can append attachment files
+      const form = document.getElementById('doc-form');
+      const formData = new FormData(form);
+
+      // Remove any stale "attachments" entries (the empty file input)
+      formData.delete('attachments');
+
+      // Append each attachment file with the correct field name
+      attachments.forEach(att => {
+        formData.append('attachments', att.file, att.file.name);
+      });
+
+      // 4. Submit via fetch
+      const submitBtn = document.querySelector('.login-btn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ Saving...';
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          body: formData
+          // Do NOT set Content-Type header — browser sets it with boundary automatically
+        });
+
+        if (response.redirected || response.ok) {
+          let redirectUrl = response.redirected ? response.url : '/documents_content';
+          if (redirectUrl.includes('/add_document')) {
+            redirectUrl = '/documents_content';
+          }
+          const modal = document.getElementById('successModal');
+          const okBtn = document.getElementById('modalOkBtn');
+          if (modal && okBtn) {
+            modal.classList.remove('hidden');
+            okBtn.onclick = function() {
+              window.location.href = redirectUrl;
+            };
+          } else {
+            window.location.href = redirectUrl;
+          }
+        } else {
+          alert('Submission failed. Please try again.');
+          submitBtn.disabled = false;
+          submitBtn.textContent = '✍️ Submit/Send';
+        }
+      } catch (err) {
+        console.error('Submit error:', err);
+        alert('Network error. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✍️ Submit/Send';
+      }
+    }
+
+
+
+    // ── File name display ─────────────────────────────────────────
+    function showFileName(input) {
+      const display = document.getElementById('file-name-display');
+      if (input.files && input.files[0]) {
+        display.textContent = '📎 ' + input.files[0].name;
+      }
+    }
+
+    const currentUserRole =
+      "{{ session.get('role', '')|lower }}";
+    // ── Populate reference number dropdown ────────────────────────
+    const userDirectorate = "{{ user_directorate or 'DIR' }}";
+    const predefinedDocs = {{ predefined_docs | tojson | safe }};
+    // const predefinedDocs = [{ "suffix": "1/A", "subject": "POSTING AND APPOINTMENT OFFICERS" }, { "suffix": "2/A", "subject": "POSTING SLDRS/RATINGS/AIRMEN/AIRWOMEN" }, { "suffix": "3/A", "subject": "ESTABLISHMENT GENERAL" }, { "suffix": "4/FIN", "subject": "RELEASE OF FUND" }, { "suffix": "5/LOG", "subject": "Q MATTERS" }, { "suffix": "6/OPS", "subject": "OPERATIONAL GENERAL" }, { "suffix": "7/A", "subject": "ESTABLISHMENT OF NIGERIAN ARMED FORCES RESERVE" }, { "suffix": "8/A", "subject": "DOCUMENT GENERAL" }, { "suffix": "8/1/A", "subject": "TRI-SERVICE MATTERS" }, { "suffix": "9/TRG", "subject": "COURSES OFFICERS" }, { "suffix": "9/1/TRG", "subject": "COURSESLDRS/ RATING / AIRMEN / AIRWOMEN" }, { "suffix": "9/2/TRG", "subject": "COURSES GENERAL" }, { "suffix": "10/A", "subject": "EDUCATIONAL GENERAL" }, { "suffix": "11/A", "subject": "MOD MATTERS" }, { "suffix": "11/1/A", "subject": "NA MATTERS" }, { "suffix": "11/2/A", "subject": "NN MATTERS" }, { "suffix": "11/3/A", "subject": "NAF MATTERS" }, { "suffix": "11/4/A", "subject": "NYSC MATTERS" }, { "suffix": "12/A", "subject": "NATIONAL DEFENCE AND SECURITY POLICY" }, { "suffix": "13/A", "subject": "ROUTINE ORDERS MATTERS" }, { "suffix": "14/FIN", "subject": "BUDGET MATTERS" }, { "suffix": "15/A", "subject": "FORCAST OF EVENTS" }, { "suffix": "16/A", "subject": "AUDIT INSPECTION" }, { "suffix": "17/A", "subject": "CORRESPONDENCE GENERAL" }, { "suffix": "18/COMM", "subject": "ICT MATTERS" }, { "suffix": "19/A", "subject": "GUARDS DUTIES GENERAL" }, { "suffix": "20/A", "subject": "MONITORING TEAM" }, { "suffix": "21/A", "subject": "DISMISSAL GENERAL" }, { "suffix": "22/A", "subject": "LEAVE OFFICERS" }, { "suffix": "22/1/A", "subject": "LEAVE SLDRS/RATING/AIRMEN/AIRWOMEN" }, { "suffix": "22/2/A", "subject": "LEAVE CIVILIAN" }, { "suffix": "23/A", "subject": "PROMOTION OFFICERS" }, { "suffix": "24/A", "subject": "PROMOTION SLDRS/RATING/AIRMEN/AIRWOMEN" }, { "suffix": "25/A", "subject": "RETIREMENT OFFICERS" }, { "suffix": "26/A", "subject": "DISCHARGESLDRS/RATING/AIRMEN/AIRWOMEN" }, { "suffix": "27/FIN", "subject": "PAY AND ALLOWANCE GENERAL" }, { "suffix": "28/A", "subject": "PENSION/GRATUITY GENERAL" }, { "suffix": "29/A", "subject": "VETERAN AFFAIRS/LEGION GENERAL" }, { "suffix": "30/A", "subject": "DISCIPLINE GENERAL" }, { "suffix": "30/1/A", "subject": "DISCIPLINE OFFICERS" }, { "suffix": "30/2/A", "subject": "DISCIPLINE SLDRS/RATINGS/AIRMEN/AIRWOMEN" }, { "suffix": "31/A", "subject": "POLICY AND PLANING" }, { "suffix": "32/A", "subject": "TOURS & VISITS" }, { "suffix": "33/A", "subject": "ADMINISTRATIVE INSTRUCTION GENERAL" }, { "suffix": "34/A", "subject": "MEETINGS" }, { "suffix": "35/A", "subject": "DSA TENDER BOARD" }, { "suffix": "36/A", "subject": "CIVILIAN MATTERS" }, { "suffix": "37/A", "subject": "NOTICAS" }, { "suffix": "37/1/A", "subject": "CONDOLENCE" }, { "suffix": "37/2/A", "subject": "BURIAL" }, { "suffix": "38/A", "subject": "MOVEMENT GENERAL" }, { "suffix": "39/A", "subject": "DEPOWA MATTERS" }, { "suffix": "40/TRG", "subject": "SEMINAR & WORKSHOP" }, { "suffix": "41/A", "subject": "COMMISSION GENERAL" }, { "suffix": "42/A", "subject": "MEDICAL GENERAL" }, { "suffix": "43/A", "subject": "HONOUR AND AWARDS" }, { "suffix": "44/A", "subject": "CIVILIAN MATTERS" }, { "suffix": "45/A", "subject": "GAZETTES GENERAL" }, { "suffix": "46/LOG", "subject": "ACCOMMODATION GENERAL" }, { "suffix": "47/A", "subject": "LITIGATION AND CIVIL SUITS" }, { "suffix": "48/A", "subject": "ARMED FORCES WELFARE BOARD POST RETIREMENT HOUSING SCHEME" }, { "suffix": "49/A", "subject": "WELFARE GENERAL" }, { "suffix": "50/A", "subject": "RELIGIOUS MATTERS" }, { "suffix": "50/1/A", "subject": "NAWIS/DEATH BENEFIT/LIFE INSURANCE" }, { "suffix": "51/A", "subject": "PIONEER CONSUMER CAR LOAN SCHEME" }, { "suffix": "52/PROC", "subject": "REQUISITION/AUTHORISATION" }, { "suffix": "53/A", "subject": "COMPLAINT GENERAL" }, { "suffix": "54/1/A", "subject": "CELEBRATION GENERAL" }, { "suffix": "55/A", "subject": "PUBLIC HOLIDAY" }, { "suffix": "56/A", "subject": "ARMED FORCES DAY CELEBRATION" }, { "suffix": "56/1/A", "subject": "PASSPORT/VISA/OVERSEA TRAVELS" }, { "suffix": "56/2/A", "subject": "SENIORITY ROLL AWO/MWO/WO" }, { "suffix": "56/3/A", "subject": "STRENGTH RETURNS GENERAL" }, { "suffix": "57/A", "subject": "ROAD TRAFFIC ACCIDENT" }, { "suffix": "58/A", "subject": "INVESTIGATION GENERAL" }, { "suffix": "58/1/A", "subject": "PARADE STATE" }, { "suffix": "59/A", "subject": "COMPLAINT GENERAL" }, { "suffix": "60/A", "subject": "AWOL OFFICERS" }, { "suffix": "61/A", "subject": "PERFORMANCE EVALUATION REPORT OFFICERS (PER)" }, { "suffix": "62/A", "subject": "CONFIDENTIAL REPORT SLDRS/RATING/AIRMEN/AIRWOMEN" }, { "suffix": "62/1/A", "subject": "SENIORITY ROLL OFFICERS" }, { "suffix": "63/A", "subject": "STRENGTH RETURNS FOREIGN ATTACHES" }, { "suffix": "64/A", "subject": "COURT MARTIAL" }, { "suffix": "64/1/A", "subject": "PARADE STATE" }, { "suffix": "65/A", "subject": "DRESS REGULATIONS" }, { "suffix": "65/1/A", "subject": "PROTOCOL LIST" }, { "suffix": "66/A", "subject": "ID CARD MATTERS" }, { "suffix": "67/A", "subject": "PRINTING/PUBLICATION" }, { "suffix": "67/1/A", "subject": "EXTENSION OF SERVICE" }, { "suffix": "68/A", "subject": "BRIEFING/INTERVIEW" }, { "suffix": "69/A", "subject": "RECRUITMENT GENERAL" }, { "suffix": "70/A", "subject": "COURT MARTIAL" }, { "suffix": "71/LOG", "subject": "VEHICLE/TRANSPORT GENERAL" }, { "suffix": "72/A", "subject": "MESS MATTERS" }, { "suffix": "73/A", "subject": "INVITATION GENERAL" }, { "suffix": "74/LOG", "subject": "SETTLEMENT OF BILLS" }, { "suffix": "75/A", "subject": "C-IN-C ORDER OF THE DAY" }, { "suffix": "76/A", "subject": "COMMITTEE GENERAL" }, { "suffix": "77/A", "subject": "TACOS GENERAL" }, { "suffix": "78/A", "subject": "MEMORANDUM OF UNDERSTANDING (MOU)" }, { "suffix": "79/A", "subject": "NATIONAL DEVELOPMENT PLAN/CENSUS" }, { "suffix": "80/A", "subject": "GOODWILL MESSAGE" }, { "suffix": "81/A", "subject": "CORRESPONDENCE WITH FOREIGN MISSION IN NIGERIA" }, { "suffix": "82/A", "subject": "PROGRESS REPORT" }, { "suffix": "82/1/A", "subject": "SPACE MATTERS" }, { "suffix": "83/A", "subject": "BOARD OF INQUIRY (BOI)" }, { "suffix": "84/A", "subject": "CODE OF CONDUCT/ETHNIC AND CUSTOMS ARMED FORCES" }, { "suffix": "84/1/A", "subject": "PART 2 ORDERS SLDRS/RATINGS/AIRMEN/AIRWOMEN" }, { "suffix": "84/2/A", "subject": "PART X ORDERS GENERAL" }, { "suffix": "85/A", "subject": "GAMES/SPORT GENERAL" }, { "suffix": "86/A", "subject": "CONVENING ORDER GENERAL" }, { "suffix": "87/A", "subject": "HUMAN RIGHTS" }, { "suffix": "88/A", "subject": "POLICE/PARA MILITARY AFFAIRS" }, { "suffix": "89/A", "subject": "NATIONAL ASSEMBLY" }, { "suffix": "90/A", "subject": "PART 2 ORDERS OFFICERS" }, { "suffix": "90/1/A", "subject": "DURBAR MATTERS" }, { "suffix": "91/A", "subject": "NATIONAL MILITARY CEMETERY" }, { "suffix": "91/1/A", "subject": "GROUP LIFE INSURANCE SCHEME" }, { "suffix": "91/2/A", "subject": "SITREP GENERAL" }, { "suffix": "91/3/A", "subject": "SAFETY STANDARD MEASURED" }, { "suffix": "92/G", "subject": "ARMS & AMMUNITION" }, { "suffix": "93/A", "subject": "INTERNATIONAL HUMANITARIAN LAW/LAW OF ARMED CONFLICT" }, { "suffix": "93/1/A", "subject": "CORRESPONDENCE WITH BPP" }, { "suffix": "94/TRG", "subject": "RANGE CLASSIFICATION" }, { "suffix": "95/A", "subject": "DOCUMENT OFFICERS" }, { "suffix": "95/LOG", "subject": "LAND MATTERS GENERAL" }, { "suffix": "96/LOG", "subject": "CANTEEN MATTERS" }, { "suffix": "97/A", "subject": "MUSEUM AND MONUMENTS" }, { "suffix": "98/TRG", "subject": "SEARCH AND RESCUE" }, { "suffix": "99/LOG", "subject": "CONTRACT GENERAL" }, { "suffix": "100/LOG", "subject": "WORKS AND SERVICES" }, { "suffix": "101/A", "subject": "DOCUMENT OFFICERS" }, { "suffix": "101/1/A", "subject": "DOCUMENT SLDRS/RATINGS/AIRMEN/AIRWOMEN" }, { "suffix": "102/A", "subject": "CONVERSION OFFICERS" }, { "suffix": "103/A", "subject": "RESEARCH/DEVELOPMENT" }, { "suffix": "104/A", "subject": "DSA DISPATCH MOTORCYCLE REPAIRS/MAINTENANCE" }, { "suffix": "105/A", "subject": "DSA GOVERNING COUNCIL" }];
+
+
+    const docTypeSelect = document.getElementById('document_type');
+    const refNumberInput = document.getElementById('reference_number');
+    const subjectInput = document.getElementById('subject');
+
+    predefinedDocs.forEach((doc, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = `DSA/J6/.../${doc.suffix} — ${doc.subject}`;
+      docTypeSelect.appendChild(option);
+    });
+
+    docTypeSelect.addEventListener('change', function () {
+      const idx = this.value;
+      if (idx !== '') {
+        const selected = predefinedDocs[idx];
+        refNumberInput.value = `DSA/J6/${userDirectorate}/${selected.suffix}`;
+        subjectInput.value = selected.subject;
+        // sync ref into memo header if active
+        memoInpRef.value = refNumberInput.value;
+        renderMemoHeader();
+      } else {
+        refNumberInput.value = '';
+        subjectInput.value = '';
+        memoInpRef.value = '';
+        renderMemoHeader();
+      }
+    });
+
+    // ─────────────────────────────────────────
+    // LIVE UPDATE: LOOSE MINUTE REF
+    // ─────────────────────────────────────────
+
+    docTypeSelect.addEventListener('change', () => {
+
+      setTimeout(() => {
+
+        renderLooseMinute();
+
+      }, 50);
+
+    });
+
+    document.getElementById('precedence')
+      .addEventListener('change', () => {
+
+        renderLooseMinute();
+
+      });
+
+
+    // ─────────────────────────────────────────
+    // ATTACHMENTS SYSTEM
+    // ─────────────────────────────────────────
+
+    let attachments = [];
+
+    // COUNTERS
+    let enclosureCount = 0;
+    let annexCount = 0;
+
+
+    // OPEN FILE PICKER
+    function triggerAttachmentUpload() {
+
+      document
+        .getElementById('attachment-file')
+        .click();
+    }
+
+
+    // FILE SELECTED
+    document
+      .getElementById('attachment-file')
+      .addEventListener('change', addAttachment);
+
+
+    // ADD ATTACHMENT
+    function addAttachment(event) {
+      const files = Array.from(event.target.files);
+      if (!files.length) return;
+
+      const type = document.getElementById('attachment-type').value;
+      const titleInput = document.getElementById('attachment-title');
+      const title = titleInput.value.trim();
+
+      if (!title) {
+        showCustomAlert('Enter Attachment Title before proceeding to upload');
+        return;
+      }
+
+      files.forEach(file => {
+
+        let code = '';
+
+        if (type === 'enclosure') {
+          enclosureCount++;
+          code = `Encl ${enclosureCount}`;
+        } else {
+          annexCount++;
+          const letter = String.fromCharCode(64 + annexCount);
+          code = `Annex ${letter}`;
+        }
+
+        const attachment = {
+          id: Date.now() + Math.random(), // safer unique ID
+          type,
+          code,
+          title,
+          fullLabel: `${code} - ${title}`,
+          file
+        };
+
+        attachments.push(attachment);
+      });
+
+      renderAttachments();
+
+      // reset inputs
+      titleInput.value = '';
+      event.target.value = '';
+    }
+
+
+    // RENDER
+    function renderAttachments() {
+
+      const container =
+        document.getElementById('attachment-list');
+
+      container.innerHTML = '';
+
+      attachments.forEach(att => {
+
+        const div =
+          document.createElement('div');
+
+        div.className =
+          'attachment-item';
+
+        div.draggable = true;
+
+        div.innerHTML = `
+
+      <div class="attachment-left">
+
+        <div class="attachment-code">
+          ${att.code}
+        </div>
+
+        <div class="attachment-title">
+          ${att.title}
+        </div>
+
+        <div class="attachment-file">
+          📎 ${att.file.name}
+        </div>
+
+      </div>
+
+      <div class="attachment-actions">
+
+        <button
+          class="attachment-btn"
+          onclick="viewAttachment(${att.id})">
+
+          View
+
+        </button>
+
+        <button
+          class="attachment-btn"
+          onclick="downloadAttachment(${att.id})">
+
+          Download
+
+        </button>
+
+        <button
+          class="attachment-btn"
+          onclick="deleteAttachment(${att.id})">
+
+          Delete
+
+        </button>
+
+      </div>
+    `;
+
+        container.appendChild(div);
+      });
+    }
+
+
+    // VIEW
+    function viewAttachment(id) {
+
+      const att =
+        attachments.find(a => a.id === id);
+
+      if (!att) return;
+
+      const url =
+        URL.createObjectURL(att.file);
+
+      window.open(url, '_blank');
+    }
+
+
+    // DOWNLOAD
+    function downloadAttachment(id) {
+
+      const att =
+        attachments.find(a => a.id === id);
+
+      if (!att) return;
+
+      const url =
+        URL.createObjectURL(att.file);
+
+      const a =
+        document.createElement('a');
+
+      a.href = url;
+
+      a.download =
+        att.fullLabel;
+
+      a.click();
+    }
+
+
+    // DELETE
+    function deleteAttachment(id) {
+
+      attachments =
+        attachments.filter(a => a.id !== id);
+
+      renderAttachments();
+    }
+
+    // ── Signature Verification Modal Functions ──
+    function openVerifySignatureModal() {
+      document.getElementById('verifySigPasswordInput').value = '';
+      document.getElementById('verifySigModalError').style.display = 'none';
+      document.getElementById('verifySigModalError').textContent = '';
+      document.getElementById('verifySigModal').style.display = 'flex';
+    }
+
+    function closeVerifySignatureModal() {
+      document.getElementById('verifySigModal').style.display = 'none';
+    }
+
+    function showCustomAlert(message) {
+      const modal = document.getElementById("customAlertModal");
+      const msgEl = document.getElementById("customAlertMessage");
+      if (modal && msgEl) {
+        msgEl.textContent = message;
+        modal.style.display = "flex";
+      }
+    }
+
+    function closeCustomAlert() {
+      const modal = document.getElementById("customAlertModal");
+      if (modal) {
+        modal.style.display = "none";
+      }
+    }
+
+    window.addEventListener('click', function (event) {
+      const modal = document.getElementById("customAlertModal");
+      if (event.target === modal) {
+        closeCustomAlert();
+      }
+    });
+
+    async function submitVerifySignature() {
+      const password = document.getElementById('verifySigPasswordInput').value.trim();
+      const errorBox = document.getElementById('verifySigModalError');
+      const submitBtn = document.querySelector('#verifySigModal button[onclick="submitVerifySignature()"]');
+
+      errorBox.style.display = 'none';
+      errorBox.textContent = '';
+
+      if (!password) {
+        errorBox.textContent = "Please enter your signing password.";
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Verifying...';
+      }
+
+      try {
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const resp = await fetch('/verify_and_get_signature', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ password })
+        });
+
+        let result;
+        try {
+          result = await resp.json();
+        } catch (jsonErr) {
+          result = { message: `Server returned an error (${resp.status}). Please try again.` };
+        }
+
+        if (resp.status === 200 && result.status === 'success') {
+          const nameInp = document.getElementById('name');
+          const rankInp = document.getElementById('rank');
+          const apptInp = document.getElementById('appt');
+
+          // Update form fields
+          if (result.name) nameInp.value = result.name;
+          if (result.rank) rankInp.value = result.rank;
+          if (result.appt) apptInp.value = result.appt;
+          document.getElementById('signature').value = "Digitally Signed";
+
+          // Update Quill editor placeholders
+          if (activeTemplateType === 'loose_minute') {
+            const nameEl = quill.root.querySelector('#loose-minute-name');
+            const rankEl = quill.root.querySelector('#loose-minute-rank');
+            const apptEl = quill.root.querySelector('#loose-minute-appt');
+            if (nameEl) nameEl.textContent = result.name;
+            if (rankEl) rankEl.textContent = result.rank;
+            if (apptEl) apptEl.textContent = result.appt;
+
+            // Find if there is already an image in the editor
+            const existingImg = quill.root.querySelector('img[src^="data:image/"]');
+            if (existingImg) {
+              existingImg.src = result.signature;
+            } else {
+              const text = quill.getText();
+              const placeholder = '[SIGNATURE]';
+              const index = text.indexOf(placeholder);
+              if (index !== -1) {
+                quill.deleteText(index, placeholder.length);
+                quill.insertEmbed(index, 'image', result.signature);
+              }
+            }
+          }
+
+          closeVerifySignatureModal();
+        } else {
+          errorBox.textContent = result.message || 'Verification failed.';
+          errorBox.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Verify signature error:', err);
+        errorBox.textContent = err.message || 'Network error. Please try again.';
+        errorBox.style.display = 'block';
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '✔ Verify & Apply';
+        }
+      }
+    }
+
+    // Live metadata synchronization into the Quill editor for loose minutes
+    const nameInp = document.getElementById('name');
+    const rankInp = document.getElementById('rank');
+    const apptInp = document.getElementById('appt');
+
+    [nameInp, rankInp, apptInp].forEach(inp => {
+      inp.addEventListener('input', () => {
+        if (activeTemplateType === 'loose_minute') {
+          const nameEl = quill.root.querySelector('#loose-minute-name');
+          const rankEl = quill.root.querySelector('#loose-minute-rank');
+          const apptEl = quill.root.querySelector('#loose-minute-appt');
+          if (nameEl) nameEl.textContent = nameInp.value || 'Name';
+          if (rankEl) rankEl.textContent = rankInp.value || 'Rank';
+          if (apptEl) apptEl.textContent = apptInp.value || 'for Office';
+        }
+      });
+    });
+
+  </script>
+
+  <!-- Success Modal -->
+  <div id="successModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center">
+    <div class="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+      <div class="mt-3 text-center">
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+          <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Document Added</h3>
+        <div class="mt-2 px-7 py-3">
+          <p class="text-sm text-gray-500">The document has been successfully created and added to the system.</p>
+        </div>
+        <div class="items-center px-4 py-3">
+          <button id="modalOkBtn" class="px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -42,6 +42,12 @@
       </header>
       <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
 
+      <script>
+        const INITIAL_ONBOARDING_DATA = {{ onboarding_data | tojson | safe }};
+        const INITIAL_COMPLETED_STEPS = {{ completed_steps | tojson | safe }};
+        const RESUME_STEP = {{ resume_step }};
+      </script>
+
       <!-- ================= STEP 0: MAIN ROAMAP INDEX VIEW ================= -->
       <div id="stepView_0" class="onboarding-view-wrapper">
         <div class="onboarding-controls-bar" style="margin: 25px;">
@@ -53,9 +59,22 @@
           <p class="subtitle-text">
             Complete the following steps to fully onboard this staff.
           </p>
+
+          {% if resume_step > 0 and resume_step <= 5 %}
+          <div class="resume-onboarding-banner" style="margin: 0 auto 25px auto; max-width: 680px; padding: 14px 20px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 15px;">
+            <div style="text-align: left;">
+              <strong style="color: #166534; font-size: 14px; display: block; margin-bottom: 2px;">Onboarding in Progress</strong>
+              <span style="color: #15803d; font-size: 13px;">Previous steps saved. You can continue directly where you stopped.</span>
+            </div>
+            <button type="button" onclick="goToStep({{ resume_step }})" style="background-color: #16a34a; color: white; border: none; padding: 9px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; white-space: nowrap;">
+              Continue (Step {{ resume_step }}) →
+            </button>
+          </div>
+          {% endif %}
+
           <div class="steps-vertical-list">
             <div class="step-row-item cursor-pointer" onclick="goToStep(1)">
-              <div class="step-status-icon number-icon" id="chk_1">1</div>
+              <div class="step-status-icon {% if completed_steps.get('1') %}check-icon" style="background-color: #38A169; color: #FFFFFF;"{% else %}number-icon"{% endif %} id="chk_1">{% if completed_steps.get('1') %}✓{% else %}1{% endif %}</div>
               <div class="step-meta-info">
                 <h3>{% if user.category == 'military' %}Military Personnel Information Form{% else %}Civilian Staff
                   Registration Form{% endif %}</h3>
@@ -64,7 +83,7 @@
             </div>
             {% if user.category not in ['it', 'nysc', 'military'] %}
             <div class="step-row-item cursor-pointer" onclick="goToStep(2)">
-              <div class="step-status-icon number-icon" id="chk_2">2</div>
+              <div class="step-status-icon {% if completed_steps.get('2') %}check-icon" style="background-color: #38A169; color: #FFFFFF;"{% else %}number-icon"{% endif %} id="chk_2">{% if completed_steps.get('2') %}✓{% else %}2{% endif %}</div>
               <div class="step-meta-info">
                 <h3>Additional Information</h3>
                 <p>Fill this form to provide additional information</p>
@@ -72,16 +91,14 @@
             </div>
             {% endif %}
             <div class="step-row-item cursor-pointer" onclick="goToStep(3)">
-              <div class="step-status-icon number-icon" id="chk_3">{% if user.category in ['it', 'nysc', 'military']
-                %}2{% else %}3{% endif %}</div>
+              <div class="step-status-icon {% if completed_steps.get('3') %}check-icon" style="background-color: #38A169; color: #FFFFFF;"{% else %}number-icon"{% endif %} id="chk_3">{% if completed_steps.get('3') %}✓{% else %}{% if user.category in ['it', 'nysc', 'military'] %}2{% else %}3{% endif %}{% endif %}</div>
               <div class="step-meta-info">
                 <h3>ID Card</h3>
                 <p>Generate and print ID card</p>
               </div>
             </div>
             <div class="step-row-item cursor-pointer" onclick="goToStep(4)">
-              <div class="step-status-icon number-icon" id="chk_4">{% if user.category in ['it', 'nysc', 'military']
-                %}3{% else %}4{% endif %}</div>
+              <div class="step-status-icon {% if completed_steps.get('4') %}check-icon" style="background-color: #38A169; color: #FFFFFF;"{% else %}number-icon"{% endif %} id="chk_4">{% if completed_steps.get('4') %}✓{% else %}{% if user.category in ['it', 'nysc', 'military'] %}3{% else %}4{% endif %}{% endif %}</div>
               <div class="step-meta-info">
                 <h3>DSA Personnel Emolument Record</h3>
                 <p>Provide your salary account details</p>
@@ -89,8 +106,7 @@
             </div>
             {% if user.category not in ['it', 'nysc'] %}
             <div class="step-row-item cursor-pointer" onclick="goToStep(5)">
-              <div class="step-status-icon number-icon" id="chk_5">{% if user.category == 'military' %}4{% else %}5{%
-                endif %}</div>
+              <div class="step-status-icon {% if completed_steps.get('5') %}check-icon" style="background-color: #38A169; color: #FFFFFF;"{% else %}number-icon"{% endif %} id="chk_5">{% if completed_steps.get('5') %}✓{% else %}{% if user.category == 'military' %}4{% else %}5{% endif %}{% endif %}</div>
               <div class="step-meta-info">
                 <h3>{% if user.category == 'military' %}REGISTRATION FORM FOR DSA MILITARY PERSONNEL{% else %}DSA
                   Civilian Staff Registration Form{% endif %}</h3>
@@ -1210,7 +1226,7 @@
               </div>
               <div class="field-group">
                 <label>National ID / NIN Number <span class="required">*</span></label>
-                <input type="text" id="idCardNumber" placeholder="11-digit NIN or ID Card No" required
+                <input type="number" id="idCardNumber" placeholder="11-digit NIN or ID Card No" required
                   autocomplete="off" />
               </div>
             </div>

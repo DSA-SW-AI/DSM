@@ -1,7 +1,14 @@
 // static/js/onboarding.js
 
-// 1. Keep track of step registration milestones written to MongoDB
-let completedSteps = { 1: false, 2: false, 3: false, 4: false, 5: false };
+// 1. Keep track of step registration milestones and saved database payload
+let savedOnboardingData = (typeof INITIAL_ONBOARDING_DATA !== 'undefined' && INITIAL_ONBOARDING_DATA) ? INITIAL_ONBOARDING_DATA : {};
+let completedSteps = (typeof INITIAL_COMPLETED_STEPS !== 'undefined' && INITIAL_COMPLETED_STEPS) ? {
+    1: !!INITIAL_COMPLETED_STEPS['1'],
+    2: !!INITIAL_COMPLETED_STEPS['2'],
+    3: !!INITIAL_COMPLETED_STEPS['3'],
+    4: !!INITIAL_COMPLETED_STEPS['4'],
+    5: !!INITIAL_COMPLETED_STEPS['5']
+} : { 1: false, 2: false, 3: false, 4: false, 5: false };
 
 // 2. Track which specific form block is currently active on the viewport canvas
 let currentActiveStep = 0;
@@ -28,6 +35,125 @@ function generateOfficialEmail() {
 }
 
 /**
+ * Updates the visual indicators on Step 0 roadmap to reflect completed milestones.
+ */
+function updateChecklistIndicators() {
+    for (let s = 1; s <= 5; s++) {
+        if (completedSteps[s]) {
+            const checkIndicator = document.getElementById(`chk_${s}`);
+            if (checkIndicator) {
+                checkIndicator.textContent = "✓";
+                checkIndicator.classList.remove('number-icon');
+                checkIndicator.classList.add('check-icon');
+                checkIndicator.style.backgroundColor = "#38A169";
+                checkIndicator.style.color = "#FFFFFF";
+            }
+        }
+    }
+}
+
+/**
+ * Attaches a visual indicator badge and link to a file input if a file already exists on server.
+ */
+function attachFileBadge(inputElement, fileUrl) {
+    if (!inputElement || !fileUrl) return;
+
+    inputElement.removeAttribute('required');
+
+    let badgeId = `status_badge_${inputElement.id}`;
+    let badge = document.getElementById(badgeId);
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.id = badgeId;
+        badge.className = 'file-saved-badge';
+        badge.style.cssText = 'margin-top: 6px; font-size: 12px; color: #15803d; font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;';
+        inputElement.parentNode.appendChild(badge);
+    }
+
+    badge.innerHTML = `
+        <span style="display:inline-flex; align-items:center; gap:4px; background:#dcfce7; color:#166534; padding:2px 8px; border-radius:4px; font-weight:600;">
+            ✓ Saved On File
+        </span>
+        <a href="${fileUrl}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 500;">
+            View Current Document
+        </a>
+        <span style="color: #64748b; font-size: 11px;">(Select new file only if replacing)</span>
+    `;
+
+    // Listen for file changes to give real-time feedback when replacing
+    inputElement.addEventListener('change', function () {
+        if (this.files && this.files.length > 0) {
+            badge.innerHTML = `
+                <span style="display:inline-flex; align-items:center; gap:4px; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-weight:600;">
+                    ↺ New File Selected
+                </span>
+                <span style="color: #334155; font-size: 12px;">${this.files[0].name}</span>
+            `;
+        }
+    });
+}
+
+/**
+ * Pre-populates form inputs with previously saved details from database.
+ */
+function populateFormsWithSavedData() {
+    if (!savedOnboardingData || typeof savedOnboardingData !== 'object') return;
+
+    // --- 1. Populate Step 1 (Employee Information & File Attachments) ---
+    const step1Data = savedOnboardingData.step_1 || {};
+    for (const [key, val] of Object.entries(step1Data)) {
+        if (!val) continue;
+        const input = document.getElementById(key);
+        if (!input) continue;
+
+        if (input.type === 'file') {
+            if (typeof val === 'string' && (val.startsWith('/attachment/') || val.startsWith('/static/'))) {
+                attachFileBadge(input, val);
+            }
+        } else if (input.tagName === 'SELECT') {
+            input.value = val;
+            if (key === 'has_masters') toggleOptionalUpload(input, 'doc_masters');
+            if (key === 'has_phd') toggleOptionalUpload(input, 'doc_phd');
+        } else if (input.type !== 'file') {
+            // Populate value if input exists
+            if (!input.value || input.value.trim() === '') {
+                input.value = val;
+            }
+        }
+    }
+
+    // --- 2. Populate Step 2 (Additional Personal Info) ---
+    const step2Data = savedOnboardingData.step_2 || {};
+    for (const [key, val] of Object.entries(step2Data)) {
+        if (!val) continue;
+        const input = document.getElementById(key);
+        if (input) {
+            input.value = val;
+        }
+    }
+
+    // --- 3. Populate Step 4 (Salary Emolument Record) ---
+    const step4Data = savedOnboardingData.step_4 || {};
+    for (const [key, val] of Object.entries(step4Data)) {
+        if (!val) continue;
+        const input = document.getElementById(key);
+        if (input) {
+            input.value = val;
+        }
+    }
+
+    // --- 4. Populate Step 5 (Military or Civilian Registration Form) ---
+    const step5Data = savedOnboardingData.step_5 || {};
+    for (const [key, val] of Object.entries(step5Data)) {
+        if (!val) continue;
+        const input = document.getElementById(key);
+        if (input) {
+            input.value = val;
+        }
+    }
+}
+
+/**
  * Dismisses the success modal and transitions to the next step.
  */
 function dismissSuccessAndRoute() {
@@ -36,18 +162,22 @@ function dismissSuccessAndRoute() {
         successModal.style.display = 'none';
     }
 
-    const activeCategory = document.getElementById('userCategory')?.value || '';
+    const activeCategory = (document.getElementById('userCategory')?.value || '').toLowerCase().trim();
     const isSpecialRole = (activeCategory === 'it' || activeCategory === 'nysc');
+    const isMilitary = (activeCategory === 'military');
 
     if (currentActiveStep === 5 || (currentActiveStep === 4 && isSpecialRole)) {
         window.location.href = '/onboarding';
     } else {
-        if (isSpecialRole && currentActiveStep === 1) goToStep(3);
-        else goToStep(currentActiveStep + 1);
+        if ((isSpecialRole || isMilitary) && currentActiveStep === 1) {
+            goToStep(3);
+        } else {
+            goToStep(currentActiveStep + 1);
+        }
     }
 }
 
-// Bind email generation listeners when DOM completes loading
+// Bind listeners and hydrate saved state when DOM completes loading
 document.addEventListener('DOMContentLoaded', () => {
     const surnameInput = document.getElementById('surname');
     const middleNameInput = document.getElementById('middleName');
@@ -72,7 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (input) {
                 input.removeAttribute('required');
 
-                // Also update the UI labels in the table from "YES" to "OPTIONAL"
                 const tr = input.closest('tr');
                 if (tr) {
                     const spanLabel = tr.querySelector('td:nth-child(2) span');
@@ -95,13 +224,26 @@ document.addEventListener('DOMContentLoaded', () => {
                                 input.style.opacity = '0.4';
                             }
                         });
-
-                        // Set UI default
                         selectEl.value = 'yes';
                     }
                 }
             }
         });
+    }
+
+    // 1. Pre-fill all fields with saved details
+    populateFormsWithSavedData();
+
+    // 2. Reflect completed milestones on Step 0 roadmap
+    updateChecklistIndicators();
+
+    // 3. Resume automatically where the user stopped
+    const resumeStepVal = (typeof RESUME_STEP !== 'undefined') ? Number(RESUME_STEP) : 0;
+    const hasAnyCompleted = Object.values(completedSteps).some(v => v === true);
+
+    if (hasAnyCompleted && resumeStepVal > 0 && resumeStepVal <= 5) {
+        console.log(`Auto-resuming onboarding session at Step ${resumeStepVal}`);
+        goToStep(resumeStepVal);
     }
 });
 
@@ -110,35 +252,37 @@ document.addEventListener('DOMContentLoaded', () => {
  * @param {number} stepNumber - The step index to show (0 is the main checklist)
  */
 function goToStep(stepNumber) {
-    const activeCategory = document.getElementById('userCategory')?.value || '';
+    const activeCategory = (document.getElementById('userCategory')?.value || '').toLowerCase().trim();
     const isSpecialRole = (activeCategory === 'it' || activeCategory === 'nysc');
+    const isMilitary = (activeCategory === 'military');
 
-    // Intercept sidebar or programmatic navigations for IT and NYSC forms
-    if (isSpecialRole && stepNumber === 2 && currentActiveStep === 3) {
+    // Intercept backward navigations for forms without Step 2 (IT, NYSC, Military)
+    if ((isSpecialRole || isMilitary) && stepNumber === 2 && currentActiveStep === 3) {
         stepNumber = 1;
     }
 
     console.log(`Transitioning view space to Step: ${stepNumber}`);
-    currentActiveStep = stepNumber; // Update active tracker memory
+    currentActiveStep = stepNumber;
 
     // ================= DYNAMIC FIELD & AVATAR SYNCHRONIZER =================
     if (stepNumber === 3) {
-        const title = document.getElementById('staffTitle')?.value || '';
-        const surname = document.getElementById('surname')?.value || '';
-        const firstName = document.getElementById('firstName')?.value || '';
+        const title = document.getElementById('staffTitle')?.value || savedOnboardingData?.step_1?.staffTitle || '';
+        const surname = document.getElementById('surname')?.value || savedOnboardingData?.step_1?.surname || '';
+        const firstName = document.getElementById('firstName')?.value || savedOnboardingData?.step_1?.firstName || '';
 
-        // Update ID Card text labels smoothly matching your design guidelines
         const compiledFullName = `${title} ${surname} ${firstName}`.trim().toUpperCase();
         const idCardElement = document.getElementById('idCardNameDisplay');
-        if (idCardElement) idCardElement.textContent = compiledFullName || "NEW PERSONNEL STAFF";
+        if (idCardElement) {
+            idCardElement.textContent = compiledFullName || "NEW PERSONNEL STAFF";
+        }
 
-        const appointmentVal = document.getElementById('appt')?.value || '';
+        const appointmentVal = document.getElementById('appt')?.value || savedOnboardingData?.step_1?.appt || '';
         const appointmentDisplay = document.getElementById('idCardAppointmentDisplay');
         if (appointmentDisplay) {
             appointmentDisplay.innerHTML = `<strong>Appointment:</strong> ${appointmentVal.toUpperCase()}`;
         }
 
-        // Inject the passport image file binary preview directly onto your ID Card block element
+        // Preview passport image: from newly selected file or existing saved file attachment
         const passportFiles = document.getElementById('uploadPassport')?.files;
         const avatarPreviewBox = document.querySelector('.id-avatar-box');
 
@@ -148,16 +292,18 @@ function goToStep(stepNumber) {
                 avatarPreviewBox.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;" />`;
             };
             fileReader.readAsDataURL(passportFiles[0]);
+        } else if (savedOnboardingData?.step_1?.uploadPassport && avatarPreviewBox) {
+            avatarPreviewBox.innerHTML = `<img src="${savedOnboardingData.step_1.uploadPassport}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;" />`;
         }
     }
     // =======================================================================
 
-    // Hide all multi-step form view wrappers completely
+    // Hide all multi-step form view wrappers
     document.querySelectorAll('.onboarding-view-wrapper').forEach(view => {
         view.style.display = 'none';
     });
 
-    // Smoothly reveal the targeted step view container canvas
+    // Reveal the targeted step view container
     const targetView = document.getElementById(`stepView_${stepNumber}`);
     if (targetView) {
         targetView.style.display = 'block';
@@ -165,6 +311,7 @@ function goToStep(stepNumber) {
         console.error(`Execution error: Step view container 'stepView_${stepNumber}' missing from DOM.`);
     }
 }
+
 /**
  * Validates, compiles, and sends form data (including files) to the Flask backend
  * @param {number} stepNumber - The active step form being submitted
@@ -181,15 +328,19 @@ async function submitStepForm(stepNumber) {
     if (stepNumber !== 3) {
         const formElement = document.getElementById(`form_step_${stepNumber}`);
 
-        // Only scan required elements contained STRICTLY within the current active form
         if (formElement) {
             const fieldsToValidate = formElement.querySelectorAll('input[required], select[required], textarea[required]');
             let isFormValid = true;
 
             fieldsToValidate.forEach(field => {
+                // If this is a file input that already has an uploaded file saved on the server, skip requirement check
+                if (field.type === 'file' && savedOnboardingData?.step_1?.[field.id]) {
+                    return;
+                }
+
                 if (!field.value.trim()) {
                     isFormValid = false;
-                    field.reportValidity(); // Flags browser warning pop-ups on empty items
+                    field.reportValidity();
                 }
             });
 
@@ -204,7 +355,7 @@ async function submitStepForm(stepNumber) {
             submissionBody = new FormData();
             submissionBody.append('step', stepNumber);
 
-            // Gather standard text elements (Title, Surname, Appointment, etc.)
+            // Gather all text elements (Title, Surname, Appointment, Rank, etc.)
             const inputs = formElement.querySelectorAll('input:not([type="file"]), select:not(.doc-status-select), textarea');
             inputs.forEach(input => {
                 if (input.type === 'email') {
@@ -214,7 +365,7 @@ async function submitStepForm(stepNumber) {
                 }
             });
 
-            // Gather structural profile identity biometrics files
+            // Gather structural profile identity biometrics files if selected
             const passportInput = document.getElementById('uploadPassport');
             const signatureInput = document.getElementById('uploadSignature');
 
@@ -225,22 +376,26 @@ async function submitStepForm(stepNumber) {
                 submissionBody.append('uploadSignature', signatureInput.files[0]);
             }
 
-            // Dynamically evaluate files depending on category requirements
-            const activeCategory = document.getElementById('userCategory')?.value || '';
+            const activeCategory = (document.getElementById('userCategory')?.value || '').toLowerCase().trim();
             const digitalIdInput = document.getElementById('doc_digital_id');
 
             if (activeCategory === 'it') {
                 const siwesInput = document.getElementById('doc_siwes');
                 if (siwesInput && siwesInput.files.length > 0) submissionBody.append('doc_siwes', siwesInput.files[0]);
                 if (digitalIdInput && digitalIdInput.files.length > 0) submissionBody.append('doc_digital_id', digitalIdInput.files[0]);
-            }
-            else if (activeCategory === 'nysc') {
+            } else if (activeCategory === 'nysc') {
                 const nyscPostingInput = document.getElementById('doc_nysc_posting');
                 if (nyscPostingInput && nyscPostingInput.files.length > 0) submissionBody.append('doc_nysc_posting', nyscPostingInput.files[0]);
                 if (digitalIdInput && digitalIdInput.files.length > 0) submissionBody.append('doc_digital_id', digitalIdInput.files[0]);
-            }
-            else {
-                // Loop through and capture your standard 7 Compulsory Table Grid files safely
+            } else if (activeCategory === 'military') {
+                const postingInput = document.getElementById('doc_posting_letter');
+                const expInput = document.getElementById('doc_experiences');
+                const certInput = document.getElementById('doc_certificate');
+
+                if (postingInput && postingInput.files.length > 0) submissionBody.append('doc_posting_letter', postingInput.files[0]);
+                if (expInput && expInput.files.length > 0) submissionBody.append('doc_experiences', expInput.files[0]);
+                if (certInput && certInput.files.length > 0) submissionBody.append('doc_certificate', certInput.files[0]);
+            } else {
                 const matrixDocumentIds = [
                     'doc_first_degree', 'doc_ssce', 'doc_primary',
                     'doc_nysc', 'doc_birth', 'doc_lga', 'doc_digital_id'
@@ -253,7 +408,6 @@ async function submitStepForm(stepNumber) {
                     }
                 });
 
-                // Conditionally pack optional Masters / PhD layers if toggled to 'yes'
                 const mastersInput = document.getElementById('doc_masters');
                 if (document.getElementById('has_masters')?.value === 'yes' && mastersInput && mastersInput.files.length > 0) {
                     submissionBody.append('doc_masters', mastersInput.files[0]);
@@ -265,7 +419,7 @@ async function submitStepForm(stepNumber) {
                 }
             }
         } else {
-            // --- STEPS 2 & 4 JSON PAYLOAD DATA PACKING PROCESSOR ---
+            // --- STEPS 2, 4, & 5 JSON PAYLOAD DATA PACKING PROCESSOR ---
             let dataPayload = {};
             const inputs = formElement.querySelectorAll('input, select, textarea');
             inputs.forEach(input => {
@@ -282,7 +436,6 @@ async function submitStepForm(stepNumber) {
     }
 
     try {
-        // Dispatch asynchronous network request to your Flask backend route handler
         const response = await fetch('/submit-onboarding-step', {
             method: 'POST',
             headers: headers,
@@ -294,7 +447,21 @@ async function submitStepForm(stepNumber) {
         if (response.ok) {
             completedSteps[stepNumber] = true;
 
-            // Turn the dashboard milestone checklist indicator from a number into a green checkmark
+            // Update in-memory savedOnboardingData state
+            if (!savedOnboardingData) savedOnboardingData = {};
+            if (!savedOnboardingData[`step_${stepNumber}`]) savedOnboardingData[`step_${stepNumber}`] = {};
+
+            if (stepNumber !== 1 && stepNumber !== 3) {
+                const formElement = document.getElementById(`form_step_${stepNumber}`);
+                if (formElement) {
+                    const inputs = formElement.querySelectorAll('input, select, textarea');
+                    inputs.forEach(input => {
+                        savedOnboardingData[`step_${stepNumber}`][input.id] = input.value.trim().toUpperCase();
+                    });
+                }
+            }
+
+            // Update checklist indicator on Step 0 roadmap
             const checkIndicator = document.getElementById(`chk_${stepNumber}`);
             if (checkIndicator) {
                 checkIndicator.textContent = "✓";
@@ -304,7 +471,7 @@ async function submitStepForm(stepNumber) {
                 checkIndicator.style.color = "#FFFFFF";
             }
 
-            // Instantly reveal the signature white success alert popup modal confirmation dialog box
+            // Show success confirmation popup
             const successModal = document.getElementById('successModal');
             if (successModal) {
                 successModal.style.display = 'flex';
@@ -318,22 +485,20 @@ async function submitStepForm(stepNumber) {
     }
 }
 
-
-
-
-// Add these function configurations inside static/js/onboarding.js
-
 function toggleOptionalUpload(selectElement, fileInputId) {
     const fileInput = document.getElementById(fileInputId);
     if (fileInput) {
         if (selectElement.value === 'yes') {
             fileInput.removeAttribute('disabled');
-            fileInput.setAttribute('required', 'true');
+            // Only require if not already saved
+            if (!savedOnboardingData?.step_1?.[fileInputId]) {
+                fileInput.setAttribute('required', 'true');
+            }
             fileInput.style.opacity = '1';
         } else {
             fileInput.setAttribute('disabled', 'true');
             fileInput.removeAttribute('required');
-            fileInput.value = ''; // Reset file trace string
+            fileInput.value = '';
             fileInput.style.opacity = '0.4';
         }
     }

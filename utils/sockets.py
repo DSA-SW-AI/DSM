@@ -10,10 +10,12 @@ import os
 def handle_connect():
     print(f"🔌 Socket connect from SID: {request.sid}")
 
-    user_email = flask_session.get("user_email")
+    user_email = flask_session.get("email") or flask_session.get("user_email")
+    user_room = None
     if user_email:
         email_room = f"USER_{user_email.strip().lower()}"
         join_room(email_room)
+        user_room = email_room
         print(f"✅ Joined email room: {email_room}")
 
     service_number = flask_session.get("service_number")
@@ -27,6 +29,10 @@ def handle_connect():
 
     # Join role‑based rooms so we can broadcast to all users of a certain role
     # (useful if you ever want to notify all SOs, DDs, etc.)
+    user_role = flask_session.get("role")
+    if user_role:
+        join_room(f"ROLE_{user_role}")
+        print(f"✅ Joined room: ROLE_{user_role}")
     if flask_session.get("is_so_approver"):
         join_room("ROLE_so")
         print("✅ Joined room: ROLE_so")
@@ -47,7 +53,7 @@ def handle_connect():
         join_room(dir_room)
         print(f"✅ Joined room: {dir_room}")
 
-    emit('connected', {'status': 'connected', 'room': user_room}, room=request.sid)
+    emit('connected', {'status': 'connected', 'room': user_room or 'default'}, room=request.sid)
 
 @socketio.on('join_rooms')
 def handle_join_rooms(data):

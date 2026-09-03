@@ -205,7 +205,10 @@ def application_form():
     if role_bucket != 'civilian':
         ROLE_ENDPOINTS = {
             'officer':         'application_routes.application_form_officer',
-            'deputy_director': 'application_routes.application_form_dd',
+            'dd': 'application_routes.application_form_dd',
+            'ad': 'application_routes.application_form_officer',
+            'so': 'application_routes.application_form_officer',
+            'personnel': 'application_routes.application_form_officer',
             'director':        'application_routes.application_form_director',
         }
         return redirect(url_for(ROLE_ENDPOINTS[role_bucket]))
@@ -314,7 +317,7 @@ def application_form_dd():
         
     ensure_applicant_metadata(applicant)
 
-    role_bucket = applicant.get('role_bucket', 'deputy_director')
+    role_bucket = applicant.get('role_bucket', 'dd')
     leave_data = get_leave_data_for_applicant(applicant, request)
     if request.method == 'POST':
         return handle_application_post(applicant, request, leave_data,
@@ -607,7 +610,10 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
     ROLE_FORM_ENDPOINTS = {
         'civilian':        'application_routes.application_form',
         'officer':         'application_routes.application_form_officer',
-        'deputy_director': 'application_routes.application_form_dd',
+        'personnel':         'application_routes.application_form_officer',
+        'ad':         'application_routes.application_form_officer',
+        'so':         'application_routes.application_form_officer',
+        'dd': 'application_routes.application_form_dd',
         'director':        'application_routes.application_form_director',
     }
     form_endpoint = ROLE_FORM_ENDPOINTS.get(role_bucket, 'application_routes.application_form_officer')
@@ -1329,8 +1335,8 @@ def build_approval_chain(applicant, role_bucket, users_coll):
         else:
             flash("Warning: No Central Registry (CDSA) found", "warning")
 
-    # ─── MILITARY: DEPUTY DIRECTOR (role_bucket == 'deputy_director') ───
-    elif role_bucket == 'deputy_director':
+    # ─── MILITARY: DEPUTY DIRECTOR (role_bucket == 'dd') ───
+    elif role_bucket == 'dd':
         # 1. Director
         director = users_coll.find_one({
             "directorate": directorate,

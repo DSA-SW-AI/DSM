@@ -621,8 +621,8 @@
                             </div>
 
                             <div class="details-grid">
-                                {% if role == 'registry' or role == 'director' or role == 'deputy_director' or role ==
-                                'civilian_head' or role == 'civilian_head_cao' or role == 'officer' %}
+                                {% if role == 'registry' or role == 'director' or role == 'dd' or role ==
+                                'civilian_head' or role == 'civilian_head_cao' or role == 'ad' or role == 'so' %}
                                 <div class="detail-item">
                                     <div class="detail-label"><i class="bi bi-tag"></i> Leave Type</div>
                                     <div class="detail-value highlight">
@@ -880,7 +880,7 @@
                             </div>
                             {% endif %}
 
-                            {# ── Regular approvers (civilian_head, so2_officer, deputy_director, director) ── #}
+                            {# ── Regular approvers (civilian_head_cao, so, dd, director) ── #}
                             {% elif is_users_turn %}
                             <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
                                 <button class="btn btn-approve"
@@ -982,7 +982,7 @@
                                             {# ── Human-readable role label ── #}
                                             {% if step.role in ("civilian_head_cao", "civilian_head") %}
                                             <span class="timeline-role">Head Civilian Affairs</span>
-                                            {% elif step.is_so_officer == True %}
+                                            {% elif step.is_so_approver == True %}
                                             <span class="timeline-role">Staff Officer</span>
                                             {% elif step.is_ad_approver == True %}
                                             <span class="timeline-role">AD Officer</span>

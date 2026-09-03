@@ -152,6 +152,16 @@
       padding: 16px 16px 12px;
     }
 
+    .metric.clickable-card {
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .metric.clickable-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
     .metric-head {
       display: flex;
       justify-content: space-between;
@@ -872,11 +882,12 @@
 
       <!-- METRICS ROW 1 -->
       <section class="grid-4" style="margin: 25px;">
-        <article class="card metric">
+        <!-- 1. Documents Card -->
+        <article class="card metric clickable-card" data-target="/documents_content" title="Click to view All Documents">
           <div class="metric-head">
             <div>
               <h3>Documents</h3>
-              <div class="big">0</div>
+              <div class="big">{{ doc_stats.total if doc_stats else 0 }}</div>
               <div class="sub">Total Documents</div>
             </div>
             <span class="badge b-navy"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
@@ -885,17 +896,19 @@
               </svg></span>
           </div>
           <div class="metric-foot">
-            <div><b>0</b><span>Draft</span></div>
-            <div><b>0</b><span>Pending</span></div>
-            <div><b>0</b><span>Approved</span></div>
+            <div><b>{{ doc_stats.pending if doc_stats else 0 }}</b><span>Pending</span></div>
+            <div><b>{{ doc_stats.assigned if doc_stats else 0 }}</b><span>Assigned</span></div>
+            <div><b>{{ doc_stats.completed if doc_stats else 0 }}</b><span>Completed</span></div>
           </div>
         </article>
-        <article class="card metric">
+
+        <!-- 2. Leave & Pass Card -->
+        <article class="card metric clickable-card" data-target="/dashboard_leave_pass" title="Click to view Leave & Pass Dashboard">
           <div class="metric-head">
             <div>
               <h3>Leave &amp; Pass</h3>
-              <div class="big">0</div>
-              <div class="sub">Total Approved/Issued</div>
+              <div class="big">{{ leave_stats.total if leave_stats else 0 }}</div>
+              <div class="sub">Total Applications</div>
             </div>
             <span class="badge b-red"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
                 <rect x="5" y="4" width="14" height="17" rx="2" />
@@ -903,45 +916,53 @@
               </svg></span>
           </div>
           <div class="metric-foot">
-            <div><b>0</b><span>Pending</span></div>
-            <div><b>0</b><span>Approved</span></div>
-            <div><b>0</b><span>Rejected</span></div>
+            <div><b>{{ leave_stats.pending if leave_stats else 0 }}</b><span>Pending</span></div>
+            <div><b>{{ leave_stats.approved if leave_stats else 0 }}</b><span>Approved</span></div>
+            <div><b>{{ leave_stats.rejected if leave_stats else 0 }}</b><span>Rejected</span></div>
           </div>
         </article>
-        <article class="card metric">
+
+        <!-- 3. Staff Records Card -->
+        <article class="card metric clickable-card" data-target="/personnel-view?filter=approved" title="Click to view Staff Nominal Records">
           <div class="metric-head">
             <div>
-              <h3>Promotions</h3>
-              <div class="big">0</div>
-              <div class="sub">Total Record</div>
+              <h3>Staff Records</h3>
+              <div class="big">{{ staff_stats.total if staff_stats else 0 }}</div>
+              <div class="sub">Approved Personnel</div>
             </div>
-            <span class="badge b-green"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
-                <rect x="5" y="4" width="14" height="17" rx="2" />
-                <path d="M9 3h6v3H9zM9 11h6M9 15h4" />
+            <span class="badge b-green"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg></span>
           </div>
           <div class="metric-foot">
-            <div><b>0</b><span>Pending</span></div>
-            <div><b>0</b><span>Approved</span></div>
-            <div><b>0</b><span>Review</span></div>
+            <div><b>{{ staff_stats.civilian if staff_stats else 0 }}</b><span>Civilian</span></div>
+            <div><b>{{ staff_stats.military if staff_stats else 0 }}</b><span>Military</span></div>
+            <div><b>{{ staff_stats.pending if staff_stats else 0 }}</b><span>Pending</span></div>
           </div>
         </article>
-        <article class="card metric">
+
+        <!-- 4. Recruitment & Transfers Card -->
+        <article class="card metric clickable-card" data-target="/transfers-view" title="Click to view Recruitment & Transfers">
           <div class="metric-head">
             <div>
-              <h3>PER</h3>
-              <div class="big">0</div>
-              <div class="sub">Total Submitted</div>
+              <h3>Recruitment &amp; Transfers</h3>
+              <div class="big">{{ transfer_stats.total if transfer_stats else 0 }}</div>
+              <div class="sub">Total Records</div>
             </div>
-            <span class="badge b-sky"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2">
-                <rect x="5" y="4" width="14" height="17" rx="2" />
-                <path d="M9 3h6v3H9zM9 11h6M9 15h4" />
+            <span class="badge b-sky"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor">
+                <polyline points="17 1 21 5 17 9"></polyline>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                <polyline points="7 23 3 19 7 15"></polyline>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
               </svg></span>
           </div>
           <div class="metric-foot">
-            <div><b>0</b><span>Pending</span></div>
-            <div><b>0</b><span>Approved</span></div>
-            <div><b>0</b><span>Rejected</span></div>
+            <div><b>{{ transfer_stats.pending if transfer_stats else 0 }}</b><span>Pending</span></div>
+            <div><b>{{ transfer_stats.approved if transfer_stats else 0 }}</b><span>Approved</span></div>
+            <div><b>{{ transfer_stats.completed if transfer_stats else 0 }}</b><span>Completed</span></div>
           </div>
         </article>
       </section>
@@ -1030,7 +1051,7 @@
       </section> -->
 
       <!-- Submitted Applications Table Section -->
-      {% if not user.is_approval_role %}
+      {% if not user.is_approval_role or submitted_applications %}
       <section class="submitted-applications-section"
         style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.01); margin: 25px; text-align: left;">
         <h3

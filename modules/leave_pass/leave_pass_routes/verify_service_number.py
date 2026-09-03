@@ -23,8 +23,8 @@ def resolve_role_bucket(user: dict) -> str:
         return 'civilian'
 
     # Check deputy director before director — order matters
-    if 'dd' in roles_list or 'deputy_director' in roles_list:
-        return 'deputy_director'
+    if 'dd' in roles_list or 'dd' in roles_list:
+        return 'dd'
     
     if 'director' in roles_list:
         return 'director'
@@ -85,7 +85,10 @@ def service_number_verification():
     ROLE_ENDPOINTS = {
         'civilian':        'application_routes.application_form',
         'officer':         'application_routes.application_form_officer',
-        'deputy_director': 'application_routes.application_form_dd',
+        'so':         'application_routes.application_form_officer',
+        'ad':         'application_routes.application_form_officer',
+        'personnel':         'application_routes.application_form_officer',
+        'dd': 'application_routes.application_form_dd',
         'director':        'application_routes.application_form_director',
     }
     
@@ -142,7 +145,10 @@ def application_form_check():
     ROLE_ENDPOINTS = {
         'civilian':        'application_routes.application_form',
         'officer':         'application_routes.application_form_officer',
-        'deputy_director': 'application_routes.application_form_dd',
+        'ad':         'application_routes.application_form_officer',
+        'so':         'application_routes.application_form_officer',
+        'personnel':         'application_routes.application_form_officer',
+        'dd': 'application_routes.application_form_dd',
         'director':        'application_routes.application_form_director',
     }
 

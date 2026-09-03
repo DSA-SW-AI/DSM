@@ -1,3 +1,84 @@
+<style>
+  /* TEMPLATE MODAL */
+
+  .template-modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+
+    justify-content: center;
+    align-items: center;
+  }
+
+  .template-modal-content {
+    background: white;
+    width: 80%;
+    max-width: 900px;
+    border-radius: 12px;
+    padding: 25px;
+    animation: modalFade 0.2s ease;
+  }
+
+  .template-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+  }
+
+  .close-modal {
+    font-size: 28px;
+    cursor: pointer;
+  }
+
+  .template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+  }
+
+  .template-card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s ease;
+    background: #fafafa;
+  }
+
+  .template-card:hover {
+    transform: translateY(-4px);
+    border-color: #2563eb;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  }
+
+  .template-icon {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 10px;
+    color: #2563eb;
+  }
+
+  @keyframes modalFade {
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+</style>
+
+
 <!-- ================= SIDEBAR COMPONENT ================= -->
 <aside class="sidebar">
   <div class="sidebar-brand">
@@ -8,71 +89,375 @@
     </div>
   </div>
   <nav class="sidebar-menu">
-    <div class="menu-section-label">OVERVIEW</div>
-    <a href="{{ url_for('dashboard') }}" class="menu-item {% if active_page in ['dashboard', 'view_application'] or not active_page %}active{% endif %}">📊 Dashboard</a>
+    {% set is_user_onboarded = (
+        user and (
+            user.is_onboarded in [True, 'True', 'true', 1] or 
+            user.status == 'Approved' or 
+            user.role == 'super_admin'
+        )
+    ) or (
+        session.get('is_onboarded') in [True, 'True', 'true', 1] or 
+        session.get('status') == 'Approved' or 
+        session.get('user_role') == 'super_admin' or 
+        session.get('role') == 'super_admin'
+    ) %}
 
+    <div class="menu-section-label">GLOBAL</div>
+    <a href="{{ url_for('dashboard') }}"
+      class="menu-item {% if active_page in ['dashboard', 'onboarding', 'view_application'] or not active_page %}active{% endif %}">📊
+      Dashboard</a>
+
+    {% if is_user_onboarded %}
     {% if user.role == 'super_admin' %}
     <div class="menu-section-label">ADMINISTRATION</div>
-    <a href="/super-admin-dashboard" class="menu-item {% if active_page == 'super_admin_dashboard' %}active{% endif %}">🔑 Super Admin</a>
+    <a href="/super-admin-dashboard"
+      class="menu-item {% if active_page == 'super_admin_dashboard' %}active{% endif %}">🔑 Super Admin</a>
     {% endif %}
 
-    <div class="menu-section-label">REGISTRY</div>
-    {% if "documents" in permissions.sidebar %}
-    <a href="/documents-view" class="menu-item {% if active_page == 'documents' %}active{% endif %}">📁 Documents</a>
-    {% endif %} {% if "incoming" in permissions.sidebar %}
-    <a href="/incoming-view" class="menu-item {% if active_page == 'incoming' %}active{% endif %}">📥 Incoming</a>
-    {% endif %} {% if "outgoing" in permissions.sidebar %}
-    <a href="/outgoing-view" class="menu-item {% if active_page == 'outgoing' %}active{% endif %}">📤 Outgoing</a>
-    {% endif %} {% if "filing_cabinets" in permissions.sidebar %}
-    <a href="/cabinet-view" class="menu-item {% if active_page == 'cabinet_view' %}active{% endif %}">🗄️ Filing Cabinets</a>
-    {% endif %}
-    {% if user.role == 'registry' and user.directorate|lower == 'doa' %}
-    <a href="/pending-emails-view" class="menu-item {% if active_page == 'pending_emails' %}active{% endif %}">✉️ Pending Mail Queue</a>
+    <div class="menu-section-label">REGISTRY HUB</div>
+    {% if permissions and "documents" in permissions.sidebar %}
+    {% set is_doc_active = (active_page in ['assigned_documents', 'subject_matter_filing', 'documents',
+    'documents_content']) %}
+    <div class="menu-item-dropdown">
+      <a href="javascript:void(0)" class="menu-item" id="documents-menu-btn" onclick="toggleDocumentsMenu(event)"
+        style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+        <span>📁 Documents</span>
+        <span id="documents-menu-arrow"
+          style="font-size: 10px; transition: transform 0.2s; transform: {{ 'rotate(90deg)' if is_doc_active else 'rotate(0deg)' }};">▶</span>
+      </a>
+      <div id="documents-submenu"
+        style="display: {{ 'block' if is_doc_active else 'none' }}; padding-left: 15px; margin-top: 5px; margin-bottom: 5px;">
+        <a href="javascript:void(0)" onclick="openTemplateModal()"
+          class="menu-item {% if active_page == 'add_document' %}active{% endif %}"
+          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px; cursor: pointer;">📋 Add Document</a>
+
+        <a href="/documents_content" class="menu-item {% if active_page == 'documents' %}active{% endif %}"
+          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center;">
+          <span>📋 All Document</span>
+          <span id="sidebar-unread-docs-badge" class="badge"
+            style="background: #ef4444; color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 12px; font-weight: 700; display: {{ 'inline-block' if unread_docs_count and unread_docs_count > 0 else 'none' }};">
+            {{ unread_docs_count or '' }}
+          </span>
+        </a>
+
+        <a href="/assigned_documents" class="menu-item {% if active_page == 'assigned_documents' %}active{% endif %}"
+          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center;">
+          <span>📋 Assigned Document</span>
+          <span id="sidebar-assigned-docs-badge" class="badge"
+            style="background: #0284c7; color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 12px; font-weight: 700; display: {{ 'inline-block' if assigned_docs_count and assigned_docs_count > 0 else 'none' }};">
+            {{ assigned_docs_count or '' }}
+          </span>
+        </a>
+
+        {% if user.role in ['registry', 'central_registry'] %}
+        <a href="/subject_matter_filing"
+          class="menu-item {% if active_page == 'subject_matter_filing' %}active{% endif %}"
+          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px;">🗄️ Filing Cabinet</a>
+        {% endif %}
+      </div>
+    </div>
     {% endif %}
 
-    <div class="menu-section-label">HR MANAGEMENT</div>
-    {% if "civilian_personnel" in permissions.sidebar %}
-    <a href="/personnel-view" class="menu-item {% if active_page == 'personnel' %}active{% endif %}">
-      👥 Civilian & Personnel
-      {% if pending_onboarding_count and pending_onboarding_count > 0 %}
-        <span class="badge bg-info text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{ pending_onboarding_count }}</span>
-      {% endif %}
-    </a>
-    {% endif %} {% if "recruitment_transfers" in permissions.sidebar %}
-    <a href="/transfers-view" class="menu-item {% if active_page == 'transfers' %}active{% endif %}">🔄 Recruitment & Transfers</a>
-    {% endif %} {% if "leave_pass" in permissions.sidebar %}
+    <div class="menu-section-label">DIRECTORATE HUB</div>
+    {% if permissions and "civilian_personnel" in permissions.sidebar %}
+    {% set is_onboarding_active = (active_page in ['personnel_pending', 'personnel_approved', 'pending_emails']) %}
+    <div class="menu-item-dropdown">
+      <a href="javascript:void(0)" class="menu-item" id="onboarding-menu-btn" onclick="toggleOnboardingMenu(event)"
+        style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+        <span style="display: flex; align-items: center; gap: 8px;">
+          <span>👥 Staff Onboarding</span>
+
+        </span>
+        <span id="onboarding-menu-arrow"
+          style="font-size: 10px; transition: transform 0.2s; transform: {{ 'rotate(90deg)' if is_onboarding_active else 'rotate(0deg)' }};">▶</span>
+      </a>
+      <div id="onboarding-submenu"
+        style="display: {{ 'block' if is_onboarding_active else 'none' }}; padding-left: 15px; margin-top: 5px; margin-bottom: 5px;">
+        <a href="/personnel-view?filter=pending"
+          class="menu-item {% if active_page == 'personnel_pending' %}active{% endif %}"
+          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px;">📋 Pending Approvals
+          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
+          <span class="badge bg-info text-white"
+            style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{
+            pending_onboarding_count }}</span>
+          {% endif %}
+
+        </a>
+        <a href="/personnel-view?filter=approved"
+          class="menu-item {% if active_page == 'personnel_approved' %}active{% endif %}"
+          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px;">📋 Directorate Nominal Records</a>
+
+        {% if user.role in ['registry', 'central_registry'] %}
+        <a href="/pending-emails-view" class="menu-item {% if active_page == 'pending_emails' %}active{% endif %}"
+          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px;">✉️ Pending Mail Queue</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %} {% if permissions and "recruitment_transfers" in permissions.sidebar %}
+    <a href="/transfers-view" class="menu-item {% if active_page == 'transfers' %}active{% endif %}">🔄 Recruitment &
+      Transfers</a>
+    {% endif %} {% if permissions and "leave_pass" in permissions.sidebar %}
     <a href="/dashboard_leave_pass" class="menu-item {% if active_page == 'leave_pass' %}active{% endif %}">
       📅 Leave & Pass
       {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
-        <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ pending_leave_pass_count }}</span>
+      <span class="badge bg-danger text-white ms-2"
+        style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{
+        pending_leave_pass_count }}</span>
       {% endif %}
     </a>
     {% endif %}
 
-  <!-- Permanently Locked Footer Segment -->
-  <div class="sidebar-footer">
-    <div class="menu-section-label">General</div>
-    {% if "support" in permissions.sidebar %}
-    <a href="/support" class="menu-item {% if active_page == 'support' %}active{% endif %}">
-      👥 Supports
-      {% if unread_support_count and unread_support_count > 0 %}
-        <span class="badge bg-warning text-dark ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{ unread_support_count }}</span>
+    <!-- Permanently Locked Footer Segment -->
+    <div class="sidebar-footer">
+      <div class="menu-section-label">GENERAL</div>
+      {% if not permissions or "support" in permissions.sidebar %}
+      <a href="/support" class="menu-item {% if active_page == 'support' %}active{% endif %}">
+        👥 Supports
+        {% if unread_support_count and unread_support_count > 0 %}
+        <span class="badge bg-warning text-dark ms-2"
+          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{
+          unread_support_count }}</span>
+        {% endif %}
+      </a>
+      {% endif %} {% if permissions and "notification" in permissions.sidebar %}
+      <a href="/notifications" class="menu-item {% if active_page == 'notifications' %}active{% endif %}">
+        🔄 Notifications
+        {% if unread_notifications_count and unread_notifications_count > 0 %}
+        <span class="badge bg-danger text-white ms-2"
+          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{
+          unread_notifications_count }}</span>
+        {% endif %}
+      </a>
+      {% endif %} {% if permissions and "setting" in permissions.sidebar %}
+      <a href="/setting" class="menu-item {% if active_page in ['setting', 'settings'] %}active{% endif %}">📅
+        Setting</a>
       {% endif %}
-    </a>
-    {% endif %} {% if "notification" in permissions.sidebar %}
-    <a href="/notifications" class="menu-item {% if active_page == 'notifications' %}active{% endif %}">
-      🔄 Notifications
-      {% if unread_notifications_count and unread_notifications_count > 0 %}
-        <span class="badge bg-danger text-white ms-2" style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{ unread_notifications_count }}</span>
-      {% endif %}
-    </a>
-    {% endif %} {% if "setting" in permissions.sidebar %}
-    <a href="/setting" class="menu-item {% if active_page in ['setting', 'settings'] %}active{% endif %}">📅 Setting</a>
-    {% endif %}
+        <br><br>
+      <a href="{{ url_for('logout') }}" class="logout-btn">
+        🚪 Sign out
+      </a>
+    </div>
 
-    <a href="{{ url_for('logout') }}" class="logout-btn">
-      🚪 Sign out
-    </a>
-  </div>
+    {% else %}
+    <!-- Non-onboarded users: Only Dashboard, Supports, and Sign out -->
+    <div class="sidebar-footer">
+      <div class="menu-section-label">GENERAL</div>
+      <a href="/support" class="menu-item {% if active_page == 'support' %}active{% endif %}">
+        👥 Supports
+        {% if unread_support_count and unread_support_count > 0 %}
+        <span class="badge bg-warning text-dark ms-2"
+          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{
+          unread_support_count }}</span>
+        {% endif %}
+      </a><br><br>
+
+      <a href="{{ url_for('logout') }}" class="logout-btn">
+        🚪 Sign out
+      </a>
+    </div>
+    {% endif %}
   </nav>
 </aside>
+
+
+{% if is_user_onboarded %}
+<!-- TEMPLATE MODAL -->
+
+<div id="templateModal" class="template-modal">
+
+  <div class="template-modal-content">
+
+    <div class="template-modal-header">
+
+      <h2>Select Document Template</h2>
+
+      <span class="close-modal" onclick="closeTemplateModal()">
+        &times;
+      </span>
+
+    </div>
+
+    <div class="template-grid">
+
+      <!-- Import -->
+      <div class="template-card" onclick="selectUploadMode()">
+
+        <i data-lucide="folder-input" class="template-icon"></i>
+
+        <p>Import</p>
+
+      </div>
+
+      <!-- Memorandum -->
+      <div class="template-card" onclick="selectTemplate('memorandum')">
+
+        <i data-lucide="book-open-text" class="template-icon"></i>
+
+        <p>Memorandum</p>
+
+      </div>
+
+      <!-- Loose Minute -->
+      <div class="template-card" onclick="selectTemplate('loose_minute')">
+
+        <i data-lucide="file-text" class="template-icon"></i>
+
+        <p>Loose Minute</p>
+
+      </div>
+
+      <!-- Draft -->
+      <div class="template-card" onclick="selectTemplate('draft')">
+
+        <i data-lucide="file-plus-corner" class="template-icon"></i>
+
+        <p>Draft</p>
+
+      </div>
+
+      <!-- Official Letter -->
+      <div class="template-card" onclick="selectTemplate('letter')">
+
+        <i data-lucide="mail" class="template-icon"></i>
+
+        <p>Official Letter</p>
+
+      </div>
+
+      <!-- Circular -->
+      <div class="template-card" onclick="selectTemplate('circular')">
+
+        <i data-lucide="scroll-text" class="template-icon"></i>
+
+        <p>Circular</p>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+{% endif %}
+
+<!-- Load Lucide icons library dynamically to ensure templateModal works across all pages -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  function toggleDocumentsMenu(event) {
+    if (event) {
+      event.preventDefault();
+    }
+    var submenu = document.getElementById("documents-submenu");
+    var arrow = document.getElementById("documents-menu-arrow");
+    if (submenu && arrow) {
+      if (submenu.style.display === "none" || submenu.style.display === "") {
+        submenu.style.display = "block";
+        arrow.style.transform = "rotate(90deg)";
+        localStorage.setItem("documentsMenuExpanded", "true");
+      } else {
+        submenu.style.display = "none";
+        arrow.style.transform = "rotate(0deg)";
+        localStorage.setItem("documentsMenuExpanded", "false");
+      }
+    }
+  }
+
+  function toggleOnboardingMenu(event) {
+    if (event) {
+      event.preventDefault();
+    }
+    var submenu = document.getElementById("onboarding-submenu");
+    var arrow = document.getElementById("onboarding-menu-arrow");
+    if (submenu && arrow) {
+      if (submenu.style.display === "none" || submenu.style.display === "") {
+        submenu.style.display = "block";
+        arrow.style.transform = "rotate(90deg)";
+        localStorage.setItem("onboardingMenuExpanded", "true");
+      } else {
+        submenu.style.display = "none";
+        arrow.style.transform = "rotate(0deg)";
+        localStorage.setItem("onboardingMenuExpanded", "false");
+      }
+    }
+  }
+
+  // Ensure documents and onboarding submenu expansion states are maintained based on server-side or localStorage flags
+  document.addEventListener("DOMContentLoaded", function () {
+    // Initialize Lucide icons for the modal
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+
+    {% if is_user_onboarded and permissions and "documents" in permissions.sidebar %}
+    var isDocActive = {{ 'true' if is_doc_active else 'false' }};
+    var isExpanded = localStorage.getItem("documentsMenuExpanded");
+  var submenu = document.getElementById("documents-submenu");
+  var arrow = document.getElementById("documents-menu-arrow");
+  if (submenu && arrow) {
+    if (isDocActive || isExpanded === "true") {
+      submenu.style.display = "block";
+      arrow.style.transform = "rotate(90deg)";
+    } else {
+      submenu.style.display = "none";
+      arrow.style.transform = "rotate(0deg)";
+    }
+  }
+  {% endif %}
+
+  {% if is_user_onboarded and permissions and "civilian_personnel" in permissions.sidebar %}
+  var isOnboardingActive = {{ 'true' if is_onboarding_active else 'false' }};
+  var isOnboardingExpanded = localStorage.getItem("onboardingMenuExpanded");
+  var onboardingSubmenu = document.getElementById("onboarding-submenu");
+  var onboardingArrow = document.getElementById("onboarding-menu-arrow");
+  if (onboardingSubmenu && onboardingArrow) {
+    if (isOnboardingActive || isOnboardingExpanded === "true") {
+      onboardingSubmenu.style.display = "block";
+      onboardingArrow.style.transform = "rotate(90deg)";
+    } else {
+      onboardingSubmenu.style.display = "none";
+      onboardingArrow.style.transform = "rotate(0deg)";
+    }
+  }
+  {% endif %}
+  });
+
+  function openTemplateModal() {
+    document.getElementById("templateModal").style.display = "flex";
+  }
+
+  function closeTemplateModal() {
+    document.getElementById("templateModal").style.display = "none";
+  }
+
+  function selectTemplate(templateType) {
+    window.location.href = `/add_document?template=${templateType}`;
+  }
+
+  function selectUploadMode() {
+    window.location.href = `/add_document?mode=upload`;
+  }
+
+  window.addEventListener('click', function (event) {
+    const modal = document.getElementById("templateModal");
+    if (event.target === modal) {
+      closeTemplateModal();
+    }
+  });
+</script>
+
+<!-- Global Real-Time Socket Connection & Notification Engine -->
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+  (function () {
+    if (!window.CURRENT_USER) {
+      window.CURRENT_USER = {
+        email: "{{ session.get('email') or session.get('user_email') or (user.email if user else '') }}",
+        role: "{{ session.get('role') or (user.role if user else '') }}",
+        directorate: "{{ session.get('directorate') or (user.directorate if user else '') }}",
+        service_number: "{{ session.get('service_number') or (user.service_number if user else '') }}"
+      };
+      window.currentUserEmail = window.CURRENT_USER.email;
+    }
+  })();
+</script>
+<script src="{{ url_for('static', filename='js/socket.js') }}"></script>
