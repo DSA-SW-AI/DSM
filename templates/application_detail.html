@@ -283,9 +283,7 @@
             z-index: 1;
         }
 
-        @media (max-width: 768px) {
-            
-        }
+        @media (max-width: 768px) {}
 
         .timeline-marker.completed {
             background: #28a745;
@@ -319,10 +317,10 @@
 
         @media (max-width: 768px) {
             .timeline-role {
-            font-weight: 700;
-            color: #333;
-            font-size: 13px;
-        }
+                font-weight: 700;
+                color: #333;
+                font-size: 13px;
+            }
         }
 
         .timeline-date {
@@ -474,7 +472,7 @@
                 left: -10px;
             }
 
-            
+
 
             .timeline-item {
                 padding-left: 20px;
@@ -621,8 +619,6 @@
                             </div>
 
                             <div class="details-grid">
-                                {% if role == 'registry' or role == 'director' or role == 'dd' or role ==
-                                'civilian_head' or role == 'civilian_head_cao' or role == 'ad' or role == 'so' %}
                                 <div class="detail-item">
                                     <div class="detail-label"><i class="bi bi-tag"></i> Leave Type</div>
                                     <div class="detail-value highlight">
@@ -656,7 +652,7 @@
 
                                 <div class="detail-item" style="grid-column: span 2;">
                                     <div class="detail-label"><i class="bi bi-chat-text"></i> Reason</div>
-                                    <div class="detail-value">{{ application.reason }}</div>
+                                    <div class="detail-value">{{ application.reason or 'Not specified' }}</div>
                                 </div>
 
                                 <div class="detail-item">
@@ -666,76 +662,15 @@
 
                                 <div class="detail-item">
                                     <div class="detail-label"><i class="bi bi-house"></i> Contact Address</div>
-                                    <div class="detail-value">{{ application.contactAddress }}</div>
+                                    <div class="detail-value">{{ application.contactAddress or 'Not specified' }}</div>
                                 </div>
 
                                 <div class="detail-item">
                                     <div class="detail-label"><i class="bi bi-telephone"></i> Telephone</div>
                                     <div class="detail-value">{{ application.telephone or 'Not provided' }}</div>
                                 </div>
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-person-workspace"></i> Reliever</div>
-                                    <div class="detail-value">{{ application.name_of_reliever or 'None' }}</div>
-                                </div>
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-person-workspace"></i>Appointment of
-                                        Reliever</div>
-                                    <div class="detail-value">{{ application.appt_of_reliever or 'None' }}</div>
-                                </div>
 
-                                {% endif %}
-
-                                {% if role == 'cdsa' or role == 'central_registry' %}
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-tag"></i> Leave Type</div>
-                                    <div class="detail-value highlight">
-                                        {{ application.leave_type|capitalize }}
-                                        {% if application.leave_type == 'sick' and application.tacosDetails and
-                                        application.tacosDetails.hospitalized %}
-                                        <span class="tacos-badge">HOSPITALIZED</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-calendar"></i> Duration</div>
-                                    <div class="detail-value">{{ application.numberOfDays }} working days</div>
-                                </div>
-
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-calendar-range"></i> From - To</div>
-                                    <div class="detail-value">
-                                        {{ application.startDate or 'Not specified' }} →
-                                        {{ application.endDate or 'Not specified' }}
-                                    </div>
-                                </div>
-
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-calendar-event"></i> Effective Date</div>
-                                    <div class="detail-value">
-                                        {{ application.effectiveDate or 'Not specified' }}
-                                    </div>
-                                </div>
-
-                                <div class="detail-item" style="grid-column: span 2;">
-                                    <div class="detail-label"><i class="bi bi-chat-text"></i> Reason</div>
-                                    <div class="detail-value">{{ application.reason }}</div>
-                                </div>
-
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-geo-alt"></i> Place of Travel</div>
-                                    <div class="detail-value">{{ application.placeIntended or 'Not specified' }}</div>
-                                </div>
-
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-house"></i> Contact Address</div>
-                                    <div class="detail-value">{{ application.contactAddress }}</div>
-                                </div>
-
-                                <div class="detail-item">
-                                    <div class="detail-label"><i class="bi bi-telephone"></i> Telephone</div>
-                                    <div class="detail-value">{{ application.telephone or 'Not provided' }}</div>
-                                </div>
+                                {% if application.role_bucket == 'director' or application.director_reliever_name %}
                                 <div class="detail-item">
                                     <div class="detail-label"><i class="bi bi-person-workspace"></i> Director Reliever's
                                         Service Number</div>
@@ -752,9 +687,17 @@
                                         Rank</div>
                                     <div class="detail-value">{{ application.director_reliever_rank or 'None' }}</div>
                                 </div>
+                                {% else %}
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-person-workspace"></i> Reliever</div>
+                                    <div class="detail-value">{{ application.name_of_reliever or 'None' }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label"><i class="bi bi-person-workspace"></i> Appointment of
+                                        Reliever</div>
+                                    <div class="detail-value">{{ application.appt_of_reliever or 'None' }}</div>
+                                </div>
                                 {% endif %}
-
-
                             </div>
 
                             <!-- TACOS Additional Details -->
@@ -774,11 +717,11 @@
                                     <span><i class="bi bi-clock-history"></i> Attachment: {{
                                         application.tacosDetails.attachmentMonths }} months</span>
                                     {% endif %}
-                                    {% if application.tacosDetails.calendarDays %}
+                                    <!-- {% if application.tacosDetails.calendarDays %}
                                     <span><i class="bi bi-calendar"></i> Calendar Days: {{
                                         application.tacosDetails.calendarDays
                                         }}</span>
-                                    {% endif %}
+                                    {% endif %} -->
                                 </div>
                             </div>
                             {% endif %}
@@ -830,19 +773,58 @@
 
                             <div style="text-align: center; padding: 20px;">
 
+                                {# ── Reliever / Applicant / Plain Civilian Checks ── #}
+                                {% set user_email_clean = (user.email or '')|lower|trim %}
+                                {% set reliever_email_clean = (application.reliever_email or '')|lower|trim %}
+                                {% set user_sn_clean = (user.service_number or '')|upper|trim %}
+                                {% set reliever_sn_clean = (application.director_reliever_service_number or application.name_of_reliever or '')|upper|trim %}
+                                {% set applicant_id_clean = (application.applicantId or '')|upper|trim %}
+
+                                {% set is_reliever = (user_email_clean and user_email_clean == reliever_email_clean) or (user_sn_clean and user_sn_clean == reliever_sn_clean) %}
+                                {% set is_applicant = (user_sn_clean and user_sn_clean == applicant_id_clean) or (user_email_clean and application.applicantEmail and user_email_clean == application.applicantEmail|lower|trim) %}
+                                {% set is_plain_civilian = (user.role == 'civilian' and not user.is_approval_role) %}
+
                                 {# ── Find user's step in chain ── #}
                                 {% set ns = namespace(user_step=None, user_index=-1, found_pending=false) %}
+                                {% if not is_reliever and not is_applicant and not is_plain_civilian %}
                                 {% for step in application.approvalChain %}
-                                {% if step.get('approverId')|string == user.service_number|string %}
-                                {% if not ns.found_pending %}
-                                {% set ns.user_step = step %}
-                                {% set ns.user_index = loop.index0 %}
-                                {% if step.status == "pending" %}
-                                {% set ns.found_pending = true %}
-                                {% endif %}
-                                {% endif %}
-                                {% endif %}
+                                    {% set role_capable = false %}
+                                    {% if step.role in ('civilian_head_cao', 'civilian_head') and user.role in ('civilian_head_cao', 'civilian_head', 'deputy_civilian_head_cao') %}
+                                        {% set role_capable = true %}
+                                    {% elif step.role == 'so' and (user.is_so_approver or user.role == 'so') and (not step.get('directorate') or step.get('directorate') == user.directorate or application.directorate == user.directorate) %}
+                                        {% set role_capable = true %}
+                                    {% elif step.role == 'ad' and (user.is_ad_approver or user.role == 'ad') and (not step.get('directorate') or step.get('directorate') == user.directorate or application.directorate == user.directorate) %}
+                                        {% set role_capable = true %}
+                                    {% elif step.role == 'dd' and (user.is_dd_approver or user.role == 'dd') and (not step.get('directorate') or step.get('directorate') == user.directorate or application.directorate == user.directorate) %}
+                                        {% set role_capable = true %}
+                                    {% elif step.role == 'director' and (user.role == 'director' or 'director' in user.role or user.is_final_approver) %}
+                                        {% set role_capable = true %}
+                                    {% elif step.role in ('central_registry', 'registry') and (user.role == step.role or step.role in (user.roles or [])) %}
+                                        {% set role_capable = true %}
+                                    {% endif %}
+
+                                    {% set step_email_clean = (step.get('approverEmail') or '')|lower|trim %}
+                                    {% set step_sn_clean = (step.get('approverId') or '')|string|trim %}
+
+                                    {% if (step_email_clean and user_email_clean and step_email_clean == user_email_clean and role_capable)
+                                    or (step_sn_clean and step_sn_clean == user_sn_clean and role_capable)
+                                    or (user.role in ('civilian_head_cao', 'civilian_head') and step.role in ('civilian_head_cao', 'civilian_head'))
+                                    or ((user.is_so_approver or user.role == 'so') and step.role == 'so' and (not step.get('directorate') or step.get('directorate') == user.directorate or application.directorate == user.directorate))
+                                    or ((user.is_ad_approver or user.role == 'ad') and step.role == 'ad' and (not step.get('directorate') or step.get('directorate') == user.directorate or application.directorate == user.directorate))
+                                    or ((user.is_dd_approver or user.role == 'dd') and step.role == 'dd' and (not step.get('directorate') or step.get('directorate') == user.directorate or application.directorate == user.directorate))
+                                    or (user.is_final_approver and (step.get('is_final_approver') or (step.role == 'director' and application.directorate == user.directorate)))
+                                    or ('central_registry' in (user.roles or []) and step.role == 'central_registry')
+                                    or ('registry' in (user.roles or []) and step.role == 'registry' and (not step.get('directorate') or step.get('directorate') == user.directorate)) %}
+                                        {% if not ns.found_pending %}
+                                            {% set ns.user_step = step %}
+                                            {% set ns.user_index = loop.index0 %}
+                                            {% if step.status == "pending" %}
+                                                {% set ns.found_pending = true %}
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endif %}
                                 {% endfor %}
+                                {% endif %}
                                 {% set user_step = ns.user_step %}
                                 {% set user_index = ns.user_index %}
 
@@ -856,21 +838,22 @@
                                 {% if loop.index0 < user_index and step.status not in
                                     ("approved", "Recommended for Approval" ) %} {% set ns2.all_prev=false %} {% endif
                                     %} {% endfor %} {% if ns2.all_prev %}{% set is_users_turn=true %}{% endif %} {%
-                                    endif %} {# ── Can registry acknowledge file? ── #} {% set can_acknowledge=false %}
-                                    {% if user_step and user_step.role=="registry" and not user_step.get("acknowledged",
-                                    false) and application.status|lower in ("approved", "issued" ) %} {% set
-                                    can_acknowledge=true %} {% endif %} {# ── Can SO1-DOA / central_registry /
-                                    final_approver issue receipt? ── #} {% set can_issue_receipt=false %} {% if
-                                    user_step and (user_step.role in ("so1_doa", "central_registry" ) or
-                                    user_step.get("is_final_approver")==true) and application.status|lower in
-                                    ("approved",) and not user_step.get("receipt") %} {% set can_issue_receipt=true %}
-                                    {% endif %} {# ── CDSA approve button ── #} {% if "cdsa" in user.roles and
-                                    application.role_bucket=="director" and application.status=="pending" %} {% set
-                                    ns3=namespace(cdsa_step=None) %} {% for step in application.approvalChain %} {% if
-                                    step.role=="cdsa" and step.approverId|string==user.service_number|string %} {% set
-                                    ns3.cdsa_step=step %} {% endif %} {% endfor %} {% if ns3.cdsa_step and
-                                    ns3.cdsa_step.status=="pending" %} <div
-                                    style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+                                    endif %} {# ── Can registry / central_registry acknowledge file? ── #} {% set
+                                    can_acknowledge=false %} {% if user_step and user_step.role in
+                                    ("registry", "central_registry" ) and not user_step.get("acknowledged", false) and
+                                    application.status|lower in ("approved", "issued" ) %} {% set can_acknowledge=true
+                                    %} {% endif %} {# ── Can Final Approver issue receipt? (Cross-directorate) ── #} {%
+                                    set can_issue_receipt=false %} {% if user_step and
+                                    (user_step.get("is_final_approver") in (true, "true" , "True" ) or
+                                    (user.is_final_approver and user_step.role=="director" )) and
+                                    application.status|lower in ("approved",) and not user_step.get("receipt") %} {% set
+                                    can_issue_receipt=true %} {% endif %} {# ── CDSA approve button ── #} {% if "cdsa"
+                                    in user.roles and application.role_bucket=="director" and
+                                    application.status=="pending" %} {% set ns3=namespace(cdsa_step=None) %} {% for step
+                                    in application.approvalChain %} {% if step.role=="cdsa" and
+                                    step.approverId|string==user.service_number|string %} {% set ns3.cdsa_step=step %}
+                                    {% endif %} {% endfor %} {% if ns3.cdsa_step and ns3.cdsa_step.status=="pending" %}
+                                    <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
                                     <button class="btn btn-approve"
                                         style="background-color: #218838; color: white; border: 1px solid #4eff74;"
                                         data-url="{{ url_for('approver_dashboard.cdsa_approve', app_id=application._id|string) }}"
@@ -889,7 +872,7 @@
                                     onclick="openApproveModal(this)">
                                     <i class="bi bi-check-circle"></i>
                                     {% if application.role_bucket == "civilian" and user_step.role in
-                                    ("civilian_head_cao", "civilian_head", "so", "dd") %}
+                                    ("civilian_head_cao", "civilian_head", "so", "ad", "dd") %}
                                     Recommend for Approval
                                     {% else %}
                                     Approve Leave/Pass Application
@@ -914,14 +897,23 @@
                                 </button>
                             </div>
 
-                            {# ── SO1-DOA / Central Registry — issue receipt ── #}
+                            {# ── SO1-DOA / Central Registry / Final Approver — issue receipt ── #}
                             {% elif can_issue_receipt %}
                             <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
                                 <button class="btn btn-approve"
                                     style="background-color: #218838; color: white; border: 1px solid #4eff74;"
                                     onclick="openReceiptModal('{{ application._id|string }}')">
-                                    <i class="bi bi-receipt"></i> Approved & Issue Leave/Pass Receipt
+                                    <i class="bi bi-receipt"></i> Approve & Issue Leave/Pass Receipt
                                 </button>
+                                {% if user_step.get("is_final_approver") or (user.is_final_approver and user_step.role
+                                == "director") %}
+                                <button class="btn btn-reject"
+                                    style="background-color: #ffffff; color: #dc3545; border: 1px solid #dc3545;"
+                                    data-url="{{ url_for('approver_dashboard.reject', app_id=application._id|string) }}"
+                                    onclick="openRejectModal(this)">
+                                    <i class="bi bi-x-circle"></i> Reject Leave/Pass Application
+                                </button>
+                                {% endif %}
                             </div>
 
 
@@ -944,7 +936,11 @@
                                 <i class="bi bi-info-circle"
                                     style="font-size:24px;display:block;margin-bottom:10px;"></i>
                                 <p>No actions available at this time.</p>
-                                {% if user_step %}
+                                {% if is_reliever %}
+                                <small><i class="bi bi-shield-lock"></i> You are designated as the reliever for this application and cannot act as an approver.</small>
+                                {% elif is_applicant %}
+                                <small><i class="bi bi-person-check"></i> You are the applicant for this leave request.</small>
+                                {% elif user_step %}
                                 {% if user_step.status != "pending" %}
                                 <small>You have already <strong>{{ user_step.status }}</strong> this
                                     application.</small>
@@ -972,8 +968,8 @@
                             {% for step in application.approvalChain %}
                             <div class="timeline-item">
                                 <div class="timeline-marker
-                                    {% if step.status == 'approved' or step.get('acknowledged') or step.get('receipt') %}completed
-                                    {% elif step.status == 'rejected' %}rejected
+                                    {% if (step.status|lower in ('approved', 'recommended for approval')) or step.get('acknowledged') or step.get('receipt') %}completed
+                                    {% elif step.status|lower == 'rejected' %}rejected
                                     {% endif %}">
                                 </div>
                                 <div class="timeline-content">
@@ -982,24 +978,25 @@
                                             {# ── Human-readable role label ── #}
                                             {% if step.role in ("civilian_head_cao", "civilian_head") %}
                                             <span class="timeline-role">Head Civilian Affairs</span>
-                                            {% elif step.is_so_approver == True %}
+                                            {% elif step.role == 'so' or step.is_so_approver == True %}
                                             <span class="timeline-role">Staff Officer</span>
-                                            {% elif step.is_ad_approver == True %}
-                                            <span class="timeline-role">AD Officer</span>
-                                            {% elif step.is_dd_approver == True %}
+                                            {% elif step.role == 'ad' or step.is_ad_approver == True %}
+                                            <span class="timeline-role">Assistant Director</span>
+                                            {% elif step.role == 'dd' or step.is_dd_approver == True %}
                                             <span class="timeline-role">Deputy Director</span>
                                             {% elif step.role == "director" %}
                                             <span class="timeline-role">Director</span>
                                             {% elif step.role == "cdsa" %}
                                             <span class="timeline-role">CDSA</span>
                                             {% elif step.role == "registry" %}
-                                            <span class="timeline-role">Registry ({{ step.registry_type|title if
-                                                step.registry_type else 'Directorate' }})</span>
+                                            <span class="timeline-role">Registry ({{ step.registry_type|replace('_', '
+                                                ')|title if step.registry_type else 'Directorate' }}) —
+                                                Acknowledgment</span>
                                             {% elif step.is_final_approver == True %}
-                                            <span class="timeline-role">DOA Director — Leave/Pass Approval</span>
+                                            <span class="timeline-role">DOA Director — Leave/Pass Approval &
+                                                Receipt</span>
                                             {% elif step.role == "central_registry" %}
-                                            <span class="timeline-role">Central Registry (CDSA) — Leave/Pass
-                                                Approval</span>
+                                            <span class="timeline-role">Central Registry (CDSA) — Acknowledgment</span>
                                             {% else %}
                                             <span class="timeline-role">{{ step.role|replace('_',' ')|title }}</span>
                                             {% endif %}
@@ -1019,14 +1016,17 @@
                                         <span class="status-badge approved">
                                             <i class="bi bi-folder-check"></i> FILE ACKNOWLEDGED
                                         </span>
+                                        {% elif step.status|lower in ('approved', 'recommended for approval') %}
+                                        <span class="status-badge approved">
+                                            <i class="bi bi-check-circle"></i> {{ step.status|upper }}
+                                        </span>
+                                        {% elif step.status|lower == 'rejected' %}
+                                        <span class="status-badge rejected">
+                                            <i class="bi bi-x-circle"></i> REJECTED
+                                        </span>
                                         {% else %}
-                                        <span class="status-badge {{ step.status }}">
-                                            <i class="bi
-                                 {% if step.status == 'approved' %}bi-check-circle
-                                 {% elif step.status == 'rejected' %}bi-x-circle
-                                 {% else %}bi-clock{% endif %}">
-                                            </i>
-                                            {{ step.status|upper }}
+                                        <span class="status-badge pending">
+                                            <i class="bi bi-clock"></i> {{ (step.status or 'PENDING')|upper }}
                                         </span>
                                         {% endif %}
                                     </div>
@@ -1054,7 +1054,7 @@
                                     {% if step.approverName %}
                                     <div style="font-size:12px;color:#6c757d;margin-top:10px;">
                                         <i class="bi bi-person-check"></i>
-                                        {{ step.approverName }} ({{ step.approverRank or '' }})
+                                        {{ step.approverDesignation }} ({{ step.approverRank or '' }})
                                     </div>
                                     {% endif %}
                                 </div>
@@ -1115,7 +1115,7 @@
 
             <h3>
                 {% if application.role_bucket == "civilian" and user_step and user_step.role in ("civilian_head_cao",
-                "civilian_head", "so", "dd") %}
+                "civilian_head", "so", "ad", "dd") %}
                 Recommend Rejection
                 {% else %}
                 Reject Application
@@ -1123,7 +1123,7 @@
             </h3><br>
             <p class="subtitle">
                 {% if application.role_bucket == "civilian" and user_step and user_step.role in ("civilian_head_cao",
-                "civilian_head", "so", "dd") %}
+                "civilian_head", "so", "ad", "dd") %}
                 Confirm your recommendation to reject this leave/pass request
                 {% else %}
                 Confirm your rejection for this leave/pass request
@@ -1150,7 +1150,7 @@
                     <button type="button" class="cancel-btn" onclick="closeRejectModal()">Cancel</button>
                     <button type="submit" class="continues-btn">
                         {% if application.role_bucket == "civilian" and user_step and user_step.role in
-                        ("civilian_head_cao", "civilian_head", "so", "dd") %}
+                        ("civilian_head_cao", "civilian_head", "so", "ad", "dd") %}
                         Confirm Recommendation
                         {% else %}
                         Confirm Rejection
@@ -1169,7 +1169,7 @@
 
             <h3>
                 {% if application.role_bucket == "civilian" and user_step and user_step.role in ("civilian_head_cao",
-                "civilian_head", "so", "dd") %}
+                "civilian_head", "so", "ad", "dd") %}
                 Recommend Application
                 {% else %}
                 Approve Application
@@ -1177,7 +1177,7 @@
             </h3><br>
             <p class="subtitle">
                 {% if application.role_bucket == "civilian" and user_step and user_step.role in ("civilian_head_cao",
-                "civilian_head", "so", "dd") %}
+                "civilian_head", "so", "ad", "dd") %}
                 Confirm your recommendation for this leave/pass request
                 {% else %}
                 Confirm your approval for this leave/pass request
@@ -1204,7 +1204,7 @@
                     <button type="button" class="cancel-btn" onclick="closeApproveModal()">Cancel</button>
                     <button type="submit" class="continuess-btn">
                         {% if application.role_bucket == "civilian" and user_step and user_step.role in
-                        ("civilian_head_cao", "civilian_head", "so", "dd") %}
+                        ("civilian_head_cao", "civilian_head", "so", "ad", "dd") %}
                         Confirm Recommendation
                         {% else %}
                         Confirm Approval
@@ -1248,7 +1248,7 @@
         </div>
     </div>
 
-    <!-- Issue Receipt Modal (for SO1-DOA / Central Registry) -->
+    <!-- Issue Receipt Modal (for Final Approver / Director DOA) -->
     <div id="receiptModal" class="modal-overlay" style="display: none;">
         <div class="modal-box">
             <form method="POST" id="receiptForm" action="">
@@ -1653,7 +1653,7 @@
     </script>
     <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
 
-  <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
 </body>
 
 </html>

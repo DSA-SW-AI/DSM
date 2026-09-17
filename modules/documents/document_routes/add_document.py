@@ -41,6 +41,7 @@ def add_document():
             name = request.form.get("name", "").strip()
             rank = request.form.get("rank", "").strip()
             appt = request.form.get("appt", "").strip()
+            memo_to = request.form.get("memo_to", "").strip()
             parent_doc_id = request.form.get("parent_doc_id", "").strip() or None
             folder_name = request.form.get("folder_name", "").strip() or None
             created_at = datetime.now()
@@ -546,6 +547,7 @@ def add_document():
                 "sender_email": sender_email,
                 "origin_directorate": origin_directorate,
                 "target_directorate": target_directorate,
+                "memo_to": memo_to,
                 # Routing
                 "assigned_to": None,
                 "current_holder": sender_email,
@@ -795,6 +797,28 @@ def add_document():
     )
     existing_folders = [f for f in db.documents.distinct("folder_name") if f]
 
+    standard_directorates = [
+        {"code": "CDSA", "name": "Chief of Defence Space Administration (CDSA)"},
+        {"code": "DCDSA", "name": "Chief of Defence Space Administration (DCDSA)"},
+        {"code": "DOA", "name": "Directorate of Administration (DOA)"},
+        {"code": "DCS", "name": "Directorate of Communications Satellite (DCS)"},
+        {"code": "DNPT", "name": "Directorate of Navigation & Positioning (DNPT)"},
+        {"code": "DFA", "name": "Directorate of Finance (DFA)"},
+        {"code": "DLSO", "name": "Directorate of Launch Services & Space Operations (DLSO)"},
+        {"code": "DEO", "name": "Directorate of Earth Observation (DEO)"},
+        {"code": "DCYBER", "name": "Directorate of Cyber Security (DCYBER)"},
+        {"code": "DPPR", "name": "Directorate of Policy Planning and Research (DPPR)"},
+        {"code": "DLOG", "name": "Directorate of Logistics (DLOG)"},
+        {"code": "DELSPACE", "name": "Delspace"},
+    ]
+    existing_dir_codes = {d["code"].upper() for d in standard_directorates}
+    db_dirs = set(filter(None, db.users.distinct("directorate") + db.personnel.distinct("directorate")))
+    for d in sorted(db_dirs):
+        d_clean = str(d).strip().upper()
+        if d_clean and d_clean not in existing_dir_codes:
+            standard_directorates.append({"code": d_clean, "name": d_clean})
+            existing_dir_codes.add(d_clean)
+
     return render_template(
         "add_document.html",
         user_directorate=session.get("directorate"),
@@ -804,4 +828,5 @@ def add_document():
         active_page="add_document",
         existing_folders=existing_folders,
         predefined_docs=predefined_docs,
+        directorates=standard_directorates,
     )

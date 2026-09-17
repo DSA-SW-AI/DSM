@@ -22,14 +22,16 @@ def resolve_role_bucket(user: dict) -> str:
     if category == 'civilian' or 'civilian' in roles_list or 'civilian_head_cao' in roles_list or 'civilian_head' in roles_list:
         return 'civilian'
 
-    # Check deputy director before director — order matters
-    if 'dd' in roles_list or 'dd' in roles_list:
-        return 'dd'
-    
     if 'director' in roles_list:
         return 'director'
 
-    # Fallback to officer for AD, officer, personnel, civilian_head_cao, registry, etc.
+    if 'dd' in roles_list:
+        return 'dd'
+
+    if 'personnel' in roles_list:
+        return 'personnel'
+
+    # Fallback to officer for AD, officer, registry, etc.
     return 'officer'
 
 
@@ -75,6 +77,7 @@ def service_number_verification():
         'service_number': service_number,
         'fullName':       staff.get('name') or staff.get('fname'),
         'category':       staff.get('category', ''),
+        'role':           staff.get('role', ''),
         'directorate':    staff.get('directorate', ''),
         'email':          staff.get('email', ''),
         'role_bucket':    role_bucket,
@@ -85,10 +88,10 @@ def service_number_verification():
     ROLE_ENDPOINTS = {
         'civilian':        'application_routes.application_form',
         'officer':         'application_routes.application_form_officer',
-        'so':         'application_routes.application_form_officer',
-        'ad':         'application_routes.application_form_officer',
-        'personnel':         'application_routes.application_form_officer',
-        'dd': 'application_routes.application_form_dd',
+        'so':              'application_routes.application_form_officer',
+        'ad':              'application_routes.application_form_officer',
+        'personnel':       'application_routes.application_form_officer',
+        'dd':              'application_routes.application_form_dd',
         'director':        'application_routes.application_form_director',
     }
     
@@ -135,6 +138,7 @@ def application_form_check():
         'service_number': service_number,
         'fullName':       staff.get('name') or staff.get('fname'),
         'category':       staff.get('category', ''),
+        'role':           staff.get('role', ''),
         'directorate':    staff.get('directorate', ''),
         'email':          staff.get('email', ''),
         'role_bucket':    role_bucket,

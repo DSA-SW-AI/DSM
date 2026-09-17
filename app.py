@@ -32,6 +32,7 @@ from modules.leave_pass.leave_pass_routes.application_success import (
     application_success_routes,
 )
 from modules.leave_pass.leave_pass_routes.approver_dashboard import approver_dashboard
+from modules.leave_pass.leave_pass_routes.leave_helper import calculate_user_pending_leave_count
 from modules.leave_pass.leave_pass_routes.application_track import (
     application_track,
     compute_application_timeline,
@@ -218,6 +219,19 @@ def inject_user_and_permissions():
                         },
                     ]
                 }
+                if user_role == "civilian" and not user_data.get("is_approval_role"):
+                    query["$and"].append({
+                        "type": {
+                            "$nin": [
+                                "action_required",
+                                "approval_required",
+                                "final_approval_required",
+                                "registry_action_required",
+                                "parade_approval_required",
+                                "leave_approval",
+                            ]
+                        }
+                    })
                 unread_count = db.notifications.count_documents(query)
             except Exception as e:
                 print(f"Error counting unread notifications: {e}")
@@ -251,32 +265,7 @@ def inject_user_and_permissions():
             # Compute pending leave and pass actions count (approvals + reliever requests)
             pending_leave_pass_count = 0
             try:
-                user_id_str = str(user_data.get("_id"))
-                query_leaves = {
-                    "status": {
-                        "$in": [
-                            "pending",
-                            "Pending",
-                            "approved",
-                            "Approved",
-                            "recommended",
-                            "Recommended",
-                        ]
-                    },
-                    "approvalChain": {
-                        "$elemMatch": {
-                            "status": "pending",
-                            "approverId": {"$in": [user_id_str, service_number]},
-                        }
-                    },
-                }
-                leaves_cnt = db.applications.count_documents(query_leaves)
-                query_relievers = {
-                    "relieverEmail": session["user_email"],
-                    "status": "pending",
-                }
-                relievers_cnt = db.reliever_requests.count_documents(query_relievers)
-                pending_leave_pass_count = leaves_cnt + relievers_cnt
+                pending_leave_pass_count = calculate_user_pending_leave_count(user_data, db)
             except Exception as e:
                 print(f"Error counting pending leave applications: {e}")
                 pending_leave_pass_count = 0
@@ -402,18 +391,20 @@ def login():
             session["rank"] = user_rank_val
             session["rankOrGrade"] = user_rank_val
             session["directorate"] = user.get("directorate")
-            session["is_so_approver"] = user.get("is_so_approver", False)
-            session["is_ad_approver"] = user.get("is_ad_approver", False)
-            session["is_dd_approver"] = user.get("is_dd_approver", False)
-            session["is_approval_role"] = user.get("is_approval_role") in (
-                True,
-                "true",
-                "True",
+            session["is_so_approver"] = (user.get("is_so_approver") in (True, "true", "True")) or user.get("role") == "so"
+            session["is_ad_approver"] = (user.get("is_ad_approver") in (True, "true", "True")) or user.get("role") == "ad"
+            session["is_dd_approver"] = (user.get("is_dd_approver") in (True, "true", "True")) or user.get("role") == "dd"
+            session["is_final_approver"] = (
+                user.get("is_final_approver") in (True, "true", "True")
+                or user.get("is_final_approval") in (True, "true", "True")
             )
-            session["is_final_approver"] = user.get("is_final_approver") in (
-                True,
-                "true",
-                "True",
+            session["is_approval_role"] = (
+                user.get("is_approval_role") in (True, "true", "True")
+                or user.get("role") in ("director", "registry", "central_registry", "cdsa", "so1_doa", "civilian_head_cao", "civilian_head", "so", "ad", "dd")
+                or session["is_final_approver"]
+                or session["is_so_approver"]
+                or session["is_ad_approver"]
+                or session["is_dd_approver"]
             )
             return (
                 jsonify(

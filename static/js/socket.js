@@ -70,12 +70,20 @@ socket.on("connect", () => {
         Notification.requestPermission();
     }
 
+    const userRoles = [];
+    if (user && user.role) userRoles.push(user.role);
+    if (user && Array.isArray(user.roles)) {
+        user.roles.forEach(r => { if (r && !userRoles.includes(r)) userRoles.push(r); });
+    }
+    const cleanDir = (user && user.directorate) ? user.directorate.trim().toUpperCase() : null;
+
     if (user && user.service_number) {
         const safeId = user.service_number.replace(/\//g, "_");
 
         socket.emit("join_rooms", {
             service_number: safeId,
             role: user.role,
+            roles: userRoles,
             directorate: user.directorate,
         });
 
@@ -86,8 +94,20 @@ socket.on("connect", () => {
 
     const email = (user && user.email) || window.currentUserEmail;
     if (email) {
-        socket.emit("join", { room: `USER_${email.toLowerCase()}` });
+        socket.emit("join", { room: `USER_${email.toLowerCase().trim()}` });
     }
+
+    // Join role-specific and directorate-specific registry rooms
+    userRoles.forEach(r => {
+        const cleanRole = r.trim().toLowerCase();
+        socket.emit("join", { room: `ROLE_${cleanRole}` });
+        if (cleanDir) {
+            socket.emit("join", { room: `ROLE_${cleanRole}_${cleanDir}` });
+            if (cleanRole === "registry") {
+                socket.emit("join", { room: `REGISTRY_${cleanDir}` });
+            }
+        }
+    });
 
 });
 
@@ -106,12 +126,12 @@ socket.on("new_notification", (data) => {
     playBeepSound();
 
     // Trigger browser native alert notification
-    let title = "DSM Paperless Notification";
+    let title = data.title || "DSM Paperless Notification";
     let body = data.message || "You have a new action item pending.";
     let clickUrl = "/";
 
     if (data.type === "parade") {
-        title = "📋 Parade State Action Required";
+        title = data.title || "📋 Parade State Action Required";
         const paradeId = data.parade_id || data._id;
         clickUrl = paradeId ? `/view_parade_state/${paradeId}` : "/dashboard_parade_state";
     } else if (
@@ -120,7 +140,7 @@ socket.on("new_notification", (data) => {
         data.type === "action_required" ||
         data.type === "receipt_issued"
     ) {
-        title = "📋 Leave & Pass Action Required";
+        title = data.title || "📋 Leave & Pass Action Required";
         const id = data._id || data.applicationId;
         clickUrl = id ? `/view/${id}` : "/dashboard_leave_pass";
     } else if (data.type === "document") {
@@ -330,7 +350,7 @@ function showPendingApprovalModal(data) {
                     </span>
                 </div>
 
-                <h3 style="margin-bottom:10px;color:#333;">Pending Approval</h3>
+                <h3 style="margin-bottom:10px;color:#333;">${data.modalTitle || data.title || "Pending Approval"}</h3>
                 <p style="margin-bottom:5px;color:#666;font-size:13px;">
                     <strong>Ref:</strong> ${refId}
                 </p>
@@ -381,6 +401,7 @@ function showPendingApprovalModal(data) {
 
     document.getElementById("_leaveModalLaterBtn").addEventListener("click", () => {
         document.getElementById("pendingApprovalModal")?.remove();
+        window.location.reload();
     });
 }
 
@@ -476,10 +497,8 @@ function showParadeApprovalModal(data) {
     });
 
     document.getElementById("_paradeModalLaterBtn").addEventListener("click", () => {
-        //    document.getElementById("paradeApprovalModal")?.remove();
-        sessionStorage.setItem("notificationHandled", "true");
-        window.location.href = "/dashboard_parade_state";
-
+        document.getElementById("paradeApprovalModal")?.remove();
+        window.location.reload();
     });
 }
 

@@ -35,19 +35,109 @@ def documents_content():
     # ── BUILD ACCESS CONTROL QUERY ──
     # Only includes documents user is directly involved with
     
-    if user_role in ["super_admin", "cdsa", "dcdsa"]:
+    if user_role == "super_admin":
         # Global scope admins see everything
         base_query_raw = {}
-    elif user_role in ["registry", "central_registry", "director"]:
-        # Directorate scope admins see all documents in their directorate
+    elif user_role in ["cdsa", "dcdsa"]:
+        # CDSA / DCDSA see only documents forwarded to them where they are the current holder,
+        # and documents they have worked on (not everything)
+        user_emails = list(set(filter(None, [user_email, user_email.lower() if user_email else None, user_email.upper() if user_email else None])))
+        user_name = session.get("name")
+        cdsa_or_conditions = [
+            # 1. Forwarded to him and he is the current holder
+            {"current_holder": {"$in": user_emails}},
+            {"phases.current_holder": {"$in": user_emails}},
+            # 2. Documents he has worked on:
+            # - Assigned / Forwarded by him
+            {"assignment_history.assigned_by": {"$in": user_emails}},
+            {"phases.assignment_history.assigned_by": {"$in": user_emails}},
+            {"full_assignment_history.assigned_by": {"$in": user_emails}},
+            {"forwarded_by_email": {"$in": user_emails}},
+            {"target_forwarded_by_email": {"$in": user_emails}},
+            {"dispatched_by_email": {"$in": user_emails}},
+            # - Signed by him
+            {"signed_by": {"$in": user_emails}},
+            {"phases.signed_by": {"$in": user_emails}},
+            {"signatures.signed_by": {"$in": user_emails}},
+            {"signatures.email": {"$in": user_emails}},
+            {"phases.signatures.signed_by": {"$in": user_emails}},
+            {"phases.signatures.email": {"$in": user_emails}},
+            # - Remarks / Minutes added by him
+            {"remarks.email": {"$in": user_emails}},
+            {"phases.remarks.email": {"$in": user_emails}},
+            {"correspondence.remarks.email": {"$in": user_emails}},
+            # - Stamped by him (seen stamp)
+            {"seen_stamp_history.stamped_email": {"$in": user_emails}},
+            {"phases.seen_stamp_history.stamped_email": {"$in": user_emails}},
+            # - Concluded / Closed by him
+            {"concluded_by": {"$in": user_emails}},
+            {"phases.concluded_by": {"$in": user_emails}},
+            # - Created / Authored by him
+            {"sender_email": {"$in": user_emails}},
+            {"created_by": {"$in": user_emails}},
+            {"phases.started_by": {"$in": user_emails}},
+            {"correspondence.author.email": {"$in": user_emails}},
+            # - Review chain participation
+            {"phases.review_chain.email": {"$in": user_emails}},
+            {"review_chain.email": {"$in": user_emails}},
+            {"full_review_chain.email": {"$in": user_emails}},
+        ]
+        if user_name:
+            cdsa_or_conditions.append({"created_by": user_name})
+        base_query_raw = {"$or": cdsa_or_conditions}
+    elif user_role in ["registry", "central_registry"]:
+        # Directorate scope registry sees all non-confidential documents in their directorate (inbound & outbound)
+        base_query_raw = {
+            "$or": [
+                {
+                    "origin_directorate": user_directorate,
+                    "is_confidential": {"$ne": True},
+                },
+                {
+                    "target_directorate": user_directorate,
+                    "is_confidential": {"$ne": True},
+                },
+                {
+                    "phases.directorate": user_directorate,
+                    "is_confidential": {"$ne": True},
+                },
+                {"sender_email": user_email},
+                {"assigned_to": user_email},
+                {"current_holder": user_email},
+            ]
+        }
+    elif user_role == "director":
+        # Director sees:
+        # 1. All documents originating in their directorate
+        # 2. Incoming documents dispatched to their directorate that have been officially forwarded
+        #    by the registry (target_forwarded_at exists)
+        # 3. Documents where the director is directly involved (current holder, assigned, creator, review chain, assignment history, stamps)
         base_query_raw = {
             "$or": [
                 {"origin_directorate": user_directorate},
-                {"target_directorate": user_directorate},
-                {"phases.directorate": user_directorate},
+                {
+                    "target_directorate": user_directorate,
+                    "target_forwarded_at": {"$ne": None, "$exists": True}
+                },
+                {
+                    "phases.directorate": user_directorate,
+                    "target_forwarded_at": {"$ne": None, "$exists": True}
+                },
                 {"sender_email": user_email},
+                {"created_by": user_email},
                 {"assigned_to": user_email},
-                {"current_holder": user_email}
+                {"current_holder": user_email},
+                {"cc": user_email},
+                {"assignment_history.assigned_to": user_email},
+                {"assignment_history.assigned_by": user_email},
+                {"phases.current_holder": user_email},
+                {"phases.review_chain.email": user_email},
+                {"phases.assignment_history.assigned_to": user_email},
+                {"phases.assignment_history.assigned_by": user_email},
+                {"seen_stamp_history.stamped_email": user_email},
+                {"seen_stamp_history.assignments.email": user_email},
+                {"phases.seen_stamp_history.stamped_email": user_email},
+                {"phases.seen_stamp_history.assignments.email": user_email}
             ]
         }
     else:

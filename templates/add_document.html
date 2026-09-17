@@ -191,6 +191,124 @@
       cursor: not-allowed;
     }
 
+    /* ── Directorate To: dropdown styling ── */
+    .memo-to-container {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .memo-to-input-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    #memo-inp-to {
+      width: 200px !important;
+      padding-right: 28px !important;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    #memo-inp-to:hover {
+      border-color: #94a3b8;
+    }
+
+    .memo-to-chevron {
+      position: absolute;
+      right: 8px;
+      font-size: 10px;
+      color: #6b7280;
+      pointer-events: none;
+      transition: transform 0.2s ease;
+    }
+
+    .memo-to-chevron.open {
+      transform: rotate(180deg);
+    }
+
+    .memo-to-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      width: 320px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      z-index: 1050;
+      padding: 12px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .memo-to-dropdown-menu.show {
+      display: block;
+    }
+
+    .memo-dir-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      color: #374151;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      user-select: none;
+    }
+
+    .memo-dir-option:hover {
+      background: #f1f5f9;
+    }
+
+    .memo-dir-option input[type="checkbox"] {
+      width: 15px !important;
+      height: 15px !important;
+      accent-color: #0d1b45;
+      cursor: pointer;
+      margin: 0;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .memo-dir-code {
+      font-weight: 700;
+      color: #0d1b45;
+      min-width: 54px;
+      letter-spacing: .02em;
+    }
+
+    .memo-dir-name {
+      color: #64748b;
+      font-size: 11.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .memo-to-list::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .memo-to-list::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+
+    .memo-to-list::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    .memo-to-list::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
     /* ── A4-styled header block ── */
     .memo-a4-header {
       font-family: 'Crimson Text', Georgia, serif;
@@ -861,9 +979,52 @@
                     <div id="memo-header-wrap">
                       <!-- Fields bar: To / From / Date inputs that sync live into the header -->
                       <div class="memo-fields-bar">
-                        <label>To:
-                          <input type="text" id="memo-inp-to" placeholder="CDSA" />
-                        </label>
+                        <!-- Directorate Multi-Select Dropdown for To: -->
+                        <div class="memo-to-container" id="memo-to-container">
+                          <label for="memo-inp-to" style="margin-bottom:0; cursor:pointer;">To:
+                            <div class="memo-to-input-wrapper">
+                              <input type="text" id="memo-inp-to" name="memo_to" placeholder="Select Directorate(s)..." autocomplete="off" />
+                              <span class="memo-to-chevron" id="memo-to-chevron">▼</span>
+                            </div>
+                          </label>
+
+                          <!-- Dropdown Menu -->
+                          <div id="memo-to-dropdown" class="memo-to-dropdown-menu">
+                            <!-- Search / filter box -->
+                            <div style="margin-bottom: 8px;">
+                              <input type="text" id="memo-to-search" placeholder="Search directorate..."
+                                style="width: 100%; padding: 5px 8px; font-size: 12px; border: 1px solid #d1d5db; border-radius: 5px; outline: none; box-sizing: border-box;" />
+                            </div>
+
+                            <!-- Select All & Clear row -->
+                            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 8px;">
+                              <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: #111827; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="memo-to-select-all" style="width: 15px; height: 15px; accent-color: #0d1b45; cursor: pointer;" />
+                                <span>Select All Directorates</span>
+                              </label>
+                              <button type="button" id="memo-to-clear-btn" style="background: none; border: none; font-size: 11px; color: #ef4444; cursor: pointer; font-weight: 600;">Clear</button>
+                            </div>
+
+                            <!-- Options list -->
+                            <div id="memo-to-list" class="memo-to-list" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding-right: 2px;">
+                              {% if directorates %}
+                              {% for d in directorates %}
+                              <label class="memo-dir-option" data-code="{{ d.code }}" data-name="{{ d.name }}">
+                                <input type="checkbox" class="memo-dir-checkbox" value="{{ d.code }}" />
+                                <span class="memo-dir-code">{{ d.code }}</span>
+                                <span class="memo-dir-name" title="{{ d.name }}">{{ d.name }}</span>
+                              </label>
+                              {% endfor %}
+                              {% endif %}
+                            </div>
+
+                            <!-- Dropdown Footer -->
+                            <div style="border-top: 1px solid #e5e7eb; margin-top: 8px; padding-top: 6px; display: flex; align-items: center; justify-content: space-between;">
+                              <span id="memo-to-counter" style="font-size: 11.5px; color: #64748b; font-weight: 500;">0 selected</span>
+                              <button type="button" id="memo-to-apply-btn" style="background: #0d1b45; color: white; border: none; padding: 4px 12px; border-radius: 4px; font-size: 11.5px; font-weight: 600; cursor: pointer;">Done</button>
+                            </div>
+                          </div>
+                        </div>
                         <label>From:
                           <!-- Auto-filled from user directorate; read-only -->
                           <input type="text" id="memo-inp-from" readonly />
@@ -1340,6 +1501,177 @@
 
     let activeTemplateType = '';   // tracks which structured template is active
 
+    // ── Directorate Multi-Select Dropdown for To: ───────────────
+    const memoToContainer = document.getElementById('memo-to-container');
+    const memoToDropdown = document.getElementById('memo-to-dropdown');
+    const memoToChevron = document.getElementById('memo-to-chevron');
+    const memoToSearch = document.getElementById('memo-to-search');
+    const memoToSelectAll = document.getElementById('memo-to-select-all');
+    const memoToClearBtn = document.getElementById('memo-to-clear-btn');
+    const memoToApplyBtn = document.getElementById('memo-to-apply-btn');
+    const memoToCounter = document.getElementById('memo-to-counter');
+    const memoToList = document.getElementById('memo-to-list');
+
+    // Resilient fallback list of directorates
+    const defaultDirectoratesList = [
+      { code: 'CDSA', name: 'Chief of Defence Space Administration (CDSA)' },
+      { code: 'DOA', name: 'Directorate of Administration (DOA)' },
+      { code: 'DCS', name: 'Directorate of Communications Satellite (DCS)' },
+      { code: 'DNPT', name: 'Directorate of Navigation & Positioning (DNPT)' },
+      { code: 'DFA', name: 'Directorate of Finance (DFA)' },
+      { code: 'DLSO', name: 'Directorate of Launch Services & Space Operations (DLSO)' },
+      { code: 'DEO', name: 'Directorate of Earth Observation (DEO)' },
+      { code: 'DCYBER', name: 'Directorate of Cyber Security (DCYBER)' },
+      { code: 'DPPR', name: 'Directorate of Policy Planning and Research (DPPR)' },
+      { code: 'DLOG', name: 'Directorate of Logistics (DLOG)' },
+      { code: 'DELSPACE', name: 'Delspace' }
+    ];
+
+    if (memoToList && memoToList.children.length === 0) {
+      defaultDirectoratesList.forEach(d => {
+        const lbl = document.createElement('label');
+        lbl.className = 'memo-dir-option';
+        lbl.dataset.code = d.code;
+        lbl.dataset.name = d.name;
+        lbl.innerHTML = `
+          <input type="checkbox" class="memo-dir-checkbox" value="${d.code}" />
+          <span class="memo-dir-code">${d.code}</span>
+          <span class="memo-dir-name" title="${d.name}">${d.name}</span>
+        `;
+        memoToList.appendChild(lbl);
+      });
+    }
+
+    function toggleMemoToDropdown(forceState) {
+      if (!memoToDropdown) return;
+      const isOpen = forceState !== undefined ? forceState : !memoToDropdown.classList.contains('show');
+      if (isOpen) {
+        memoToDropdown.classList.add('show');
+        if (memoToChevron) memoToChevron.classList.add('open');
+        if (memoToSearch) {
+          memoToSearch.value = '';
+          filterDirectorates('');
+          memoToSearch.focus();
+        }
+      } else {
+        memoToDropdown.classList.remove('show');
+        if (memoToChevron) memoToChevron.classList.remove('open');
+      }
+    }
+
+    memoInpTo?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMemoToDropdown();
+    });
+
+    memoToChevron?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMemoToDropdown();
+    });
+
+    memoToDropdown?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (memoToContainer && !memoToContainer.contains(e.target)) {
+        toggleMemoToDropdown(false);
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && memoToDropdown?.classList.contains('show')) {
+        toggleMemoToDropdown(false);
+      }
+    });
+
+    function filterDirectorates(query) {
+      const q = (query || '').toLowerCase().trim();
+      const options = memoToList?.querySelectorAll('.memo-dir-option') || [];
+      options.forEach(opt => {
+        const code = (opt.dataset.code || '').toLowerCase();
+        const name = (opt.dataset.name || '').toLowerCase();
+        if (!q || code.includes(q) || name.includes(q)) {
+          opt.style.display = 'flex';
+        } else {
+          opt.style.display = 'none';
+        }
+      });
+    }
+
+    memoToSearch?.addEventListener('input', (e) => {
+      filterDirectorates(e.target.value);
+    });
+
+    function updateMemoToFromCheckboxes() {
+      const allCheckboxes = Array.from(memoToList?.querySelectorAll('.memo-dir-checkbox') || []);
+      const checkedBoxes = allCheckboxes.filter(cb => cb.checked);
+      const totalCount = allCheckboxes.length;
+      const checkedCount = checkedBoxes.length;
+
+      if (memoToCounter) {
+        memoToCounter.textContent = `${checkedCount} selected`;
+      }
+
+      if (totalCount > 0 && checkedCount === totalCount) {
+        if (memoToSelectAll) memoToSelectAll.checked = true;
+        memoInpTo.value = 'ALL DIRECTORATES';
+        memoInpTo.title = 'All Directorates';
+      } else if (checkedCount > 0) {
+        if (memoToSelectAll) memoToSelectAll.checked = false;
+        const selectedCodes = checkedBoxes.map(cb => cb.value);
+        memoInpTo.value = selectedCodes.join(', ');
+        memoInpTo.title = memoInpTo.value;
+      } else {
+        if (memoToSelectAll) memoToSelectAll.checked = false;
+        memoInpTo.value = '';
+        memoInpTo.title = '';
+      }
+
+      renderMemoHeader();
+    }
+
+    memoToSelectAll?.addEventListener('change', function() {
+      const isChecked = this.checked;
+      const allCheckboxes = memoToList?.querySelectorAll('.memo-dir-checkbox') || [];
+      allCheckboxes.forEach(cb => {
+        cb.checked = isChecked;
+      });
+      updateMemoToFromCheckboxes();
+    });
+
+    memoToList?.addEventListener('change', (e) => {
+      if (e.target && e.target.classList.contains('memo-dir-checkbox')) {
+        updateMemoToFromCheckboxes();
+      }
+    });
+
+    memoToClearBtn?.addEventListener('click', () => {
+      if (memoToSelectAll) memoToSelectAll.checked = false;
+      const allCheckboxes = memoToList?.querySelectorAll('.memo-dir-checkbox') || [];
+      allCheckboxes.forEach(cb => { cb.checked = false; });
+      updateMemoToFromCheckboxes();
+    });
+
+    memoToApplyBtn?.addEventListener('click', () => {
+      toggleMemoToDropdown(false);
+    });
+
+    function setMemoToSelectedDirectorates(codes) {
+      const allCheckboxes = Array.from(memoToList?.querySelectorAll('.memo-dir-checkbox') || []);
+      if (!codes || (Array.isArray(codes) && codes.length === 0)) {
+        allCheckboxes.forEach(cb => { cb.checked = false; });
+      } else if (codes === 'ALL' || codes === 'ALL DIRECTORATES') {
+        allCheckboxes.forEach(cb => { cb.checked = true; });
+      } else {
+        const codeArray = Array.isArray(codes) ? codes.map(c => c.toUpperCase()) : [codes.toUpperCase()];
+        allCheckboxes.forEach(cb => {
+          cb.checked = codeArray.includes(cb.value.toUpperCase());
+        });
+      }
+      updateMemoToFromCheckboxes();
+    }
+
     // ── Render memo header from current field values ─────────────
     function renderMemoHeader() {
       if (activeTemplateType !== 'memorandum') return;
@@ -1437,6 +1769,11 @@
 
         memoInpFrom.value = directorateInput.value || 'DCS';
         memoInpRef.value = referenceInput.value || '';
+
+        // Pre-select CDSA by default for memorandum if nothing selected
+        if (templateType === 'memorandum' && !memoInpTo.value) {
+          setMemoToSelectedDirectorates(['CDSA']);
+        }
 
         const today = new Date();
         memoInpDate.value = today.toLocaleDateString('en-GB', {
@@ -1567,6 +1904,7 @@
         } else {
 
           // DEFAULT FALLBACK
+          loadTemplate('memorandum');
           applyDocumentUI('memorandum');
         }
       }

@@ -154,8 +154,9 @@
             }
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  </head>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
 
 <body>
     <div class="receipt-container">
@@ -163,7 +164,7 @@
             <div class="logo mb-3">
                 <img src="{{ url_for('static', filename='images/dsa2.png') }}" alt="DCS Logo" style="height: 80px;">
             </div>
-            <h1>DIRECTORATE OF ADMINISTRATION (DOA)</h1>
+            <h1>DEFENCE SPACE ADMINISTRATION</h1>
             <p>Leave/Pass Approval Receipt</p>
             <div class="receipt-number">
                 <i class="bi bi-receipt"></i> {{ receipt_data.receipt_number }}
@@ -207,9 +208,10 @@
                     <div class="info-label">Period:</div>
                     <div class="info-value">
                         {% if receipt_data.start_date and receipt_data.end_date %}
-                            {{ receipt_data.start_date.strftime('%d %B, %Y') }} to {{ receipt_data.end_date.strftime('%d %B, %Y') }}
+                        {{ receipt_data.start_date.strftime('%d %B, %Y') }} to {{ receipt_data.end_date.strftime('%d %B,
+                        %Y') }}
                         {% else %}
-                            N/A
+                        N/A
                         {% endif %}
                     </div>
                 </div>
@@ -223,7 +225,7 @@
                     <div class="info-value">
                         {{ receipt_data.final_approver }}
                         {% if receipt_data.final_approver_rank and receipt_data.final_approver_rank != 'N/A' %}
-                            <span style="color: #718096; font-size: 12px;">({{ receipt_data.final_approver_rank }})</span>
+                        <span style="color: #718096; font-size: 12px;">({{ receipt_data.final_approver_rank }})</span>
                         {% endif %}
                     </div>
                 </div>
@@ -235,9 +237,9 @@
                     <div class="info-label">Approval Date:</div>
                     <div class="info-value">
                         {% if receipt_data.final_approval_date %}
-                            {{ receipt_data.final_approval_date.strftime('%d %B, %Y at %I:%M %p') }}
+                        {{ receipt_data.final_approval_date.strftime('%d %B, %Y at %I:%M %p') }}
                         {% else %}
-                            N/A
+                        N/A
                         {% endif %}
                     </div>
                 </div>
@@ -246,7 +248,7 @@
                     <div class="info-value">
                         {{ receipt_data.issued_by or 'N/A' }}
                         {% if receipt_data.issued_by_rank and receipt_data.issued_by_rank != 'N/A' %}
-                            <span style="color: #718096; font-size: 12px;">({{ receipt_data.issued_by_rank }})</span>
+                        <span style="color: #718096; font-size: 12px;">({{ receipt_data.issued_by_rank }})</span>
                         {% endif %}
                     </div>
                 </div>
@@ -254,9 +256,9 @@
                     <div class="info-label">Receipt Issue Date:</div>
                     <div class="info-value">
                         {% if receipt_data.issued_date %}
-                            {{ receipt_data.issued_date.strftime('%d %B, %Y at %I:%M %p') }}
+                        {{ receipt_data.issued_date.strftime('%d %B, %Y at %I:%M %p') }}
                         {% else %}
-                            N/A
+                        N/A
                         {% endif %}
                     </div>
                 </div>

@@ -346,6 +346,30 @@ def get_lifecycle_exclusions(user_email, user_directorate):
                 "assigned_to": {"$ne": user_email},
             }
         )
+        # Exclude confidential documents from registries unless directly assigned/held/sent by them
+        target_exclusions.append(
+            {
+                "is_confidential": True,
+                "sender_email": {"$ne": user_email},
+                "current_holder": {"$ne": user_email},
+                "assigned_to": {"$ne": user_email},
+            }
+        )
+    else:
+        # Non-registry roles (directors, officers): hide incoming dispatched documents
+        # that are sitting at the local registry and haven't yet been forwarded into the directorate
+        target_exclusions.append(
+            {
+                "doc_lifecycle_stage": DocStage.AT_TARGET,
+                "target_directorate": {"$in": [user_directorate, user_dir_norm]},
+                "$or": [
+                    {"target_forwarded_at": {"$exists": False}},
+                    {"target_forwarded_at": None},
+                ],
+                "current_holder": {"$ne": user_email},
+                "assigned_to": {"$ne": user_email},
+            }
+        )
 
     return {"$nor": target_exclusions}
 
@@ -369,6 +393,7 @@ def calculate_user_document_counts(user_email, user_role, user_directorate):
         elif user_role in ["registry", "central_registry"]:
             reg_involvement = {
                 "status": {"$ne": "Saved"},
+                "is_confidential": {"$ne": True},
                 "$or": [
                     {"origin_directorate": user_directorate},
                     {"target_directorate": user_directorate},
@@ -380,12 +405,14 @@ def calculate_user_document_counts(user_email, user_role, user_directorate):
             unread_query = combine_queries(reg_involvement, exclusions)
         else:
             involvement = user_involvement_query_with_phases(user_email_clean, user_directorate)
+            exclusions = get_lifecycle_exclusions(user_email_clean, user_directorate)
             unread_query = combine_queries(
                 involvement,
                 {
                     "status": {"$ne": "Saved"},
                     "read_by": {"$ne": user_email_clean},
                 },
+                exclusions,
             )
         unread_docs_count = db.documents.count_documents(unread_query)
     except Exception as e:

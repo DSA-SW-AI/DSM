@@ -108,10 +108,10 @@
 
       <!-- Flashed Messages Banner -->
       {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div style="margin: 20px 40px 10px 40px;">
-            {% for category, message in messages %}
-              <div style="padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; font-family: 'Inter', sans-serif; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; 
+      {% if messages %}
+      <div style="margin: 20px 40px 10px 40px;">
+        {% for category, message in messages %}
+        <div style="padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; font-family: 'Inter', sans-serif; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; 
                 {% if category == 'success' %}
                   background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;
                 {% elif category == 'error' or category == 'danger' %}
@@ -119,12 +119,13 @@
                 {% else %}
                   background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;
                 {% endif %}">
-                <span>{{ message }}</span>
-                <span onclick="this.parentElement.style.display='none'" style="cursor: pointer; font-weight: bold; margin-left: 15px;">&times;</span>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
+          <span>{{ message }}</span>
+          <span onclick="this.parentElement.style.display='none'"
+            style="cursor: pointer; font-weight: bold; margin-left: 15px;">&times;</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
       {% endwith %}
 
 
@@ -219,7 +220,8 @@
                   <!-- <td>{{ fwd_badge(doc.get('phase_info', {}).get('forwarded_status', doc.get('forwarded_status'))) }}
                   </td> -->
                   <td>
-                    {% if doc.get('status') == 'Completed' or doc.get('doc_lifecycle_stage') == 'closed' or doc.get('phase_info', {}).get('status') == 'Completed' %}
+                    {% if doc.get('status') == 'Completed' or doc.get('doc_lifecycle_stage') == 'closed' or
+                    doc.get('phase_info', {}).get('status') == 'Completed' %}
                     <span class="badge completed">Completed</span>
                     {% else %}
                     {{ status_badge(doc.get('phase_info', {}).get('status', doc.get('status'))) }}
@@ -241,6 +243,8 @@
                     No documents in your registry yet
                     {% elif user.role == 'super_admin' %}
                     No documents found
+                    {% elif user.role in ['cdsa', 'dcdsa'] %}
+                    No documents forwarded to you or worked on yet
                     {% else %}
                     No documents assigned to you yet
                     {% endif %}
@@ -261,7 +265,9 @@
   {% if messages %}
   {% for category, message in messages %}
   {% set msg_lower = message | lower %}
-  {% if (category == 'success' and 'forwarded' not in msg_lower and 'dispatch' not in msg_lower and 'saved' not in msg_lower and 'acknowledged' not in msg_lower and 'stamp' not in msg_lower) or category == 'info' or 'viewing' in msg_lower %}
+  {% if (category == 'success' and 'forwarded' not in msg_lower and 'dispatch' not in msg_lower and 'saved' not in
+  msg_lower and 'acknowledged' not in msg_lower and 'stamp' not in msg_lower) or category == 'info' or 'viewing' in
+  msg_lower %}
   {# Skip generic success and info messages #}
   {% else %}
   <div id="flashModal_{{ loop.index }}"
@@ -275,15 +281,15 @@
       </div>
       <h3 style="margin:0 0 10px 0; font-size:1.18rem; color:#111827; font-weight:700;">
         {% if 'dispatch' in msg_lower %}
-          Document Dispatched Successfully
+        Document Dispatched Successfully
         {% elif 'forwarded' in msg_lower %}
-          Document Forwarded Successfully
+        Document Forwarded Successfully
         {% elif 'saved' in msg_lower %}
-          Document Saved Successfully
+        Document Saved Successfully
         {% elif 'acknowledged' in msg_lower %}
-          Document Acknowledged
+        Document Acknowledged
         {% else %}
-          Success
+        Success
         {% endif %}
       </h3>
       {% else %}
@@ -293,9 +299,9 @@
       </div>
       <h3 style="margin:0 0 10px 0; font-size:1.18rem; color:#111827; font-weight:700;">
         {% if 'dispatch' in msg_lower %}
-          Dispatch Unsuccessful
+        Dispatch Unsuccessful
         {% else %}
-          Alert
+        Alert
         {% endif %}
       </h3>
       {% endif %}
@@ -350,6 +356,9 @@
       document.getElementById("comment").value = doc.comment || "No task";
     }
   </script>
+
+
+  <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
 </body>
 
 </html>

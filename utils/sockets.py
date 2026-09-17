@@ -28,11 +28,27 @@ def handle_connect():
         print("ℹ️ No service_number in session — skipped service room join")
 
     # Join role‑based rooms so we can broadcast to all users of a certain role
-    # (useful if you ever want to notify all SOs, DDs, etc.)
-    user_role = flask_session.get("role")
-    if user_role:
-        join_room(f"ROLE_{user_role}")
-        print(f"✅ Joined room: ROLE_{user_role}")
+    user_roles = flask_session.get("roles") or []
+    if isinstance(user_roles, str):
+        user_roles = [user_roles]
+    primary_role = flask_session.get("role")
+    if primary_role and primary_role not in user_roles:
+        user_roles.append(primary_role)
+
+    directorate = flask_session.get("directorate")
+    clean_dir = str(directorate).strip().upper() if directorate else None
+
+    for r in user_roles:
+        if r:
+            clean_role = str(r).strip().lower()
+            join_room(f"ROLE_{clean_role}")
+            print(f"✅ Joined room: ROLE_{clean_role}")
+            if clean_dir:
+                join_room(f"ROLE_{clean_role}_{clean_dir}")
+                if clean_role == "registry":
+                    join_room(f"REGISTRY_{clean_dir}")
+                    print(f"✅ Joined room: REGISTRY_{clean_dir}")
+
     if flask_session.get("is_so_approver"):
         join_room("ROLE_so")
         print("✅ Joined room: ROLE_so")
@@ -47,7 +63,6 @@ def handle_connect():
         print("✅ Joined room: ROLE_final_approver")
 
     # Also join a directorate‑specific room if needed
-    directorate = flask_session.get("directorate")
     if directorate:
         dir_room = f"DIR_{directorate}"
         join_room(dir_room)
@@ -60,9 +75,15 @@ def handle_join_rooms(data):
     """Client‑side explicit room join (called from socket.js)."""
     service_number = data.get('service_number')
     role = data.get('role')
+    roles = data.get('roles') or []
+    if isinstance(roles, str):
+        roles = [roles]
+    if role and role not in roles:
+        roles.append(role)
     directorate = data.get('directorate')
+    clean_dir = str(directorate).strip().upper() if directorate else None
 
-    print(f"📡 join_rooms — service: {service_number}, role: {role}")
+    print(f"📡 join_rooms — service: {service_number}, role: {role}, roles: {roles}")
 
     if service_number:
         room = f"USER_{service_number}"
@@ -70,10 +91,18 @@ def handle_join_rooms(data):
         print(f"✅ Joined room: {room}")
         emit('room_joined', {'room': room}, room=request.sid)
 
-    # Optionally join role rooms from the client data
-    if role:
-        join_room(f"ROLE_{role}")
-        print(f"✅ Joined room: ROLE_{role}")
+    # Join role rooms from the client data
+    for r in roles:
+        if r:
+            clean_role = str(r).strip().lower()
+            join_room(f"ROLE_{clean_role}")
+            print(f"✅ Joined room: ROLE_{clean_role}")
+            if clean_dir:
+                join_room(f"ROLE_{clean_role}_{clean_dir}")
+                if clean_role == "registry":
+                    join_room(f"REGISTRY_{clean_dir}")
+                    print(f"✅ Joined room: REGISTRY_{clean_dir}")
+
     if directorate:
         dir_room = f"DIR_{directorate}"
         join_room(dir_room)

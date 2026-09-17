@@ -96,6 +96,22 @@ def seen_stamp_send():
                         "error",
                     )
                     return redirect(request.referrer)
+        elif stamped_role == "dcdsa":
+            # DCDSA cannot assign to CDSA via Seen Stamp
+            cdsa_users = list(db.users.find({"role": "cdsa"}, {"email": 1}))
+            cdsa_emails = {d["email"] for d in cdsa_users}
+            for rec in selected:
+                if rec in cdsa_emails:
+                    flash(
+                        "Documents cannot be assigned to the CDSA via Seen Stamp.",
+                        "error",
+                    )
+                    return redirect(request.referrer)
+
+        dispatch_mode = request.form.get(
+            "dispatch_mode",
+            "registry_dispatch" if stamped_role in ["cdsa", "dcdsa"] else "normal",
+        ).strip()
 
         document = db.documents.find_one({"_id": ObjectId(doc_id)})
         if not document:
@@ -202,6 +218,8 @@ def seen_stamp_send():
                     user_directorate
                     and recipient_dir
                     and recipient_dir != user_directorate
+                    and dispatch_mode != "direct_confidential"
+                    and stamped_role not in ["cdsa", "dcdsa", "super_admin"]
                 ):
                     has_cross_dir_recipient = True
                     cross_dir_target = u.get("directorate") or ""
@@ -300,7 +318,67 @@ def seen_stamp_send():
                     },
                 )
 
-        if has_cross_dir_recipient:
+        # Collect target metadata for dispatch tracking
+        dispatch_targets = []
+        target_directorates = []
+        for email in selected:
+            safe_email = email.replace("@", "_").replace(".", "_")
+            t_text = tasks.get(f"task_{safe_email}", "").strip()
+            u_info = db.users.find_one({"email": email}) or {}
+            u_dir = (u_info.get("directorate") or "").strip().upper()
+            if u_dir and u_dir not in target_directorates:
+                target_directorates.append(u_dir)
+            dispatch_targets.append({
+                "email": email,
+                "name": u_info.get("name", email),
+                "role": u_info.get("role", ""),
+                "appt": u_info.get("appt", ""),
+                "directorate": u_dir,
+                "task": t_text,
+            })
+
+        target_dirs_disp = ", ".join(target_directorates) if target_directorates else "Target Directorate"
+
+        if dispatch_mode == "registry_dispatch" and stamped_role in ["cdsa", "dcdsa", "super_admin"]:
+            central_reg_user = (
+                db.users.find_one({"role": "central_registry", "directorate": "CDSA", "is_active": True})
+                or db.users.find_one({"role": "central_registry", "is_active": True})
+                or db.users.find_one({"role": "central_registry"})
+                or db.users.find_one({"role": "registry", "directorate": "CDSA"})
+                or db.users.find_one({"role": "registry"})
+            )
+            central_reg_email = central_reg_user.get("email") if central_reg_user else "central_registry@dsa.mil.ng"
+            central_reg_name = central_reg_user.get("name", "Central Registry") if central_reg_user else "Central Registry"
+
+            first_recipient = central_reg_email
+            first_recipient_name = central_reg_name
+            status_val = "Forwarded for Dispatch"
+            fwd_status_val = "Forwarded for Dispatch"
+            lifecycle_stage_val = DocStage.AWAITING_DISPATCH_TO_TARGET
+
+            cr_assignment = {
+                "assigned_to": central_reg_email,
+                "assigned_to_name": central_reg_name,
+                "assigned_to_role": "central_registry",
+                "assigned_to_appt": "Central Registry",
+                "assigned_by": stamped_email,
+                "assigned_by_name": stamped_by,
+                "assigned_by_role": stamped_role,
+                "assigned_by_rank": stamped_rank,
+                "assigned_by_appt": stamped_appt,
+                "remark": f"Forwarded to Central Registry for dispatch to {target_dirs_disp}.",
+                "timestamp": stamped_at,
+                "action_type": "dispatch_to_registry",
+            }
+            assignment_entries.append(cr_assignment)
+        elif dispatch_mode == "direct_confidential" and stamped_role in ["cdsa", "dcdsa", "super_admin"]:
+            first_recipient = action_recipients[-1] if action_recipients else selected[0]
+            first_member = next((m for m in chain if m["email"] == first_recipient), {})
+            first_recipient_name = first_member.get("name", first_recipient)
+            status_val = "Assigned"
+            fwd_status_val = "Forwarded"
+            lifecycle_stage_val = DocStage.IN_REVIEW
+        elif has_cross_dir_recipient:
             first_recipient = stamped_email
             first_recipient_name = stamped_by
             status_val = "Awaiting Dispatch"
@@ -402,6 +480,15 @@ def seen_stamp_send():
                 },
             },
         }
+        if dispatch_targets:
+            update_data["$set"]["dispatch_targets"] = dispatch_targets
+            update_data["$set"]["dispatch_target_directorates"] = target_directorates
+        if target_directorates:
+            update_data["$set"]["target_directorate"] = target_directorates[0]
+        if dispatch_mode == "direct_confidential":
+            update_data["$set"]["is_confidential"] = True
+            update_data["$set"]["dispatch_mode"] = "direct_confidential"
+
         if has_cross_dir_recipient and cross_dir_target:
             update_data["$set"]["target_directorate"] = cross_dir_target
         db.documents.update_one({"_id": ObjectId(doc_id)}, update_data)
@@ -424,27 +511,59 @@ def seen_stamp_send():
                 },
             )
 
-        # Socket notification trigger for all assigned recipients
+        # Socket notification trigger and flash messages
         sender_desc = stamped_appt or stamped_role.replace("_", " ").title()
-        for rec_email in selected:
-            if rec_email and rec_email != stamped_email:
-                rec_safe_email = rec_email.replace("@", "_").replace(".", "_")
-                rec_task = tasks.get(f"task_{rec_safe_email}", "").strip()
-                emit_document_notification(
-                    rec_email,
-                    doc_id,
-                    document.get("subject", "No Subject"),
-                    sender_desc,
-                    rec_task,
-                    action="assigned",
-                    doc_reference=document.get("reference_number", ""),
-                )
-
-        flash(
-            f"Document assigned/stamped for {len(selected)} recipient(s). "
-            f"Review chain now has {len(chain)} members.",
-            "success",
-        )
+        if dispatch_mode == "registry_dispatch" and stamped_role in ["cdsa", "dcdsa", "super_admin"]:
+            emit_document_notification(
+                first_recipient,
+                doc_id,
+                document.get("subject", "No Subject"),
+                sender_desc,
+                f"Document forwarded for dispatch to {target_dirs_disp}.",
+                action="forwarded_for_dispatch",
+                doc_reference=document.get("reference_number", ""),
+            )
+            flash(
+                f"Document signed and forwarded to Central Registry for dispatch to {target_dirs_disp}.",
+                "success",
+            )
+        elif dispatch_mode == "direct_confidential" and stamped_role in ["cdsa", "dcdsa", "super_admin"]:
+            for rec_email in selected:
+                if rec_email and rec_email != stamped_email:
+                    rec_safe_email = rec_email.replace("@", "_").replace(".", "_")
+                    rec_task = tasks.get(f"task_{rec_safe_email}", "").strip()
+                    emit_document_notification(
+                        rec_email,
+                        doc_id,
+                        document.get("subject", "No Subject"),
+                        sender_desc,
+                        f"[CONFIDENTIAL] {rec_task}" if rec_task else "Direct confidential document assignment.",
+                        action="assigned",
+                        doc_reference=document.get("reference_number", ""),
+                    )
+            flash(
+                f"Document signed and sent directly (Confidential) to {len(selected)} recipient(s).",
+                "success",
+            )
+        else:
+            for rec_email in selected:
+                if rec_email and rec_email != stamped_email:
+                    rec_safe_email = rec_email.replace("@", "_").replace(".", "_")
+                    rec_task = tasks.get(f"task_{rec_safe_email}", "").strip()
+                    emit_document_notification(
+                        rec_email,
+                        doc_id,
+                        document.get("subject", "No Subject"),
+                        sender_desc,
+                        rec_task,
+                        action="assigned",
+                        doc_reference=document.get("reference_number", ""),
+                    )
+            flash(
+                f"Document assigned/stamped for {len(selected)} recipient(s). "
+                f"Review chain now has {len(chain)} members.",
+                "success",
+            )
         return redirect(
             url_for(
                 "open_document_routes.open_document",

@@ -73,19 +73,43 @@ def open_document(doc_id):
     is_global_admin = user_role in ["super_admin", "cdsa", "dcdsa"]
 
     # Directorate-level admins/directors have access to documents in their directorate
-    is_dir_admin = user_role in ["registry", "central_registry", "director"]
     has_dir_access = False
-    if is_dir_admin and user_directorate:
+    if user_directorate:
         doc_origin_dir = (document.get("origin_directorate") or "").strip().upper()
         doc_target_dir = (document.get("target_directorate") or "").strip().upper()
-        has_dir_access = (
-            doc_origin_dir == user_directorate
-            or doc_target_dir == user_directorate
-            or any(
-                (phase.get("directorate") or "").strip().upper() == user_directorate
-                for phase in document.get("phases", [])
+
+        if user_role in ["registry", "central_registry"]:
+            if document.get("is_confidential"):
+                has_dir_access = False
+            else:
+                has_dir_access = (
+                    doc_origin_dir == user_directorate
+                    or doc_target_dir == user_directorate
+                    or any(
+                        (phase.get("directorate") or "").strip().upper() == user_directorate
+                        for phase in document.get("phases", [])
+                    )
+                )
+        elif user_role == "director":
+            # For target directorate, director only has directorate-wide access if document
+            # has been forwarded past initial registry intake
+            is_pending_target_intake = (
+                document.get("doc_lifecycle_stage") == DocStage.AT_TARGET
+                and not document.get("target_forwarded_at")
+                and document.get("current_holder") != user_email
+                and document.get("assigned_to") != user_email
             )
-        )
+            if not is_pending_target_intake:
+                has_dir_access = (
+                    doc_origin_dir == user_directorate
+                    or doc_target_dir == user_directorate
+                    or any(
+                        (phase.get("directorate") or "").strip().upper() == user_directorate
+                        for phase in document.get("phases", [])
+                    )
+                )
+            else:
+                has_dir_access = (doc_origin_dir == user_directorate)
 
     has_access = (
         is_global_admin

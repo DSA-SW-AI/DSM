@@ -63,6 +63,15 @@ def get_notifications():
         ]
     }
 
+    # For civilian staff without approver privileges, exclude notifications intended for approver roles
+    if user_role == 'civilian' and not user.get('is_approval_role'):
+        query["$and"].append({
+            "$nor": [
+                {"target.role": {"$in": ["civilian_head_cao", "civilian_head", "so", "ad", "dd", "director"]}},
+                {"meta.role": {"$in": ["civilian_head_cao", "civilian_head", "so", "ad", "dd", "director"]}}
+            ]
+        })
+
     notification_coll = current_app.notifications_collection
         
     notifications_list = list(notification_coll.find(query).sort("createdAt", -1).limit(100))
