@@ -70,12 +70,20 @@ socket.on("connect", () => {
         Notification.requestPermission();
     }
 
+    const userRoles = [];
+    if (user && user.role) userRoles.push(user.role);
+    if (user && Array.isArray(user.roles)) {
+        user.roles.forEach(r => { if (r && !userRoles.includes(r)) userRoles.push(r); });
+    }
+    const cleanDir = (user && user.directorate) ? user.directorate.trim().toUpperCase() : null;
+
     if (user && user.service_number) {
         const safeId = user.service_number.replace(/\//g, "_");
 
         socket.emit("join_rooms", {
             service_number: safeId,
             role: user.role,
+            roles: userRoles,
             directorate: user.directorate,
         });
 
@@ -86,8 +94,20 @@ socket.on("connect", () => {
 
     const email = (user && user.email) || window.currentUserEmail;
     if (email) {
-        socket.emit("join", { room: `USER_${email.toLowerCase()}` });
+        socket.emit("join", { room: `USER_${email.toLowerCase().trim()}` });
     }
+
+    // Join role-specific and directorate-specific registry rooms
+    userRoles.forEach(r => {
+        const cleanRole = r.trim().toLowerCase();
+        socket.emit("join", { room: `ROLE_${cleanRole}` });
+        if (cleanDir) {
+            socket.emit("join", { room: `ROLE_${cleanRole}_${cleanDir}` });
+            if (cleanRole === "registry") {
+                socket.emit("join", { room: `REGISTRY_${cleanDir}` });
+            }
+        }
+    });
 
 });
 
@@ -106,12 +126,12 @@ socket.on("new_notification", (data) => {
     playBeepSound();
 
     // Trigger browser native alert notification
-    let title = "DSM Paperless Notification";
+    let title = data.title || "DSM Paperless Notification";
     let body = data.message || "You have a new action item pending.";
     let clickUrl = "/";
 
     if (data.type === "parade") {
-        title = "📋 Parade State Action Required";
+        title = data.title || "📋 Parade State Action Required";
         const paradeId = data.parade_id || data._id;
         clickUrl = paradeId ? `/view_parade_state/${paradeId}` : "/dashboard_parade_state";
     } else if (
@@ -120,11 +140,11 @@ socket.on("new_notification", (data) => {
         data.type === "action_required" ||
         data.type === "receipt_issued"
     ) {
-        title = "📋 Leave & Pass Action Required";
+        title = data.title || "📋 Leave & Pass Action Required";
         const id = data._id || data.applicationId;
         clickUrl = id ? `/view/${id}` : "/dashboard_leave_pass";
     } else if (data.type === "document") {
-        title = "📄 New Document Forwarded";
+        title = data.actionTitle ? `📄 ${data.actionTitle}` : "📄 Document Notification";
         const id = data._id;
         clickUrl = id ? `/open_document/${id}` : "/documents_content";
     } else if (data.type === "reliever_request") {
@@ -330,7 +350,7 @@ function showPendingApprovalModal(data) {
                     </span>
                 </div>
 
-                <h3 style="margin-bottom:10px;color:#333;">Pending Approval</h3>
+                <h3 style="margin-bottom:10px;color:#333;">${data.modalTitle || data.title || "Pending Approval"}</h3>
                 <p style="margin-bottom:5px;color:#666;font-size:13px;">
                     <strong>Ref:</strong> ${refId}
                 </p>
@@ -381,6 +401,7 @@ function showPendingApprovalModal(data) {
 
     document.getElementById("_leaveModalLaterBtn").addEventListener("click", () => {
         document.getElementById("pendingApprovalModal")?.remove();
+        window.location.reload();
     });
 }
 
@@ -476,10 +497,8 @@ function showParadeApprovalModal(data) {
     });
 
     document.getElementById("_paradeModalLaterBtn").addEventListener("click", () => {
-        //    document.getElementById("paradeApprovalModal")?.remove();
-        sessionStorage.setItem("notificationHandled", "true");
-        window.location.href = "/dashboard_parade_state";
-
+        document.getElementById("paradeApprovalModal")?.remove();
+        window.location.reload();
     });
 }
 
@@ -487,14 +506,55 @@ function showParadeApprovalModal(data) {
 // DOCUMENT NOTIFICATION MODAL
 // ─────────────────────────────────────────────────────────────────────────
 function showDocumentNotificationModal(data) {
-    console.log("🎯 showDocumentNotificationModal:", data._id);
+    console.log("🎯 showDocumentNotificationModal:", data._id, data.action);
 
     document.getElementById("documentNotificationModal")?.remove();
 
-    const subjectDisplay = data.message || "New document received";
+    const action = data.action || "forwarded";
+    const subjectDisplay = data.message || "New document action required";
     const remarkDisplay = data.remark || "";
     const senderDisplay = data.triggeredBy || "System";
     const docId = data._id;
+    const refDisplay = data.reference ? `Ref: ${data.reference}` : "";
+
+    // Action-specific themes
+    let badgeText = "📄 DOCUMENT INBOX";
+    let badgeBg = "#dbeafe";
+    let badgeColor = "#1e40af";
+    let borderLeftColor = "#3b82f6";
+    let modalTitle = "Document Notification";
+
+    if (action === "forward_for_dispatch") {
+        badgeText = "📤 FORWARDED FOR DISPATCH";
+        badgeBg = "#ffedd5";
+        badgeColor = "#9a3412";
+        borderLeftColor = "#f97316";
+        modalTitle = "Forwarded for Dispatch";
+    } else if (action === "dispatched") {
+        badgeText = "🚚 DISPATCHED CORRESPONDENCE";
+        badgeBg = "#dcfce7";
+        badgeColor = "#166534";
+        borderLeftColor = "#22c55e";
+        modalTitle = "Document Dispatched";
+    } else if (action === "assigned") {
+        badgeText = "📋 DIRECTIVE / TASK ASSIGNED";
+        badgeBg = "#f3e8ff";
+        badgeColor = "#6b21a8";
+        borderLeftColor = "#a855f7";
+        modalTitle = "Task Assigned";
+    } else if (action === "returned") {
+        badgeText = "↩️ RETURNED FOR AMENDMENT";
+        badgeBg = "#fee2e2";
+        badgeColor = "#991b1b";
+        borderLeftColor = "#ef4444";
+        modalTitle = "Correspondence Returned";
+    } else {
+        badgeText = "📨 DOCUMENT FORWARDED";
+        badgeBg = "#dbeafe";
+        badgeColor = "#1e40af";
+        borderLeftColor = "#3b82f6";
+        modalTitle = "Document Forwarded";
+    }
 
     document.body.insertAdjacentHTML("beforeend", `
         <div id="documentNotificationModal" style="
@@ -503,41 +563,42 @@ function showDocumentNotificationModal(data) {
             display:flex;align-items:center;justify-content:center;
             z-index:9999;">
             <div style="
-                background:#fff;padding:30px 25px;border-radius:10px;
-                max-width:400px;width:90%;text-align:center;
-                box-shadow:0 4px 12px rgba(0,0,0,0.2);
+                background:#fff;padding:28px 24px;border-radius:12px;
+                max-width:420px;width:92%;text-align:center;
+                box-shadow:0 10px 25px rgba(0,0,0,0.25);
                 font-family:'Inter',Arial,sans-serif;
-                border-left:5px solid #3b82f6;">
+                border-left:5px solid ${borderLeftColor};">
 
-                <div style="margin-bottom:15px;">
-                    <span style="background:#dbeafe;color:#1e40af;padding:5px 15px;
-                        border-radius:20px;font-size:12px;font-weight:bold;">
-                        📄 DOCUMENT INBOX
+                <div style="margin-bottom:12px;">
+                    <span style="background:${badgeBg};color:${badgeColor};padding:4px 14px;
+                        border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.03em;">
+                        ${badgeText}
                     </span>
                 </div>
 
-                <h3 style="margin-bottom:10px;color:#333;">New Document Received</h3>
-                <p style="margin-bottom:20px;color:#555;font-size:14px;line-height:1.4;">${subjectDisplay}</p>
+                <h3 style="margin:0 0 8px 0;color:#111827;font-size:1.15rem;font-weight:700;">${modalTitle}</h3>
+                ${refDisplay ? `<p style="margin:0 0 10px 0;color:#6b7280;font-size:12px;font-weight:600;">${refDisplay}</p>` : ''}
+                <p style="margin:0 0 16px 0;color:#374151;font-size:13.5px;line-height:1.45;">${subjectDisplay}</p>
 
                 ${remarkDisplay ? `
-                <div style="background:#f8f9fa;padding:12px;border-radius:6px;
-                    margin-bottom:20px;text-align:left;font-size:13px;color:#4b5563;border-left:3px solid #cbd5e1;">
-                    <strong>Remark:</strong> "${remarkDisplay}"
+                <div style="background:#f8fafc;padding:10px 14px;border-radius:6px;
+                    margin-bottom:18px;text-align:left;font-size:12.5px;color:#344155;border-left:3px solid ${borderLeftColor};">
+                    <strong>Note / Task:</strong> "${remarkDisplay}"
                 </div>` : ''}
 
-                <p style="margin-bottom:20px;color:#9ca3af;font-size:12px;">
-                    Forwarded by: ${senderDisplay}
+                <p style="margin:0 0 18px 0;color:#6b7280;font-size:12px;">
+                    Action by: <strong>${senderDisplay}</strong>
                 </p>
 
                 <div style="display:flex;gap:10px;justify-content:center;">
                     <button id="_docModalOpenBtn" style="
-                        padding:12px 20px;flex:1;cursor:pointer;font-size:14px;
+                        padding:11px 18px;flex:1;cursor:pointer;font-size:13.5px;
                         font-weight:600;border:none;border-radius:8px;color:#fff;
-                        background:linear-gradient(135deg,#3b82f6,#2563eb);">
+                        background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 2px 6px rgba(37,99,235,0.3);">
                         👁️ Open Document
                     </button>
                     <button id="_docModalCloseBtn" style="
-                        padding:12px 20px;flex:1;cursor:pointer;font-size:14px;
+                        padding:11px 18px;flex:1;cursor:pointer;font-size:13.5px;
                         font-weight:600;border:none;border-radius:8px;color:#374151;
                         background:#f3f4f6;">
                         Dismiss
@@ -556,3 +617,25 @@ function showDocumentNotificationModal(data) {
         document.getElementById("documentNotificationModal")?.remove();
     });
 }
+
+// ── Live Real-time Sidebar Badges Listener ────────────────────────────────
+socket.on("update_sidebar_badges", (counts) => {
+    console.log("📊 [socket.js] Received update_sidebar_badges:", counts);
+    if (!counts) return;
+
+    // Update unread documents badge
+    const unreadBadge = document.getElementById("sidebar-unread-docs-badge");
+    if (unreadBadge) {
+        const cnt = counts.unread_docs_count || 0;
+        unreadBadge.textContent = cnt > 0 ? cnt : "";
+        unreadBadge.style.display = cnt > 0 ? "inline-block" : "none";
+    }
+
+    // Update assigned documents badge
+    const assignedBadge = document.getElementById("sidebar-assigned-docs-badge");
+    if (assignedBadge) {
+        const cnt = counts.assigned_docs_count || 0;
+        assignedBadge.textContent = cnt > 0 ? cnt : "";
+        assignedBadge.style.display = cnt > 0 ? "inline-block" : "none";
+    }
+});

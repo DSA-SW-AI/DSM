@@ -40,7 +40,7 @@ def get_settings():
     if user_role == 'director':
         all_users = list(users_coll.find({
             "email": {"$ne": user.get("email")},
-            "role": "deputy_director",
+            "role": "dd",
             "directorate": user_dir
         }, {"name": 1, "email": 1, "role": 1, "rank": 1}).sort("name", 1))
     elif user_role == 'cdsa':

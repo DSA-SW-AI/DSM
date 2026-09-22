@@ -566,3 +566,193 @@ def refund_leave_balance(
         return result.modified_count > 0
     
     return False
+
+
+def calculate_user_pending_leave_count(user_data, db):
+    """
+    Accurately computes the number of pending leave/pass items that are CURRENTLY
+    actionable for the given user.
+    - An approver only sees a count for an application when it is THEIR TURN in the chain
+      (i.e. all preceding steps in approvalChain are approved/recommended, and the active
+      pending step matches their role/assignment).
+    - Relievers only see counts for pending reliever requests targeting their email.
+    - Plain civilians never see approver pending counts.
+    - Final approvers / Registry see counts for receipt issuance or file acknowledgement
+      when applicable.
+    """
+    if not user_data:
+        return 0
+
+    user_email = (user_data.get("email") or "").strip().lower()
+    user_sn = (user_data.get("service_number") or "").strip().upper()
+    user_role = (user_data.get("role") or "civilian").strip().lower()
+    user_roles = user_data.get("roles", []) or [user_role]
+    user_dir = (user_data.get("directorate") or "").strip().upper()
+    user_id_str = str(user_data.get("_id"))
+    user_ids = [uid for uid in [user_sn, user_id_str, user_email] if uid]
+
+    is_so_approver = user_data.get("is_so_approver") in (True, "true", "True") or user_role == "so"
+    is_ad_approver = user_data.get("is_ad_approver") in (True, "true", "True") or user_role == "ad"
+    is_dd_approver = user_data.get("is_dd_approver") in (True, "true", "True") or user_role == "dd"
+    is_final_approver = (
+        user_data.get("is_final_approver") in (True, "true", "True")
+        or user_data.get("is_final_approval") in (True, "true", "True")
+    )
+    is_director_doa = ("director" in user_role) and (is_final_approver or user_dir == "DOA")
+    is_cdsa = ("cdsa" in user_role) or user_data.get("is_cdsa_approver") in (True, "true", "True")
+    is_approval_role = (
+        user_data.get("is_approval_role") in (True, "true", "True")
+        or ("director" in user_role)
+        or is_final_approver
+        or is_cdsa
+        or is_so_approver or is_ad_approver or is_dd_approver
+        or user_role in ("civilian_head_cao", "civilian_head", "deputy_civilian_head_cao", "central_registry", "registry", "cdsa")
+    )
+
+    total_count = 0
+
+    # 1. Reliever requests (for anyone, civilian or officer, who is requested to relieve)
+    if user_email:
+        relievers_cnt = db.reliever_requests.count_documents({
+            "relieverEmail": user_email,
+            "status": "pending"
+        })
+        apps_awaiting_reliever = db.applications.count_documents({
+            "status": "awaiting_reliever",
+            "reliever_email": user_email
+        })
+        total_count += (relievers_cnt + apps_awaiting_reliever)
+
+    # If plain civilian staff with no approval role, they cannot approve leaves
+    if user_role == "civilian" and not is_approval_role:
+        return total_count
+
+    # 2. Check candidate active applications
+    candidate_apps = db.applications.find({
+        "status": {
+            "$in": [
+                "pending", "Pending",
+                "recommended for approval", "Recommended for Approval",
+                "approved", "Approved",
+                "issued", "Issued"
+            ]
+        }
+    })
+
+    for app in candidate_apps:
+        app_status = (app.get("status") or "").lower()
+        if app_status in ("rejected", "declined_by_reliever", "cancelled"):
+            continue
+
+        # Guard: User is the reliever on this application
+        reliever_email = (app.get("reliever_email") or "").strip().lower()
+        reliever_sn = (app.get("director_reliever_service_number") or app.get("name_of_reliever") or "").strip().upper()
+        if (user_email and user_email == reliever_email) or (user_sn and user_sn == reliever_sn):
+            continue
+
+        # Guard: User is the applicant
+        applicant_id = (app.get("applicantId") or "").strip().upper()
+        applicant_email = (app.get("applicantEmail") or "").strip().lower()
+        if (user_sn and user_sn == applicant_id) or (user_email and user_email == applicant_email):
+            continue
+
+        chain = app.get("approvalChain", [])
+        if not chain:
+            continue
+
+        app_dir = (app.get("directorate") or "").strip().upper()
+
+        # Find the first pending step in the chain
+        first_pending_step = None
+        for step in chain:
+            if step.get("status") == "pending":
+                first_pending_step = step
+                break
+
+        # A. Regular approval turn (active pending step)
+        if first_pending_step is not None:
+            step_role = first_pending_step.get("role")
+            step_email = (first_pending_step.get("approverEmail") or "").strip().lower()
+            step_approver_id = (first_pending_step.get("approverId") or "").strip()
+
+            role_capable = False
+            if step_role in ("civilian_head_cao", "civilian_head"):
+                role_capable = user_role in ("civilian_head_cao", "civilian_head", "deputy_civilian_head_cao", "deputy_civilian_head")
+            elif step_role == "so":
+                role_capable = is_so_approver or user_role == "so"
+            elif step_role == "ad":
+                role_capable = is_ad_approver or user_role == "ad"
+            elif step_role == "dd":
+                role_capable = is_dd_approver or user_role == "dd"
+            elif step_role == "director":
+                role_capable = (user_role == "director" or "director" in user_role or is_final_approver)
+            elif step_role == "cdsa":
+                role_capable = is_cdsa or user_role == "cdsa" or "cdsa" in user_roles
+            elif step_role in ("registry", "central_registry"):
+                role_capable = (
+                    user_role in ("registry", "central_registry")
+                    or "registry" in user_roles
+                    or "central_registry" in user_roles
+                ) and (app_status in ("approved", "issued"))
+
+            is_users_turn = False
+
+            # Match by explicit email first
+            if step_email and user_email and step_email == user_email and role_capable:
+                is_users_turn = True
+            elif user_role in ("civilian_head_cao", "civilian_head") and step_role in ("civilian_head_cao", "civilian_head"):
+                is_users_turn = True
+            elif is_so_approver and step_role == "so" and (app_dir == user_dir or not app_dir):
+                is_users_turn = True
+            elif is_ad_approver and step_role == "ad" and (app_dir == user_dir or not app_dir):
+                is_users_turn = True
+            elif is_dd_approver and step_role == "dd" and (app_dir == user_dir or not app_dir):
+                is_users_turn = True
+            elif step_role == "director":
+                if first_pending_step.get("is_final_approver") in (True, "true", "True") or first_pending_step.get("registry_type") == "director_doa":
+                    if is_final_approver or (user_role == "director" and user_dir == "DOA"):
+                        is_users_turn = True
+                elif (user_role == "director" or "director" in user_role) and app_dir == user_dir:
+                    is_users_turn = True
+            elif step_role == "cdsa":
+                if is_cdsa or user_role == "cdsa" or "cdsa" in user_roles:
+                    is_users_turn = True
+            elif step_approver_id and step_approver_id in user_ids and role_capable:
+                is_users_turn = True
+
+            if is_users_turn:
+                total_count += 1
+                continue
+
+        # B. Post-approval actions (Receipt issuance & physical file acknowledgement)
+        if app_status in ("approved",):
+            # Final approver receipt issuance (Director DOA)
+            if is_director_doa and not app.get("receiptNumber"):
+                final_step = next((s for s in chain if s.get("is_final_approver") in (True, "true", "True") or s.get("registry_type") == "director_doa"), None)
+                if final_step and not final_step.get("receipt"):
+                    total_count += 1
+                    continue
+
+            # CDSA Central Registry receipt issuance
+            if is_cdsa:
+                creg_step = next((s for s in chain if s.get("role") == "central_registry"), None)
+                if creg_step and not creg_step.get("receipt"):
+                    total_count += 1
+                    continue
+
+        if app_status in ("approved", "issued"):
+            # Directorate Registry physical file acknowledgement
+            if user_role in ("registry", "chief_clerk") or "registry" in user_roles:
+                reg_step = next((s for s in chain if s.get("role") == "registry" and not s.get("acknowledged")), None)
+                if reg_step and (app_dir == user_dir or not reg_step.get("directorate") or reg_step.get("directorate") == user_dir or reg_step.get("approverId") in user_ids):
+                    total_count += 1
+                    continue
+
+            # Central Registry (CDSA) physical file acknowledgement
+            if (user_role == "central_registry" or "central_registry" in user_roles) and user_dir == "CDSA":
+                creg_step = next((s for s in chain if s.get("role") == "central_registry" and not s.get("acknowledged")), None)
+                if creg_step:
+                    total_count += 1
+                    continue
+
+    return total_count

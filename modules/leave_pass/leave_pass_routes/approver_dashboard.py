@@ -25,13 +25,64 @@ approver_dashboard = Blueprint('approver_dashboard', __name__)
 def notify_pending_approval(app, next_step, current_user):
     """
     Emits Socket.IO notification to next approver(s) for Leave/Pass applications.
-
-    The socket payload type is "leave_approval" so socket.js can distinguish
-    it from parade notifications and show the correct modal on the correct dashboard.
+    Ensures notifications strictly target the approver's private email room and role room,
+    never leaking to other users via shared/duplicate service numbers.
     """
     users_coll = current_app.users_collection
     directorate = app.get("directorate")
     message = f"Application {app['referenceId']} is awaiting your approval."
+
+    role = next_step.get("role")
+    approver_id = next_step.get("approverId")
+    approver_email = (next_step.get("approverEmail") or "").strip().lower()
+
+    # If approverEmail is missing from step, resolve it from users_coll accurately
+    if not approver_email and users_coll is not None:
+        target_user = None
+        if role in ("civilian_head_cao", "civilian_head"):
+            target_user = users_coll.find_one({
+                "role": {"$in": ["civilian_head_cao", "civilian_head"]},
+                "is_active": True
+            })
+            if not target_user:
+                target_user = users_coll.find_one({
+                    "role": "deputy_civilian_head_cao" if role == "civilian_head_cao" else "deputy_civilian_head",
+                    "is_active": True
+                })
+        elif role == "so":
+            target_user = users_coll.find_one({"directorate": directorate, "is_so_approver": True, "is_active": True})
+        elif role == "ad":
+            target_user = users_coll.find_one({"directorate": directorate, "is_ad_approver": True, "is_active": True})
+        elif role == "dd":
+            target_user = users_coll.find_one({"directorate": directorate, "is_dd_approver": True, "is_active": True})
+        elif role == "director":
+            if next_step.get("is_final_approver") in (True, "true", "True"):
+                target_user = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}, "is_active": True})
+            else:
+                target_user = users_coll.find_one({"directorate": directorate, "role": "director", "is_active": True})
+        elif role == "central_registry":
+            target_user = users_coll.find_one({"directorate": "CDSA", "role": "central_registry", "is_active": True}) \
+                or users_coll.find_one({"directorate": "CDSA", "role": "registry", "is_active": True}) \
+                or users_coll.find_one({"is_cdsa_approver": {"$in": ["true", True]}, "is_active": True})
+        elif approver_id:
+            target_user = users_coll.find_one({
+                "service_number": approver_id,
+                "$or": [
+                    {"is_approval_role": True},
+                    {"role": role},
+                    {"is_so_approver": True},
+                    {"is_ad_approver": True},
+                    {"is_dd_approver": True},
+                    {"is_final_approver": True}
+                ]
+            }) or users_coll.find_one({"service_number": approver_id})
+
+        if target_user and target_user.get("email"):
+            approver_email = target_user["email"].strip().lower()
+
+    date_str = None
+    if app.get("createdAt"):
+        date_str = app.get("createdAt").strftime('%Y-%m-%d') if hasattr(app.get("createdAt"), 'strftime') else str(app.get("createdAt"))
 
     payload = {
         "type": "leave_approval",
@@ -40,59 +91,236 @@ def notify_pending_approval(app, next_step, current_user):
         "triggeredBy": current_user.get("fullName", current_user.get("name")),
         "referenceId": app["referenceId"],
         "message": message,
-        "role": next_step.get("role"),
+        "role": role,
+        "approverEmail": approver_email,
         "leave_type": app.get("leave_type"),
         "directorate": directorate,
-        "date": app.get("createdAt").strftime('%Y-%m-%d') if app.get("createdAt") else None,
+        "date": date_str,
     }
 
-    approver_id = next_step.get("approverId")
-    role = next_step.get("role")
+    print(f"[SOCKET] Notifying next approver for role: {role}, approverEmail: {approver_email}")
 
-    print(f"[SOCKET] Attempting to notify next approver for role: {role}")
+    # Emit to individual approver's email room (each user joins USER_{email.lower()})
+    if approver_email:
+        email_room = f"USER_{approver_email}"
+        print(f"[SOCKET] Direct notification to email room: {email_room}")
+        socketio.emit("new_notification", payload, room=email_room)
 
-    # If the step already has a bound approverId (which it always does from build_approval_chain)
-    if approver_id:
-        safe_id = approver_id.replace("/", "_")
-        room = f"USER_{safe_id}"
-        print(f"[SOCKET] Direct notification by approverId: {approver_id} to room: {room}")
-        socketio.emit("new_notification", payload, room=room)
-        return
+    # Emit to role room (e.g. ROLE_civilian_head_cao, ROLE_so, etc.)
+    if role:
+        role_room = f"ROLE_{role}"
+        print(f"[SOCKET] Role-based notification to room: {role_room}")
+        socketio.emit("new_notification", payload, room=role_room)
 
-    # Fallback dynamic lookup in case approverId is missing
-    fallback_user = None
-    if role == "so":
-        fallback_user = users_coll.find_one({"directorate": directorate, "is_so_approver": True, "is_active": True})
-    elif role == "ad":
-        fallback_user = users_coll.find_one({"directorate": directorate, "is_ad_approver": True, "is_active": True})
-    elif role == "dd":
-        fallback_user = users_coll.find_one({"directorate": directorate, "is_dd_approver": True, "is_active": True})
-    elif role == "director":
-        if next_step.get("is_final_approver") in (True, "true", "True"):
-            fallback_user = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}, "is_active": True})
+
+def notify_registries_approval(app, current_user, approver_role="director", receipt_number=None, comments=None):
+    """
+    Emits real-time Socket.IO notifications to:
+      1) Directorate Registry ("registry's") for the applicant's directorate
+      2) Central Registry ("central_registry")
+      3) Any other registry steps in the application's approval chain (e.g. issuing DOA registry)
+    when their Director or CDSA approves a leave/pass application.
+    Also ensures in-app notifications exist in notifications_collection for these registries.
+    """
+    users_coll = current_app.users_collection
+    notifications_coll = current_app.notifications_collection
+
+    app_id = str(app["_id"])
+    ref_id = app.get("referenceId", "N/A")
+    applicant_dir = (app.get("directorate") or "").strip()
+    applicant_name = app.get("applicantName") or app.get("fullName") or "Staff"
+    applicant_sn = app.get("applicantId", "")
+    leave_type = app.get("leave_type", "Leave/Pass")
+
+    approver_name = current_user.get("fullName") or current_user.get("name") or "Approver"
+    approver_sn = current_user.get("service_number", "")
+    approver_email = (current_user.get("email") or "").strip().lower()
+
+    date_str = None
+    if app.get("createdAt"):
+        date_str = app.get("createdAt").strftime('%Y-%m-%d') if hasattr(app.get("createdAt"), 'strftime') else str(app.get("createdAt"))
+    if not date_str:
+        date_str = datetime.utcnow().strftime('%Y-%m-%d')
+
+    is_cdsa = (approver_role == "cdsa")
+
+    if is_cdsa:
+        title = "📋 CDSA Approval — Action Required"
+        modal_title = "CDSA Approved Leave/Pass"
+        if receipt_number:
+            msg = f"Director application {ref_id} ({applicant_name}) approved by CDSA. Receipt {receipt_number} issued. Please acknowledge file for documentation."
         else:
-            fallback_user = users_coll.find_one({"directorate": directorate, "role": "director", "is_active": True})
-    elif role == "central_registry":
-        fallback_user = users_coll.find_one({"directorate": "CDSA", "role": "central_registry", "is_active": True})
-        if not fallback_user:
-            fallback_user = users_coll.find_one({"directorate": "CDSA", "role": "registry", "is_active": True})
-        if not fallback_user:
-            fallback_user = users_coll.find_one({"is_cdsa_approver": {"$in": ["true", True]}, "is_active": True})
-    elif role in ("civilian_head_cao", "civilian_head"):
-        target_deputy = "deputy_civilian_head_cao" if role == "civilian_head_cao" else "deputy_civilian_head"
-        target_dir = "DOA" if role == "civilian_head_cao" else directorate
-        fallback_user = users_coll.find_one({"role": role, "directorate": target_dir, "is_active": True}) or \
-                        users_coll.find_one({"role": target_deputy, "directorate": target_dir, "is_active": True})
-
-    if fallback_user and fallback_user.get("service_number"):
-        fallback_id = fallback_user.get("service_number")
-        safe_id = fallback_id.replace("/", "_")
-        room = f"USER_{safe_id}"
-        print(f"[SOCKET] Fallback notification to room: {room}")
-        socketio.emit("new_notification", payload, room=room)
+            msg = f"Director application {ref_id} ({applicant_name}) approved by CDSA. Please acknowledge file for documentation."
     else:
-        print(f"[SOCKET] Warning: No approver found for role {role} and no approverId present.")
+        title = "📋 Director Approval — Action Required"
+        modal_title = "Director Approved Leave/Pass"
+        if receipt_number:
+            msg = f"Leave/Pass application {ref_id} ({applicant_name}) approved by Director and receipt {receipt_number} issued. Please acknowledge file for documentation."
+        else:
+            msg = f"Leave/Pass application {ref_id} ({applicant_name}) approved by Director ({approver_name}). Please acknowledge file for documentation."
 
+    payload = {
+        "type": "action_required",
+        "_id": app_id,
+        "applicationId": app_id,
+        "referenceId": ref_id,
+        "receiptNumber": receipt_number,
+        "message": msg,
+        "title": title,
+        "modalTitle": modal_title,
+        "triggeredBy": approver_name,
+        "approver_role": approver_role,
+        "leave_type": leave_type,
+        "directorate": applicant_dir,
+        "date": date_str,
+        "timestamp": datetime.utcnow().isoformat(),
+        "status": "issued" if receipt_number else "approved"
+    }
+
+    target_users = []
+    rooms = set()
+
+    # 1. Applicant's Directorate Registry rooms
+    if applicant_dir:
+        clean_dir = applicant_dir.upper().strip()
+        rooms.add(f"ROLE_registry_{clean_dir}")
+        rooms.add(f"REGISTRY_{clean_dir}")
+
+        if users_coll is not None:
+            try:
+                dir_regs = list(users_coll.find({
+                    "directorate": {"$regex": f"^{applicant_dir.strip()}$", "$options": "i"},
+                    "role": {"$in": ["registry", "central_registry"]},
+                    "is_active": {"$ne": False}
+                }))
+                target_users.extend(dir_regs)
+            except Exception as e:
+                print(f"[SOCKET] Error querying directorate registry: {e}")
+
+    # 2. Central Registry rooms
+    rooms.add("ROLE_central_registry")
+    if users_coll is not None:
+        try:
+            central_regs = list(users_coll.find({
+                "role": "central_registry",
+                "is_active": {"$ne": False}
+            }))
+            target_users.extend(central_regs)
+
+            cdsa_regs = list(users_coll.find({
+                "directorate": "CDSA",
+                "role": "registry",
+                "is_active": {"$ne": False}
+            }))
+            target_users.extend(cdsa_regs)
+        except Exception as e:
+            print(f"[SOCKET] Error querying central registry: {e}")
+
+    # 3. Steps in approval chain for registry or central_registry
+    chain = app.get("approvalChain", [])
+    for step in chain:
+        if isinstance(step, dict) and step.get("role") in ("registry", "central_registry"):
+            step_sn = step.get("approverId")
+            step_email = step.get("approverEmail")
+            if step_sn and isinstance(step_sn, str):
+                safe_sn = step_sn.replace('/', '_')
+                rooms.add(f"USER_{safe_sn}")
+                if users_coll is not None:
+                    try:
+                        u_doc = users_coll.find_one({"service_number": step_sn})
+                        if u_doc and isinstance(u_doc, dict):
+                            target_users.append(u_doc)
+                    except Exception:
+                        pass
+            if step_email and isinstance(step_email, str):
+                clean_email = step_email.lower().strip()
+                rooms.add(f"USER_{clean_email}")
+                if users_coll is not None:
+                    try:
+                        u_doc = users_coll.find_one({"email": clean_email})
+                        if u_doc and isinstance(u_doc, dict):
+                            target_users.append(u_doc)
+                    except Exception:
+                        pass
+
+    # 4. Add private rooms for all target registry users
+    for u in target_users:
+        if isinstance(u, dict):
+            sn = u.get("service_number")
+            if sn and isinstance(sn, str):
+                rooms.add(f"USER_{sn.replace('/', '_')}")
+            email = u.get("email")
+            if email and isinstance(email, str):
+                rooms.add(f"USER_{email.strip().lower()}")
+
+    # 5. Emit socket notifications to all target rooms
+    print(f"[SOCKET] Emitting approval notifications for {ref_id} to rooms: {rooms}")
+    for room in rooms:
+        try:
+            socketio.emit("new_notification", payload, room=room)
+        except Exception as e:
+            print(f"[SOCKET] Failed to emit to room {room}: {e}")
+
+    # 6. Emit application update to application room
+    try:
+        socketio.emit(
+            "application_update",
+            {
+                "status": "issued" if receipt_number else "approved",
+                "referenceId": ref_id,
+                "approved_by": approver_name,
+                "step": approver_role,
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+            room=f"APPLICATION_{ref_id}"
+        )
+    except Exception as e:
+        print(f"[SOCKET] Failed to emit application_update: {e}")
+
+    # 7. Ensure database records in notifications_coll for registry users
+    if notifications_coll is not None:
+        seen_ids = set()
+        for u in target_users:
+            uid = u.get("service_number") or u.get("email")
+            if not uid or uid in seen_ids:
+                continue
+            # Don't notify the approver themself
+            if uid == approver_sn or (approver_email and (u.get("email") or "").lower() == approver_email):
+                continue
+            seen_ids.add(uid)
+
+            try:
+                existing = notifications_coll.find_one({
+                    "applicationId": app["_id"],
+                    "target.userId": uid,
+                    "status": "unread"
+                })
+                if not existing:
+                    notifications_coll.insert_one({
+                        "type": "action_required",
+                        "applicationId": app["_id"],
+                        "referenceId": ref_id,
+                        "target": {
+                            "type": "user",
+                            "userId": uid,
+                            "email": u.get("email"),
+                            "role": u.get("role")
+                        },
+                        "message": msg,
+                        "status": "unread",
+                        "readBy": [],
+                        "meta": {
+                            "triggeredBy": approver_sn,
+                            "triggeredByName": approver_name,
+                            "role": u.get("role"),
+                            "receiptNumber": receipt_number,
+                            "is_receipt_step": False,
+                        },
+                        "createdAt": datetime.utcnow(),
+                        "isActive": True,
+                    })
+            except Exception as e:
+                print(f"[SOCKET] Failed to insert DB notification for {uid}: {e}")
 
 
 def _perform_leave_deduction(app, leave_balances_coll):
@@ -275,7 +503,10 @@ def dashboard_leave_pass():
         "is_so_approver":  session.get("is_so_approver", False),
         "is_dd_approver":  session.get("is_dd_approver", False),
         "is_ad_approver":  session.get("is_ad_approver", False),
-        "is_final_approver": session.get("is_final_approver", False),
+        "is_final_approver": (
+            session.get("is_final_approver") in (True, "true", "True")
+            or session.get("is_final_approval") in (True, "true", "True")
+        ),
         "is_approval_role": session.get("is_approval_role", False),
     }
 
@@ -286,14 +517,27 @@ def dashboard_leave_pass():
     user_id          = current_user["service_number"] or current_user["email"]
     user_directorate = current_user["directorate"]
     user_role       = session.get('role', 'civilian')
-    is_director_doa = (user_role == 'director') and (session.get("is_final_approver") is True)
+    is_final_approver = current_user["is_final_approver"]
+    is_director_doa = ('director' in user_role) and is_final_approver
     is_chief_clerk    = 'registry'        in user_role
     is_cdsa           = 'cdsa'            in user_role
     is_central_reg    = 'central_registry' in user_role
-    is_so_approver   = current_user["is_so_approver"]
-    is_dd_approver    = current_user["is_dd_approver"]
-    is_ad_approver    = current_user["is_ad_approver"]
-    is_approval_role  = current_user["is_approval_role"]
+    is_so_approver   = current_user["is_so_approver"] in (True, "true", "True") or user_role == "so"
+    is_dd_approver    = current_user["is_dd_approver"] in (True, "true", "True") or user_role == "dd"
+    is_ad_approver    = current_user["is_ad_approver"] in (True, "true", "True") or user_role == "ad"
+    is_approval_role  = (
+        current_user["is_approval_role"] in (True, "true", "True")
+        or session.get("is_approval_role") in (True, "true", "True")
+        or ('director' in user_role)
+        or is_final_approver
+        or is_chief_clerk or is_cdsa or is_central_reg
+        or is_so_approver or is_dd_approver or is_ad_approver
+        or user_role in ('civilian_head_cao', 'civilian_head', 'so', 'ad', 'dd')
+    )
+    current_user["is_approval_role"] = is_approval_role
+    current_user["is_so_approver"] = is_so_approver
+    current_user["is_ad_approver"] = is_ad_approver
+    current_user["is_dd_approver"] = is_dd_approver
 
     applications_coll = current_app.applications_collection
     # user_coll         = current_app.users_collection
@@ -307,14 +551,9 @@ def dashboard_leave_pass():
     filter_date_to     = request.args.get('date_to', '')
 
     # Directorate scoping
-    if filter_directorate and (is_director_doa or is_cdsa or user_role in ('civilian_head_cao', 'civilian_head', 'deputy_civilian_head_cao', 'deputy_civilian_head')):
+    if filter_directorate:
         filter_query['directorate'] = filter_directorate
-    elif is_chief_clerk or is_director_doa:
-        # registry and is_director_doa are scoped to their own directorate
-
-        if is_chief_clerk:
-            filter_query['directorate'] = user_directorate
-    elif not is_director_doa and not is_cdsa and user_role not in ('civilian_head_cao', 'civilian_head', 'deputy_civilian_head_cao', 'deputy_civilian_head'):
+    elif not is_director_doa and not is_cdsa and not is_chief_clerk and not is_central_reg and user_role not in ('civilian_head_cao', 'civilian_head', 'deputy_civilian_head_cao', 'deputy_civilian_head'):
         filter_query['directorate'] = user_directorate
 
     if filter_leave_type:
@@ -342,24 +581,18 @@ def dashboard_leave_pass():
 
 
     # ══════════════════════════════════════════════════════════════════
-    # CENTRAL REGISTRY — receipt issuance for non-civilian applications
-    # Shows up AFTER CDSA/Director approves (status == "approved")
-    # Their step is auto-set to "approved" but receipt not yet issued
+    # CENTRAL REGISTRY — file acknowledgement for non-civilian applications
+    # Shows up AFTER CDSA/Director approves and issues receipt
+    # Registry does not approve; only acknowledges file
     # ══════════════════════════════════════════════════════════════════
     if is_central_reg:
-        # Log for debugging
-        print(f"[DEBUG] Central Registry User: {user_id}")
-        
-        # Pending: Application approved (status="approved"), central_registry step not yet issued receipt
-        # Don't filter by directorate for central registry - they see all
         pending_query = {
-            "status": {"$in": ["approved", "Approved"]},
+            "status": {"$in": ["approved", "Approved", "issued", "Issued"]},
             "approvalChain": {
                 "$elemMatch": {
                     "role": "central_registry",
                     "approverId": user_id,
-                    "status": {"$in": ["approved", "Approved"]},
-                    "receipt": {"$exists": False}
+                    "acknowledged": False
                 }
             }
         }
@@ -370,38 +603,33 @@ def dashboard_leave_pass():
         if date_query:
             pending_query['createdAt'] = date_query
             
-        print(f"[DEBUG] Pending Query: {pending_query}")
-        
         for app_doc in applications_coll.find(pending_query).sort("updatedAt", -1).limit(200):
             chain = app_doc.get("approvalChain", [])
             central_step = next(
                 (s for s in chain
-                 if s["role"] == "central_registry" and s.get("approverId") == user_id),
+                 if s.get("role") == "central_registry" and s.get("approverId") == user_id),
                 None
             )
-            # Pending = approved but receipt not yet generated
-            if central_step and central_step.get("status", "").lower() == "approved" \
-                    and not central_step.get("receipt"):
+            if central_step and not central_step.get("acknowledged", False):
                 app_doc["_role_bucket"] = app_doc.get("role_bucket", "officer")
                 pending_applications.append(app_doc)
-                print(f"[DEBUG] Found pending app: {app_doc.get('referenceId')} - {app_doc.get('role_bucket')}")
 
-        # Issued (receipt generated)
-        issued_query = {
-            "status": {"$in": ["issued", "Issued"]},
+        # Acknowledged history
+        ack_query = {
             "approvalChain": {
                 "$elemMatch": {
                     "role": "central_registry",
                     "approverId": user_id,
+                    "acknowledged": True
                 }
             }
         }
         if filter_leave_type:
-            issued_query['leave_type'] = filter_leave_type
+            ack_query['leave_type'] = filter_leave_type
         if date_query:
-            issued_query['createdAt'] = date_query
+            ack_query['createdAt'] = date_query
             
-        for app_doc in applications_coll.find(issued_query).sort("updatedAt", -1).limit(50):
+        for app_doc in applications_coll.find(ack_query).sort("updatedAt", -1).limit(50):
             approved_applications.append(app_doc)
 
         # Rejected history
@@ -421,85 +649,86 @@ def dashboard_leave_pass():
 
 
     # ══════════════════════════════════════════════════════════════════
-    # Director-DOA — civilian receipt generation
+    # Director-DOA — Directorate Director & Final Approver
     # Sees applications where:
-    #   - status == "approved" (Director has approved, deduction done)
-    #   - their director_doa chain step is pending (no receipt yet)
+    #   1. Local Director for own directorate (civilian, officer, dd, soldier, rating, etc.)
+    #   2. Final Approver for civilian applications across all directorates
+    #   3. Any application where user is assigned in approvalChain
     # ══════════════════════════════════════════════════════════════════
     elif is_director_doa:
-        # Pending: Either:
-        # 1. Civilian apps from other directorates (status == "approved") awaiting receipt/final approval
-        # 2. Civilian apps from own directorate (status == "pending") awaiting local Director approval
-        pending_query = {
-            "role_bucket": "civilian",
-            "status": {"$in": ["pending", "approved", "Approved"]},
-            "approvalChain": {
-                "$elemMatch": {
-                    "role":       "director",
-                    "is_final_approver": True,
-                    "approverId": user_id,
-                    "status":     "pending",
-                }
-            },
-            **filter_query
-        }
-        for app in applications_coll.find(pending_query).sort("updatedAt", -1).limit(200):
+        user_ids = [uid for uid in [user_id, current_user.get("service_number"), current_user.get("email")] if uid]
+
+        query_conditions = [
+            {"approvalChain.approverId": {"$in": user_ids}},
+            {"approvalChain": {"$elemMatch": {"role": "director", "is_final_approver": {"$in": [True, "true", "True"]}}}},
+            {"directorate": user_directorate, "approvalChain.role": "director"},
+        ]
+        director_doa_query = {"$or": query_conditions, **filter_query}
+
+        for app in applications_coll.find(director_doa_query).sort("updatedAt", -1).limit(300):
             chain = app.get("approvalChain", [])
-            
-            # Find the user's step and index in the chain
+            app_status = (app.get("status") or "").lower()
+
+            user_step = None
             user_step_index = None
-            director_doa_step = None
-            for idx, s in enumerate(chain):
-                if s["role"] == "director" and s.get("is_final_approver") == True and s.get("approverId") == user_id:
-                    director_doa_step = s
-                    user_step_index = idx
-                    break
-            
-            if director_doa_step and director_doa_step.get("status") == "pending" \
-                    and not director_doa_step.get("receipt"):
-                
-                # Check if all previous steps in the chain are already approved/recommended
+
+            # Priority 1: Find a pending step for this user
+            for i, step in enumerate(chain):
+                if step.get("status") == "pending":
+                    is_my_step = False
+                    if step.get("approverId") in user_ids:
+                        is_my_step = True
+                    elif step.get("is_final_approver") in (True, "true", "True"):
+                        is_my_step = True
+                    elif step.get("role") == "director" and app.get("directorate") == user_directorate:
+                        is_my_step = True
+
+                    if is_my_step:
+                        user_step = step
+                        user_step_index = i
+                        break
+
+            # Priority 2: If no pending step, find any step that belongs to this user
+            if not user_step:
+                for i, step in enumerate(chain):
+                    is_my_step = False
+                    if step.get("approverId") in user_ids:
+                        is_my_step = True
+                    elif step.get("is_final_approver") in (True, "true", "True"):
+                        is_my_step = True
+                    elif step.get("role") == "director" and app.get("directorate") == user_directorate:
+                        is_my_step = True
+
+                    if is_my_step:
+                        user_step = step
+                        user_step_index = i
+                        break
+
+            if not user_step:
+                continue
+
+            user_step_status = (user_step.get("status") or "").lower()
+
+            # Classify into pending, approved, or rejected:
+            if user_step_status == "pending" and not user_step.get("receipt"):
                 all_prev = True
-                if user_step_index is not None:
+                if user_step_index is not None and user_step_index > 0:
                     all_prev = all(
-                        chain[i]["status"] in ("approved", "Recommended for Approval")
-                        for i in range(user_step_index)
+                        (chain[k].get("status") or "").lower() in ("approved", "recommended for approval")
+                        for k in range(user_step_index)
                     )
-                
-                if all_prev:
+                if all_prev and app_status not in ("rejected", "declined_by_reliever"):
                     pending_applications.append(app)
 
-        # Issued (receipt generated) or Approved (final step approved by final approver)
-        issued_query = {
-            "role_bucket": "civilian",
-            "status": {"$in": ["Approved", "approved", "issued"]},
-            "approvalChain": {
-                "$elemMatch": {
-                    "role":       "director",
-                    "is_final_approver": True,
-                    "approverId": user_id,
-                    "status":     "approved",
-                }
-            },
-            **filter_query
-        }
-        for app in applications_coll.find(issued_query).sort("updatedAt", -1).limit(50):
-            approved_applications.append(app)
+            elif app_status == "rejected" or user_step_status == "rejected":
+                rejected_applications.append(app)
 
-        # Rejected
-        rejected_query = {
-            "status": "rejected",
-            "approvalChain": {
-                "$elemMatch": {
-                    "role":       "director",
-                    "is_final_approver": True,
-                    "approverId": user_id,
-                }
-            },
-            **filter_query
-        }
-        for app in applications_coll.find(rejected_query).sort("updatedAt", -1).limit(50):
-            rejected_applications.append(app)
+            elif (user_step.get("is_final_approver") in (True, "true", "True") or (is_director_doa and user_step.get("role") == "director")) and app_status in ("approved",) and not app.get("receiptNumber"):
+                # Awaiting final receipt issuance by Director DOA
+                pending_applications.append(app)
+
+            elif user_step_status in ("approved", "recommended for approval") or app_status in ("approved", "issued"):
+                approved_applications.append(app)
 
     # ══════════════════════════════════════════════════════════════════
     # CDSA — director forms approval + central_registry receipt
@@ -586,14 +815,13 @@ def dashboard_leave_pass():
     # Their step is auto-set to "approved" but acknowledged=False
     # ══════════════════════════════════════════════════════════════════
     elif is_chief_clerk:
-        # Pending: Director approved (status="approved"), registry step not yet acknowledged
+        # Pending: Director / CDSA / Final approver approved (status in approved/issued), registry step not yet acknowledged
         pending_query = {
-            "status": {"$in": ["approved", "Approved", "issued"]},       # Director / CDSA has approved / issued
+            "status": {"$in": ["approved", "Approved", "issued", "Issued"]},
             "approvalChain": {
                 "$elemMatch": {
                     "role":         "registry",
                     "approverId":   user_id,
-                    "status":       "approved",   # auto-approved when director approved
                     "acknowledged": False          # not yet acknowledged
                 }
             },
@@ -603,7 +831,7 @@ def dashboard_leave_pass():
             chain        = app.get("approvalChain", [])
             registry_step = next(
                 (s for s in chain
-                 if s["role"] == "registry" and s.get("approverId") == user_id),
+                 if s.get("role") == "registry" and s.get("approverId") == user_id),
                 None
             )
             if registry_step and not registry_step.get("acknowledged", False):
@@ -641,16 +869,30 @@ def dashboard_leave_pass():
     # Approved = they approved it (regardless of overall status)
     # ══════════════════════════════════════════════════════════════════
     else:
-        query_conditions = [{"approvalChain.approverId": user_id}]
+        user_ids = [uid for uid in [user_id, current_user.get("service_number"), current_user.get("email"), session.get("user_email")] if uid]
+        user_email_clean = (current_user.get("email") or session.get("user_email") or "").strip().lower()
 
-        if is_so_approver or current_user.get("is_so_approver"):
+        query_conditions = [
+            {"approvalChain.approverId": {"$in": user_ids}},
+            {"approvalChain.approverEmail": {"$in": [uid for uid in [current_user.get("email"), session.get("user_email")] if uid]}},
+        ]
+
+        if current_user.get("role") in ("civilian_head_cao", "civilian_head"):
+            query_conditions.append({
+                "approvalChain": {"$elemMatch": {
+                    "role": {"$in": ["civilian_head_cao", "civilian_head"]},
+                    "status": "pending"
+                }}
+            })
+
+        if is_so_approver:
             query_conditions.append({
                 "directorate": user_directorate,
                 "approvalChain": {"$elemMatch": {
                     "role": "so", "status": "pending"
                 }}
             })
-        if is_ad_approver or current_user.get("is_ad_approver"):
+        if is_ad_approver:
             query_conditions.append({
                 "directorate": user_directorate,
                 "approvalChain": {"$elemMatch": {
@@ -670,32 +912,54 @@ def dashboard_leave_pass():
         for app in applications_coll.find(user_apps_query).sort("createdAt", -1).limit(500):
             chain      = app.get("approvalChain", [])
             app_status = app.get("status")
+            app_dir    = app.get("directorate")
 
             user_step       = None
             user_step_index = None
 
+            # Priority 1: Find matching pending step for this user
             for i, step in enumerate(chain):
-                if step.get("approverId") == user_id and step.get("status") == "pending":
-                    user_step = step; 
-                    user_step_index = i; 
-                    break
+                if step.get("status") == "pending":
+                    is_match = False
+                    if step.get("approverId") in user_ids:
+                        is_match = True
+                    elif step.get("approverEmail") and user_email_clean and step.get("approverEmail").strip().lower() == user_email_clean:
+                        is_match = True
+                    elif current_user.get("role") in ("civilian_head_cao", "civilian_head") and step.get("role") in ("civilian_head_cao", "civilian_head"):
+                        is_match = True
+                    elif is_so_approver and step.get("role") == "so" and (not app_dir or app_dir == user_directorate):
+                        is_match = True
+                    elif is_ad_approver and step.get("role") == "ad" and (not app_dir or app_dir == user_directorate):
+                        is_match = True
+                    elif is_dd_approver and step.get("role") == "dd" and (not app_dir or app_dir == user_directorate):
+                        is_match = True
 
+                    if is_match:
+                        user_step = step
+                        user_step_index = i
+                        break
+
+            # Priority 2: Fallback to any step belonging to this user
             if not user_step:
                 for i, step in enumerate(chain):
-                    if step.get("approverId") == user_id:
-                        user_step = step; 
-                        user_step_index = i; 
+                    is_match = False
+                    if step.get("approverId") in user_ids:
+                        is_match = True
+                    elif step.get("approverEmail") and user_email_clean and step.get("approverEmail").strip().lower() == user_email_clean:
+                        is_match = True
+                    elif current_user.get("role") in ("civilian_head_cao", "civilian_head") and step.get("role") in ("civilian_head_cao", "civilian_head"):
+                        is_match = True
+                    elif is_so_approver and step.get("role") == "so" and (not app_dir or app_dir == user_directorate):
+                        is_match = True
+                    elif is_ad_approver and step.get("role") == "ad" and (not app_dir or app_dir == user_directorate):
+                        is_match = True
+                    elif is_dd_approver and step.get("role") == "dd" and (not app_dir or app_dir == user_directorate):
+                        is_match = True
+
+                    if is_match:
+                        user_step = step
+                        user_step_index = i
                         break
-                    
-                if (is_so_approver or current_user.get("is_so_approver")) and step.get("role") == "so" \
-                        and app.get("directorate") == user_directorate:
-                    user_step = step; user_step_index = i; break
-                if is_ad_approver and step.get("role") == "ad" \
-                        and app.get("directorate") == user_directorate:
-                    user_step = step; user_step_index = i; break
-                if is_dd_approver and step.get("role") == "dd" \
-                        and app.get("directorate") == user_directorate:
-                    user_step = step; user_step_index = i; break
 
             if not user_step:
                 continue
@@ -703,29 +967,26 @@ def dashboard_leave_pass():
             user_step_status = user_step.get("status")
 
             # ── Classify into buckets ──────────────────────────────
-            if app_status in ("issued", "Approved"):
-                approved_applications.append(app)
-
-            elif app_status in ("rejected", "Rejected"):
+            if app_status in ("rejected", "Rejected") or user_step_status in ("rejected", "Rejected"):
                 rejected_applications.append(app)
+
+            elif user_step_status == "pending" and app_status not in ("rejected", "declined_by_reliever"):
+                # Only show as pending if ALL previous steps are approved/recommended
+                all_prev = all(
+                    (chain[i].get("status") or "").lower() in ("approved", "recommended for approval")
+                    for i in range(user_step_index)
+                )
+                if all_prev:
+                    pending_applications.append(app)
+                # If not their turn yet — don't show at all (not pending for them)
 
             elif user_step_status in ("approved", "Recommended for Approval"):
                 # They approved/recommended it — show in approved regardless of
                 # whether downstream steps are done
                 approved_applications.append(app)
 
-            elif user_step_status in ("rejected", "Rejected"):
-                rejected_applications.append(app)
-
-            elif user_step_status == "pending" and app_status in ("pending", "Approved", "Recommended for Approval"):
-                # Only show as pending if ALL previous steps are approved/recommended
-                all_prev = all(
-                    chain[i]["status"] in ("approved", "Recommended for Approval")
-                    for i in range(user_step_index)
-                )
-                if all_prev:
-                    pending_applications.append(app)
-                # If not their turn yet — don't show at all (not pending for them)
+            elif app_status in ("issued", "Approved", "approved"):
+                approved_applications.append(app)
 
     # Fetch user's own submitted applications (only if NOT logged into an office/approval account)
     own_apps = []
@@ -785,17 +1046,14 @@ def dashboard_leave_pass():
 
     if is_director_doa:
         all_directorates = applications_coll.distinct('directorate')
+        user_ids = [uid for uid in [user_id, current_user.get("service_number"), current_user.get("email")] if uid]
         pipeline = [
             {"$match": {
-                "status": "approved",
-                "approvalChain": {
-                    "$elemMatch": {
-                        "role":       "director",
-                        "is_final_approver": True,
-                        "approverId": user_id,
-                        "status":     "pending",
-                    }
-                },
+                "$or": [
+                    {"approvalChain.approverId": {"$in": user_ids}},
+                    {"approvalChain": {"$elemMatch": {"role": "director", "is_final_approver": {"$in": [True, "true", "True"]}}}},
+                    {"directorate": user_directorate, "approvalChain.role": "director"},
+                ],
                 **filter_query
             }},
             {"$group": {
@@ -853,17 +1111,6 @@ def dashboard_leave_pass():
     else:
         user_allowed_features = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS['civilian'])
 
-    with open("dashboard_debug.txt", "a", encoding="utf-8") as debug_f:
-        debug_f.write(f"is_director_doa: {is_director_doa}\n")
-        debug_f.write(f"is_chief_clerk: {is_chief_clerk}\n")
-        debug_f.write(f"is_approval_role: {is_approval_role}\n")
-        debug_f.write(f"pending_applications count: {len(pending_applications)}\n")
-        for app in pending_applications:
-            debug_f.write(f"  Pending App: {app.get('referenceId')} | Status: {app.get('status')}\n")
-        debug_f.write(f"approved_applications count: {len(approved_applications)}\n")
-        for app in approved_applications:
-            debug_f.write(f"  Approved App: {app.get('referenceId')} | Status: {app.get('status')}\n")
-
     return render_template(
         'dashboard_leave_pass.html',
         applications=unique_apps,
@@ -904,10 +1151,10 @@ def approve(app_id):
         "designation":     session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
         "rankOrGrade":     session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
         "email":           session.get("email"),
-        "is_so_approver":  session.get("is_so_approver", False),
-        "is_dd_approver":  session.get("is_dd_approver", False),
-        "is_ad_approver":  session.get("is_ad_approver", False),
-        "is_final_approver": session.get("is_final_approver", False),
+        "is_so_approver":  session.get("is_so_approver", False) or session.get("role") == "so",
+        "is_dd_approver":  session.get("is_dd_approver", False) or session.get("role") == "dd",
+        "is_ad_approver":  session.get("is_ad_approver", False) or session.get("role") == "ad",
+        "is_final_approver": session.get("is_final_approver", False) or session.get("role") == "director" or 'director' in str(session.get("role", "")),
     }
 
     if not current_user.get("service_number"):
@@ -919,75 +1166,159 @@ def approve(app_id):
     leave_balances_coll = current_app.leave_balances
     users_coll          = current_app.users_collection
 
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+
+    def _error_response(msg, code=400):
+        if is_ajax:
+            return jsonify({"success": False, "message": msg}), code
+        flash(msg, "error")
+        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
     try:
         app = applications_coll.find_one({"_id": ObjectId(app_id)})
     except Exception:
         app = None
     
     if not app:
-        flash("Application not found.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+        return _error_response("Application not found.", 404)
 
     if app.get("status", "").lower() not in ("pending", "recommended for approval", "approved"):
-        flash(f"Cannot approve: Application is already {app.get('status')}.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+        return _error_response(f"Cannot approve: Application is already {app.get('status')}.", 400)
+
+    user_email = (current_user.get("email") or session.get("user_email") or "").strip().lower()
+    reliever_email = (app.get("reliever_email") or "").strip().lower()
+    user_sn = (current_user.get("service_number") or session.get("service_number") or "").strip().upper()
+    reliever_sn = (app.get("name_of_reliever") or app.get("director_reliever_service_number") or "").strip().upper()
+
+    # Reliever Guard: Reliever cannot act as approver
+    if (user_email and user_email == reliever_email) or (user_sn and user_sn == reliever_sn):
+        return _error_response("Unauthorized: As the assigned reliever for this application, you cannot approve it.", 403)
+
+    # Applicant Guard: Applicant cannot approve own application
+    applicant_id = (app.get("applicantId") or "").strip().upper()
+    if user_sn and user_sn == applicant_id:
+        return _error_response("Unauthorized: You cannot approve your own application.", 403)
+
+    # Civilian Guard: plain civilians have no approval privileges
+    user_role = (current_user.get("role") or session.get("role") or "").strip().lower()
+    is_approval_role = session.get("is_approval_role") or current_user.get("is_approval_role") or False
+    if user_role == "civilian" and not is_approval_role:
+        return _error_response("Unauthorized: Civilian staff do not have approval permissions.", 403)
 
     chain            = app.get("approvalChain", [])
     user_id          = current_user["service_number"]
     user_directorate = current_user["directorate"]
-    is_so_approver   = current_user["is_so_approver"]
-    is_ad_approver   = current_user["is_ad_approver"]
-    is_dd_approver   = current_user["is_dd_approver"]
-    is_final_approver = current_user["is_final_approver"]
+    is_so_approver   = current_user.get("is_so_approver") in (True, "true", "True") or user_role == "so"
+    is_ad_approver   = current_user.get("is_ad_approver") in (True, "true", "True") or user_role == "ad"
+    is_dd_approver   = current_user.get("is_dd_approver") in (True, "true", "True") or user_role == "dd"
+    is_final_approver = current_user.get("is_final_approver") in (True, "true", "True") or user_role == "director" or 'director' in user_role
+    user_ids = [uid for uid in [user_id, current_user.get("service_number"), current_user.get("email")] if uid]
 
     # ── Find user's step ──────────────────────────────────────────────
     user_step_index = None
     user_step       = None
 
     for i, step in enumerate(chain):
-        if step.get("approverId") == user_id and step.get("status") == "pending":
-            user_step_index = i
-            user_step = step
-            break
-        
-        if is_so_approver and step.get("role") == "so" \
-                and step.get("status") == "pending" \
-                and app.get("directorate") == user_directorate:
-            user_step_index = i
-            user_step = step
-            break
-        
-        if is_ad_approver and step.get("role") == "ad" \
-                and step.get("status") == "pending" \
-                and app.get("directorate") == user_directorate:
-            user_step_index = i
-            user_step = step
-            break
-        
-        if is_dd_approver and step.get("role") == "dd" \
-                and step.get("status") == "pending" \
-                and app.get("directorate") == user_directorate:
-            user_step_index = i
-            user_step = step
-            break
+        if step.get("status") == "pending":
+            step_role = step.get("role")
+            step_email = (step.get("approverEmail") or "").strip().lower()
+            step_approver_id = (step.get("approverId") or "").strip()
+
+            # Determine role capability
+            role_capable = False
+            if step_role in ("civilian_head_cao", "civilian_head"):
+                role_capable = user_role in ("civilian_head_cao", "civilian_head", "deputy_civilian_head_cao")
+            elif step_role == "so":
+                role_capable = is_so_approver or user_role == "so"
+            elif step_role == "ad":
+                role_capable = is_ad_approver or user_role == "ad"
+            elif step_role == "dd":
+                role_capable = is_dd_approver or user_role == "dd"
+            elif step_role == "director":
+                role_capable = (user_role == "director" or 'director' in user_role or is_final_approver)
+            elif step_role in ("registry", "central_registry"):
+                role_capable = user_role in ("registry", "central_registry") or "registry" in current_user.get("roles", [])
+
+            # Direct match by email with role capability
+            if step_email and user_email and step_email == user_email and role_capable:
+                user_step_index = i
+                user_step = step
+                break
+
+            # Match by approverId ONLY if user is role-capable
+            if step_approver_id and step_approver_id in user_ids and role_capable:
+                user_step_index = i
+                user_step = step
+                break
+
+            if user_role in ("civilian_head_cao", "civilian_head") and step_role in ("civilian_head_cao", "civilian_head"):
+                user_step_index = i
+                user_step = step
+                break
+
+            if is_final_approver and step.get("is_final_approver") in (True, "true", "True"):
+                user_step_index = i
+                user_step = step
+                break
+
+            if is_so_approver and step_role == "so" \
+                    and (app.get("directorate") == user_directorate or not app.get("directorate")):
+                user_step_index = i
+                user_step = step
+                break
+            
+            if is_ad_approver and step_role == "ad" \
+                    and (app.get("directorate") == user_directorate or not app.get("directorate")):
+                user_step_index = i
+                user_step = step
+                break
+            
+            if is_dd_approver and step_role == "dd" \
+                    and (app.get("directorate") == user_directorate or not app.get("directorate")):
+                user_step_index = i
+                user_step = step
+                break
+
+            if (user_role == "director" or 'director' in user_role) and step_role == "director" \
+                    and (app.get("directorate") == user_directorate or not app.get("directorate")):
+                user_step_index = i
+                user_step = step
+                break
 
     if user_step_index is None:
-        flash("This application is not waiting for your approval.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+        return _error_response("This application is not waiting for your approval.", 400)
 
-    # In the approve route, add a check to prevent self-approval
-    if user_step and user_step.get("approverId") == app.get("applicantId"):
-        flash("You cannot approve your own application.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+    # In the approve route, check to prevent genuine self-approval
+    applicant_user = users_coll.find_one({"email": app.get("applicantEmail")}) if app.get("applicantEmail") else None
+    if not applicant_user and app.get("applicantName"):
+        applicant_user = users_coll.find_one({
+            "name": {"$regex": f"^{app.get('applicantName')}$", "$options": "i"},
+            "role": {"$ne": "civilian_head_cao"}
+        })
+    if not applicant_user and app.get("applicantId"):
+        applicant_user = users_coll.find_one({"service_number": app.get("applicantId")})
+
+    is_self_application = False
+    cur_email = (current_user.get("email") or "").strip().lower()
+    app_email = ((applicant_user.get("email") if applicant_user else "") or app.get("applicantEmail") or app.get("email") or "").strip().lower()
+    cur_name = (current_user.get("fullName") or current_user.get("name") or "").strip().lower()
+    app_name = (app.get("applicantName") or "").strip().lower()
+
+    if cur_email and app_email and cur_email == app_email:
+        is_self_application = True
+    elif cur_name and app_name and cur_name == app_name and current_user.get("service_number") == app.get("applicantId"):
+        is_self_application = True
+
+    if is_self_application:
+        return _error_response("You cannot approve your own application.", 400)
 
     # Check previous steps are approved/recommended
     for i in range(user_step_index):
         if chain[i]["status"] not in ("approved", "Recommended for Approval"):
-            flash("Cannot approve: Previous approvals are still pending.", "error")
-            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+            return _error_response("Cannot approve: Previous approvals are still pending.", 400)
 
     step_role = user_step.get("role")
-    is_civilian_recommendation = (app.get("role_bucket") == "civilian" and step_role in ("civilian_head_cao", "so", "dd"))
+    is_civilian_recommendation = (app.get("role_bucket") == "civilian" and step_role in ("civilian_head_cao", "civilian_head", "so", "ad", "dd"))
 
     if is_civilian_recommendation:
         default_comment = "Recommended for Approval"
@@ -1044,25 +1375,32 @@ def approve(app_id):
 
     if is_director_step and role_bucket != "director":
 
-        deduction_result = _perform_leave_deduction(app, leave_balances_coll)
-        if not deduction_result["success"]:
-            applications_coll.update_one(
-                {"_id": app["_id"]},
-                {"$set": {
-                    "approvalChain": chain,
-                    "status": "rejected",
-                    "updatedAt": datetime.utcnow(),
-                }}
-            )
-            _notify_applicant_rejected(
-                app, deduction_result['message'], current_user, notifications_coll
-            )
-            flash(f"❌ {deduction_result['message']}. Application rejected.", "error")
-            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+        if not app.get("leaveDeductedAt"):
+            deduction_result = _perform_leave_deduction(app, leave_balances_coll)
+            if not deduction_result["success"]:
+                applications_coll.update_one(
+                    {"_id": app["_id"]},
+                    {"$set": {
+                        "approvalChain": chain,
+                        "status": "rejected",
+                        "updatedAt": datetime.utcnow(),
+                    }}
+                )
+                _notify_applicant_rejected(
+                    app, deduction_result['message'], current_user, notifications_coll
+                )
+                flash(f"❌ {deduction_result['message']}. Application rejected.", "error")
+                return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+        else:
+            deduction_result = {"success": True, "details": {}}
 
-        # If this director step is also the final approval step (same directorate as final approver),
-        # issue receipt and finalize the approval immediately in one go.
-        if user_step.get("is_final_approver") == True:
+        # Check if this step is the final approval step (same directorate as final approver, or final approver reviewing cross-directorate)
+        is_final_approval_step = (
+            user_step.get("is_final_approver") in (True, "true", "True") or
+            (current_user.get("is_final_approver") and user_step.get("role") == "director" and (app.get("directorate") == current_user.get("directorate") or app.get("status") in ("approved", "Approved")))
+        )
+
+        if is_final_approval_step:
             receipt_number = _process_same_directorate_receipt_issuance(
                 app, chain, user_step_index, user_id, current_user, comments,
                 applications_coll, notifications_coll, deduction_result
@@ -1088,9 +1426,10 @@ def approve(app_id):
             return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
         # ══════════════════════════════════════════════════════════════════
-        # AUTO-APPROVE DOWNSTREAM STEPS BASED ON APPLICANT TYPE
+        # LOCAL DIRECTOR APPROVAL (CROSS-DIRECTORATE)
+        # Deduct leave balance and move to Final Approver (Director DOA).
+        # Registry steps remain pending until final approval.
         # ══════════════════════════════════════════════════════════════════
-        notified_steps = []
         final_approver_step = None
         
         for step in chain:
@@ -1098,83 +1437,40 @@ def approve(app_id):
             if step.get("status") != "pending":
                 continue
             
-            # Directorate registry - always auto-approve
-            if step.get("role") == "registry" and step.get("registry_type") == "directorate":
-                step.update({
-                    "status":       "approved",
-                    "comments":     "Automatically approved upon Director's approval",
-                    "timestamp":    datetime.utcnow(),
-                    "approvedBy":   user_id,
-                    "approvedByName": current_user.get("name"),
-                })
-                notified_steps.append(step)
-            
-            # Civilian: is_final_approver (keep pending but notify)
-            elif role_bucket == "civilian" and step.get("is_final_approver") == True:
-                # Do NOT auto-approve. Keep status as pending, but capture for notification
+            # Final Approver step (keep pending but notify) across all role buckets
+            if step.get("is_final_approver") in (True, "true", "True") or step.get("registry_type") == "director_doa":
                 final_approver_step = step
-            
-            # Officer/Deputy Director: Central registry for receipt
-            elif role_bucket in ["officer", "dd"] and step.get("role") == "central_registry":
-                step.update({
-                    "status":       "approved",
-                    "comments":     "Automatically approved upon Director's approval",
-                    "timestamp":    datetime.utcnow(),
-                    "approvedBy":   user_id,
-                    "approvedByName": current_user.get("name"),
-                })
-                notified_steps.append(step)
+                break
 
-        update_op["$set"]["status"]          = "Approved" if (role_bucket == "civilian") else "approved"
-        update_op["$set"]["leaveDeductedAt"] = datetime.utcnow()
-        update_op["$set"]["leaveDeductedBy"] = user_id
-        update_op["$push"] = {
-            "auditTrail": {
-                "action":    "leave_deducted",
-                "by":        user_id,
-                "byName":    current_user.get("fullName"),
-                "timestamp": datetime.utcnow(),
-                "details":   deduction_result.get("details", {}),
+        update_op["$set"]["status"]          = "Approved" if final_approver_step else "approved"
+        if not app.get("leaveDeductedAt"):
+            update_op["$set"]["leaveDeductedAt"] = datetime.utcnow()
+            update_op["$set"]["leaveDeductedBy"] = user_id
+            update_op["$push"] = {
+                "auditTrail": {
+                    "action":    "leave_deducted",
+                    "by":        user_id,
+                    "byName":    current_user.get("fullName"),
+                    "timestamp": datetime.utcnow(),
+                    "details":   deduction_result.get("details", {}),
+                }
             }
-        }
-
-        # Notify each downstream step
-        for step in notified_steps:
-            is_receipt_step = (step.get("role") == "so1_doa") or (step.get("role") == "central_registry")
-            
-            if is_receipt_step:
-                msg = f"Application {app.get('referenceId')} approved by Director. Please issue the leave receipt."
-            else:
-                msg = f"Application {app.get('referenceId')} approved by Director. Please acknowledge receipt of file."
-            
-            notify_pending_approval(app, step, current_user)
-            notifications_coll.insert_one({
-                "type":          "action_required",
-                "applicationId": app["_id"],
-                "referenceId":   app.get("referenceId"),
-                "target":        {"type": "user", "userId": step.get("approverId"), "role": step.get("role")},
-                "message":       msg,
-                "status":        "unread",
-                "readBy":        [],
-                "meta": {
-                    "triggeredBy":     user_id,
-                    "triggeredByName": current_user.get("name"),
-                    "role":            step.get("role"),
-                    "is_receipt_step": is_receipt_step,
-                },
-                "createdAt": datetime.utcnow(),
-                "isActive":  True,
-            })
 
         # Notify final approver if present (Director DOA)
         if final_approver_step:
             msg = f"Application {app.get('referenceId')} approved by Director. Please approve and issue the leave receipt."
             notify_pending_approval(app, final_approver_step, current_user)
+            target_email = final_approver_step.get("approverEmail")
             notifications_coll.insert_one({
                 "type":          "action_required",
                 "applicationId": app["_id"],
                 "referenceId":   app.get("referenceId"),
-                "target":        {"type": "user", "userId": final_approver_step.get("approverId"), "role": final_approver_step.get("role")},
+                "target":        {
+                    "type":   "user",
+                    "userId": target_email or final_approver_step.get("approverId"),
+                    "email":  target_email,
+                    "role":   final_approver_step.get("role")
+                },
                 "message":       msg,
                 "status":        "unread",
                 "readBy":        [],
@@ -1193,6 +1489,18 @@ def approve(app_id):
             "Leave approved. Receipt will be issued shortly.",
             notifications_coll
         )
+
+        # Notify Directorate Registry and Central Registry via Socket.IO
+        try:
+            notify_registries_approval(
+                app=app,
+                current_user=current_user,
+                approver_role="director",
+                receipt_number=None,
+                comments=comments
+            )
+        except Exception as e:
+            print(f"Error notifying registries on Local Director approval: {e}")
 
     else:
         # Not a director step — find next pending step for notification
@@ -1240,32 +1548,31 @@ def approve(app_id):
 def _process_cdsa_receipt_issuance(app, chain, user_id, current_user, comments, applications_coll, notifications_coll, users_coll):
     receipt_number = f"REC-{datetime.utcnow().strftime('%Y%m%d%H%M')}-{str(app['_id'])[-6:]}"
     
+    # Attach receipt to CDSA step
+    for step in chain:
+        if step.get("role") == "cdsa":
+            step["status"] = "approved"
+            step["timestamp"] = datetime.utcnow()
+            step["approvedBy"] = user_id
+            step["approvedByName"] = current_user.get("fullName") or current_user.get("name")
+            step["receipt"] = {
+                "receiptNumber": receipt_number,
+                "issuedDate":    datetime.utcnow(),
+                "issuedBy":      user_id,
+                "issuedByName":  current_user.get("fullName") or current_user.get("name"),
+                "comments":      comments or "Approved and receipt issued by CDSA",
+            }
+            step["acknowledged"] = True
+            step["acknowledgedAt"] = datetime.utcnow()
+            step["acknowledgedBy"] = user_id
+            step["acknowledgedByName"] = current_user.get("fullName") or current_user.get("name")
+
+    # Downstream registry steps (applicant registry and central registry) - only acknowledge
     notified_steps = []
     for step in chain:
-        if step.get("status") != "pending":
-            continue
-        
-        # Auto-approve both registry steps (directorate and central)
         if step.get("role") in ("registry", "central_registry"):
-            step.update({
-                "status":       "approved",
-                "comments":     "Automatically approved upon CDSA's approval",
-                "timestamp":    datetime.utcnow(),
-                "approvedBy":   user_id,
-                "approvedByName": current_user.get("fullName") or current_user.get("name"),
-            })
-            if step.get("role") == "central_registry":
-                step["receipt"] = {
-                    "receiptNumber": receipt_number,
-                    "issuedDate":    datetime.utcnow(),
-                    "issuedBy":      user_id,
-                    "issuedByName":  current_user.get("fullName") or current_user.get("name"),
-                    "comments":      "Automatically issued upon CDSA's approval",
-                }
-                step["acknowledged"] = True
-                step["acknowledgedAt"] = datetime.utcnow()
-                step["acknowledgedBy"] = user_id
-                step["acknowledgedByName"] = current_user.get("fullName") or current_user.get("name")
+            step["acknowledged"] = False
+            step["acknowledgedAt"] = None
             notified_steps.append(step)
 
     # Prepare database update operation
@@ -1279,12 +1586,12 @@ def _process_cdsa_receipt_issuance(app, chain, user_id, current_user, comments, 
         "$push": {
             "auditTrail": {
                 "action":        "receipt_issued",
-                "registry_type": "central_registry",
+                "registry_type": "cdsa",
                 "by":            user_id,
                 "byName":        current_user.get("fullName") or current_user.get("name"),
                 "timestamp":     datetime.utcnow(),
                 "receiptNumber": receipt_number,
-                "comments":      "Automatically issued upon CDSA approval",
+                "comments":      comments or "Receipt issued upon CDSA approval",
             }
         }
     }
@@ -1292,11 +1599,9 @@ def _process_cdsa_receipt_issuance(app, chain, user_id, current_user, comments, 
     # Update the application
     applications_coll.update_one({"_id": app["_id"]}, update_op)
 
-    # Notify each auto-approved step
+    # Notify each registry step
     for step in notified_steps:
-        is_central = (step.get("registry_type") == "central") or (step.get("role") == "central_registry")
-        msg = f"Director application {app.get('referenceId')} approved by CDSA. Please issue the leave receipt." if is_central else f"Director application {app.get('referenceId')} approved by CDSA. Please acknowledge receipt of file."
-        
+        msg = f"Director application {app.get('referenceId')} approved by CDSA and receipt issued. Please acknowledge receipt of file."
         notifications_coll.insert_one({
             "type":          "action_required",
             "applicationId": app["_id"],
@@ -1309,7 +1614,7 @@ def _process_cdsa_receipt_issuance(app, chain, user_id, current_user, comments, 
                 "triggeredBy":     user_id,
                 "triggeredByName": current_user.get("fullName") or current_user.get("name"),
                 "role":            step.get("role"),
-                "is_central":      is_central,
+                "is_receipt_step": False,
             },
             "createdAt": datetime.utcnow(),
             "isActive":  True,
@@ -1393,7 +1698,7 @@ def _process_cdsa_receipt_issuance(app, chain, user_id, current_user, comments, 
     try:
         applicant = users_coll.find_one({"service_number": app.get("applicantId")})
         if not applicant:
-            applicant = current_app.user_collection.find_one(
+            applicant = current_app.users_collection.find_one(
                 {"service_number": app.get("applicantId")}
             )
         if applicant and applicant.get("email"):
@@ -1418,6 +1723,18 @@ def _process_cdsa_receipt_issuance(app, chain, user_id, current_user, comments, 
     except Exception as e:
         print(f"Socket.IO emit failed: {e}")
 
+    # Socket.IO notification to Directorate Registry and Central Registry
+    try:
+        notify_registries_approval(
+            app=app,
+            current_user=current_user,
+            approver_role="cdsa",
+            receipt_number=receipt_number,
+            comments=comments
+        )
+    except Exception as e:
+        print(f"Error notifying registries on CDSA approval: {e}")
+
     return receipt_number
 
 
@@ -1426,6 +1743,7 @@ def _process_same_directorate_receipt_issuance(app, chain, user_step_index, user
     
     # Update the user_step (which is the director step)
     chain[user_step_index]["status"] = "approved"
+    chain[user_step_index]["is_final_approver"] = True
     chain[user_step_index]["timestamp"] = datetime.utcnow()
     chain[user_step_index]["approvedBy"] = user_id
     chain[user_step_index]["approvedByName"] = current_user.get("fullName") or current_user.get("name")
@@ -1442,49 +1760,49 @@ def _process_same_directorate_receipt_issuance(app, chain, user_step_index, user
     chain[user_step_index]["acknowledgedByName"] = current_user.get("fullName") or current_user.get("name")
     
     # Auto-approve downstream steps (directorate registry)
+    # Downstream registry steps (registry and central_registry) - file acknowledgement post-approval
     notified_steps = []
     for step in chain:
-        if step.get("status") == "pending":
-            if step.get("role") == "registry" and step.get("registry_type") == "directorate":
-                step.update({
-                    "status":       "approved",
-                    "comments":     "Automatically approved upon Director's approval",
-                    "timestamp":    datetime.utcnow(),
-                    "approvedBy":   user_id,
-                    "approvedByName": current_user.get("name"),
-                })
-                notified_steps.append(step)
+        if step.get("role") in ("registry", "central_registry"):
+            step["acknowledged"] = False
+            step["acknowledgedAt"] = None
+            notified_steps.append(step)
 
     # Prepare database update operation
+    update_set = {
+        "approvalChain":    chain,
+        "status":           "issued",
+        "receiptNumber":    receipt_number,
+        "updatedAt":        datetime.utcnow(),
+    }
+    
+    audit_entries = []
+    if not app.get("leaveDeductedAt"):
+        update_set["leaveDeductedAt"] = datetime.utcnow()
+        update_set["leaveDeductedBy"] = user_id
+        audit_entries.append({
+            "action":    "leave_deducted",
+            "by":        user_id,
+            "byName":    current_user.get("fullName"),
+            "timestamp": datetime.utcnow(),
+            "details":   deduction_result.get("details", {}) if deduction_result else {},
+        })
+
+    audit_entries.append({
+        "action":        "receipt_issued",
+        "registry_type": "director_doa",
+        "by":            user_id,
+        "byName":        current_user.get("fullName") or current_user.get("name"),
+        "timestamp":     datetime.utcnow(),
+        "receiptNumber": receipt_number,
+        "comments":      comments,
+    })
+
     update_op = {
-        "$set": {
-            "approvalChain":    chain,
-            "status":           "issued",
-            "receiptNumber":    receipt_number,
-            "leaveDeductedAt":  datetime.utcnow(),
-            "leaveDeductedBy":  user_id,
-            "updatedAt":        datetime.utcnow(),
-        },
+        "$set": update_set,
         "$push": {
             "auditTrail": {
-                "$each": [
-                    {
-                        "action":    "leave_deducted",
-                        "by":        user_id,
-                        "byName":    current_user.get("fullName"),
-                        "timestamp": datetime.utcnow(),
-                        "details":   deduction_result.get("details", {}),
-                    },
-                    {
-                        "action":        "receipt_issued",
-                        "registry_type": "director_doa",
-                        "by":            user_id,
-                        "byName":        current_user.get("fullName") or current_user.get("name"),
-                        "timestamp":     datetime.utcnow(),
-                        "receiptNumber": receipt_number,
-                        "comments":      comments,
-                    }
-                ]
+                "$each": audit_entries
             }
         }
     }
@@ -1492,9 +1810,9 @@ def _process_same_directorate_receipt_issuance(app, chain, user_step_index, user
     # Update the application
     applications_coll.update_one({"_id": app["_id"]}, update_op)
 
-    # Notify each auto-approved step (directorate registry)
+    # Notify each registry step
     for step in notified_steps:
-        msg = f"Application {app.get('referenceId')} approved by Director. Please acknowledge receipt of file."
+        msg = f"Application {app.get('referenceId')} approved and receipt {receipt_number} issued. Please acknowledge receipt of file."
         notifications_coll.insert_one({
             "type":          "action_required",
             "applicationId": app["_id"],
@@ -1505,7 +1823,7 @@ def _process_same_directorate_receipt_issuance(app, chain, user_step_index, user
             "readBy":        [],
             "meta": {
                 "triggeredBy":     user_id,
-                "triggeredByName": current_user.get("name"),
+                "triggeredByName": current_user.get("fullName") or current_user.get("name"),
                 "role":            step.get("role"),
                 "is_receipt_step": False,
             },
@@ -1581,7 +1899,7 @@ def _process_same_directorate_receipt_issuance(app, chain, user_step_index, user
     try:
         applicant = users_coll.find_one({"service_number": app.get("applicantId")})
         if not applicant:
-            applicant = current_app.user_collection.find_one(
+            applicant = current_app.users_collection.find_one(
                 {"service_number": app.get("applicantId")}
             )
         if applicant and applicant.get("email"):
@@ -1605,6 +1923,18 @@ def _process_same_directorate_receipt_issuance(app, chain, user_step_index, user
         )
     except Exception as e:
         print(f"Socket.IO emit failed: {e}")
+
+    # Socket.IO notification to Directorate Registry and Central Registry
+    try:
+        notify_registries_approval(
+            app=app,
+            current_user=current_user,
+            approver_role="director",
+            receipt_number=receipt_number,
+            comments=comments
+        )
+    except Exception as e:
+        print(f"Error notifying registries on Director approval: {e}")
 
     return receipt_number
 
@@ -1755,24 +2085,21 @@ def issue_receipt(app_id):
 
     chain = app.get("approvalChain", [])
     user_roles = current_user.get("role", [])
+    if isinstance(user_roles, str):
+        user_roles = [user_roles]
 
-    # Determine which role to look for
-    is_central_registry_user = 'central_registry' in user_roles
-    is_director_doa_user = ('director' in user_roles) and (session.get("is_final_approver") is True)
+    is_director_doa_user = (any('director' in str(r).lower() for r in user_roles) and (session.get("is_final_approver") in (True, "true", "True") or current_user.get("is_final_approver") in (True, "true", "True"))) or session.get("is_final_approver") in (True, "true", "True")
+    is_director_user = any('director' in str(r).lower() for r in user_roles)
 
     user_step_idx = None
-    target_role = None
+    target_role = "director_doa"
 
-    if is_central_registry_user:
-        target_role = "central_registry"
+    if is_director_doa_user or is_director_user:
         for i, s in enumerate(chain):
-            if s.get("role") == "central_registry" and s.get("approverId") == user_id:
+            if (s.get("role") == "director" and s.get("is_final_approver") in (True, "true", "True")) or s.get("is_final_approver") in (True, "true", "True"):
                 user_step_idx = i
                 break
-    elif is_director_doa_user:
-        target_role = "director_doa"
-        for i, s in enumerate(chain):
-            if s.get("role") == "director" and s.get("is_final_approver") == True and s.get("approverId") == user_id:
+            elif s.get("role") == "director" and s.get("approverId") == user_id:
                 user_step_idx = i
                 break
     else:
@@ -1821,6 +2148,14 @@ def issue_receipt(app_id):
     chain[user_step_idx]["acknowledgedBy"] = user_id
     chain[user_step_idx]["acknowledgedByName"] = current_user.get("fullName") or current_user.get("name")
 
+    # Downstream registry steps (registry and central_registry) - file acknowledgement post-approval
+    notified_steps = []
+    for step in chain:
+        if step.get("role") in ("registry", "central_registry"):
+            step["acknowledged"] = False
+            step["acknowledgedAt"] = None
+            notified_steps.append(step)
+
     update_op = {
         "$set": {
             "approvalChain": chain,
@@ -1840,6 +2175,27 @@ def issue_receipt(app_id):
             }
         }
     }
+
+    # Notify each registry step
+    for step in notified_steps:
+        msg = f"Application {app.get('referenceId')} approved and receipt {receipt_number} issued. Please acknowledge receipt of file."
+        notifications_coll.insert_one({
+            "type":          "action_required",
+            "applicationId": app["_id"],
+            "referenceId":   app.get("referenceId"),
+            "target":        {"type": "user", "userId": step.get("approverId"), "role": step.get("role")},
+            "message":       msg,
+            "status":        "unread",
+            "readBy":        [],
+            "meta": {
+                "triggeredBy":     user_id,
+                "triggeredByName": current_user.get("fullName") or current_user.get("name"),
+                "role":            step.get("role"),
+                "is_receipt_step": False,
+            },
+            "createdAt": datetime.utcnow(),
+            "isActive":  True,
+        })
 
     # Notify applicant
     notifications_coll.insert_one({
@@ -1889,8 +2245,8 @@ def issue_receipt(app_id):
                         "is_active":     True
                     })
         
-        # 2. Forward to final approval directorate registry (DOA for Civilians, CDSA for Military)
-        final_dir = "DOA" if app.get("role_bucket") == "civilian" else "CDSA"
+        # 2. Forward to final approval directorate registry (CDSA for Director, DOA for others)
+        final_dir = "CDSA" if app.get("role_bucket") == "director" else "DOA"
         final_registries = list(users_coll.find({
             "directorate": {"$regex": f"^{final_dir}$", "$options": "i"},
             "role": {"$in": ["registry", "central_registry"]}
@@ -1923,7 +2279,7 @@ def issue_receipt(app_id):
         users_coll = current_app.users_collection
         applicant = users_coll.find_one({"service_number": app.get("applicantId")})
         if not applicant:
-            applicant = current_app.user_collection.find_one(
+            applicant = current_app.users_collection.find_one(
                 {"service_number": app.get("applicantId")}
             )
         if applicant and applicant.get("email"):
@@ -1947,6 +2303,18 @@ def issue_receipt(app_id):
         )
     except Exception as e:
         print(f"Socket.IO emit failed: {e}")
+
+    # Socket.IO notification to Directorate Registry and Central Registry
+    try:
+        notify_registries_approval(
+            app=app,
+            current_user=current_user,
+            approver_role="director",
+            receipt_number=receipt_number,
+            comments=comments
+        )
+    except Exception as e:
+        print(f"Error notifying registries on Director receipt issuance: {e}")
 
     applications_coll.update_one({"_id": ObjectId(app_id)}, update_op)
     
@@ -1997,12 +2365,53 @@ def acknowledge(app_id):
 
     chain = app.get("approvalChain", [])
 
-    # Find registry step for this user
+    user_roles = current_user.get("role", [])
+    if isinstance(user_roles, str):
+        user_roles = [user_roles]
+
+    is_central = "central_registry" in user_roles
+    is_dir_reg = "registry" in user_roles
+
+    # Find registry step for this user (handles both directorate registry and central registry)
     user_step_idx = None
+
+    # Pass 1: Prioritize an UNACKNOWLEDGED step that matches user's specific role
     for i, s in enumerate(chain):
-        if s.get("approverId") == user_id and s.get("role") == "registry":
-            user_step_idx = i
-            break
+        if s.get("acknowledged", False):
+            continue
+        role = s.get("role")
+        if is_central and role == "central_registry":
+            if not s.get("approverId") or s.get("approverId") == user_id:
+                user_step_idx = i
+                break
+        elif is_dir_reg and role == "registry":
+            dir_matches = not s.get("directorate") or (s.get("directorate", "").strip().upper() == (current_user.get("directorate") or "").strip().upper())
+            if dir_matches and (not s.get("approverId") or s.get("approverId") == user_id):
+                user_step_idx = i
+                break
+
+    # Pass 2: Fallback to any unacknowledged step matching approverId
+    if user_step_idx is None:
+        for i, s in enumerate(chain):
+            if s.get("acknowledged", False):
+                continue
+            if s.get("role") in ("registry", "central_registry") and s.get("approverId") == user_id:
+                user_step_idx = i
+                break
+
+    # Pass 3: If already acknowledged, find the step for this user
+    if user_step_idx is None:
+        for i, s in enumerate(chain):
+            role = s.get("role")
+            if is_central and role == "central_registry":
+                user_step_idx = i
+                break
+            elif is_dir_reg and role == "registry":
+                user_step_idx = i
+                break
+            elif s.get("role") in ("registry", "central_registry") and s.get("approverId") == user_id:
+                user_step_idx = i
+                break
 
     if user_step_idx is None:
         flash("You have no registry action on this application.", "error")
@@ -2014,16 +2423,13 @@ def acknowledge(app_id):
     if user_step.get("acknowledged", False):
         flash("File has already been acknowledged.", "warning")
         return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
-    
-    # Check if status is approved (should be, but double-check, case-insensitive)
-    if user_step.get("status", "").lower() != "approved":
-        flash(f"Cannot acknowledge: Step status is '{user_step.get('status')}'.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
 
     comments = request.form.get("comments", "").strip()
+    reg_type = user_step.get("registry_type") or ("central" if user_step.get("role") == "central_registry" else "directorate")
 
     # Update the step
     chain[user_step_idx].update({
+        "status":          "approved",
         "acknowledged":    True,
         "acknowledgedAt":  datetime.utcnow(),
         "comments":        comments or "File acknowledged and received for documentation",
@@ -2039,7 +2445,7 @@ def acknowledge(app_id):
         "$push": {
             "auditTrail": {
                 "action":        "file_acknowledged",
-                "registry_type": "directorate",
+                "registry_type": reg_type,
                 "by":            user_id,
                 "byName":        current_user.get("fullName") or current_user.get("name"),
                 "timestamp":     datetime.utcnow(),
@@ -2077,13 +2483,13 @@ def reject(app_id):
         "designation": session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
         "rankOrGrade": session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
         "email": session.get("email"),
-        "is_so_approver": session.get("is_so_approver", False),
-        "is_dd_approver": session.get("is_dd_approver", False),
-        "is_ad_approver": session.get("is_ad_approver", False),
-        "is_final_approver": session.get("is_final_approver", False),
+        "is_so_approver": session.get("is_so_approver", False) or session.get("role") == "so",
+        "is_dd_approver": session.get("is_dd_approver", False) or session.get("role") == "dd",
+        "is_ad_approver": session.get("is_ad_approver", False) or session.get("role") == "ad",
+        "is_final_approver": session.get("is_final_approver", False) or session.get("role") == "director" or 'director' in str(session.get("role", "")),
     }
 
-    print("\n🔍 [REJECT] Current user:", current_user)   # DEBUG
+    print("\n[REJECT] Current user:", current_user)   # DEBUG
 
     if not current_user.get("service_number"):
         flash("Session expired.", "error")
@@ -2093,90 +2499,140 @@ def reject(app_id):
     users_coll = current_app.users_collection
     notifications_coll = current_app.notifications_collection
 
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+
+    def _reject_error(msg, code=400):
+        if is_ajax:
+            return jsonify({"success": False, "message": msg}), code
+        flash(msg, "error")
+        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+
     # ── 2. Fetch application ──────────────────────────────────────────
     try:
         app = applications_coll.find_one({"_id": ObjectId(app_id)})
         if not app:
-            flash("Application not found.", "error")
-            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+            return _reject_error("Application not found.", 404)
     except Exception as e:
-        print(f"❌ Invalid ObjectId: {e}")
-        flash("Invalid application ID.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+        print(f"[REJECT] Invalid ObjectId: {e}")
+        return _reject_error("Invalid application ID.", 400)
 
-    print(f"📄 [REJECT] App status: {app.get('status')}, directorate: {app.get('directorate')}")
+    print(f"[REJECT] App status: {app.get('status')}, directorate: {app.get('directorate')}")
 
     # ── 3. Get approval chain (CRITICAL FIX) ──────────────────────
     chain = app.get("approvalChain", [])
     if not chain:
-        flash("Application has no approval chain.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+        return _reject_error("Application has no approval chain.", 400)
 
     # ── 4. Validate overall status ───────────────────────────────────
-    if app.get("status") != "pending":
-        flash(f"Cannot reject: Application is already {app.get('status')}.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+    if app.get("status", "").lower() not in ("pending", "recommended for approval", "approved"):
+        return _reject_error(f"Cannot reject: Application is already {app.get('status')}.", 400)
+
+    user_email = (current_user.get("email") or session.get("user_email") or "").strip().lower()
+    reliever_email = (app.get("reliever_email") or "").strip().lower()
+    user_sn = (current_user.get("service_number") or session.get("service_number") or "").strip().upper()
+    reliever_sn = (app.get("name_of_reliever") or app.get("director_reliever_service_number") or "").strip().upper()
+
+    # Reliever Guard: Reliever cannot reject
+    if (user_email and user_email == reliever_email) or (user_sn and user_sn == reliever_sn):
+        return _reject_error("Unauthorized: As the assigned reliever for this application, you cannot reject it.", 403)
+
+    # Applicant Guard: Applicant cannot reject own application
+    applicant_id = (app.get("applicantId") or "").strip().upper()
+    if user_sn and user_sn == applicant_id:
+        return _reject_error("Unauthorized: You cannot reject your own application.", 403)
+
+    # Civilian Guard: plain civilians have no approval/rejection privileges
+    user_role = (current_user.get("role") or session.get("role") or "").strip().lower()
+    is_approval_role = session.get("is_approval_role") or current_user.get("is_approval_role") or False
+    if user_role == "civilian" and not is_approval_role:
+        return _reject_error("Unauthorized: Civilian staff do not have approval/rejection permissions.", 403)
 
     user_id = current_user["service_number"]
     user_directorate = current_user["directorate"]
-    is_so_approver = current_user["is_so_approver"]
-    is_ad_approver = current_user["is_ad_approver"]
-    is_dd_approver = current_user["is_dd_approver"]
+    is_so_approver = current_user.get("is_so_approver") in (True, "true", "True") or user_role == "so"
+    is_ad_approver = current_user.get("is_ad_approver") in (True, "true", "True") or user_role == "ad"
+    is_dd_approver = current_user.get("is_dd_approver") in (True, "true", "True") or user_role == "dd"
+    is_final_approver = current_user.get("is_final_approver") in (True, "true", "True") or user_role == "director" or 'director' in user_role
 
     # ── 5. Find the user's pending step ──────────────────────────────
     def find_user_step(chain, user, app):
         """Return (index, step) or (None, None)"""
+        user_ids = [uid for uid in [user.get("service_number"), user.get("email")] if uid]
         for i, step in enumerate(chain):
             if step.get("status") != "pending":
                 continue
 
-            # Direct match by approverId (highest priority)
-            if step.get("approverId") == user["service_number"]:
-                print(f"✅ Direct match: approverId = {step.get('approverId')}")
+            step_role = step.get("role")
+            step_email = (step.get("approverEmail") or "").strip().lower()
+            step_approver_id = (step.get("approverId") or "").strip()
+
+            # Determine role capability
+            role_capable = False
+            if step_role in ("civilian_head_cao", "civilian_head"):
+                role_capable = user_role in ("civilian_head_cao", "civilian_head", "deputy_civilian_head_cao")
+            elif step_role == "so":
+                role_capable = is_so_approver or user_role == "so"
+            elif step_role == "ad":
+                role_capable = is_ad_approver or user_role == "ad"
+            elif step_role == "dd":
+                role_capable = is_dd_approver or user_role == "dd"
+            elif step_role == "director":
+                role_capable = (user_role == "director" or 'director' in user_role or is_final_approver)
+            elif step_role in ("registry", "central_registry"):
+                role_capable = user_role in ("registry", "central_registry") or "registry" in current_user.get("roles", [])
+
+            # Direct match by email with role capability
+            if step_email and user_email and step_email == user_email and role_capable:
+                return i, step
+
+            # Match by approverId ONLY if user is role-capable
+            if step_approver_id and step_approver_id in user_ids and role_capable:
+                return i, step
+
+            if user.get("role") in ("civilian_head_cao", "civilian_head") and step_role in ("civilian_head_cao", "civilian_head"):
+                return i, step
+
+            if is_final_approver and step.get("is_final_approver") in (True, "true", "True"):
                 return i, step
 
             # Role‑based matching (only for roles with flags)
-            if is_so_approver and step.get("role") == "so" and app.get("directorate") == user["directorate"]:
-                print(f"✅ SO role match: {step.get('role')}")
+            if is_so_approver and step_role == "so" and (app.get("directorate") == user["directorate"] or not app.get("directorate")):
                 return i, step
-            if is_ad_approver and step.get("role") == "ad" and app.get("directorate") == user["directorate"]:
-                print(f"✅ AD role match: {step.get('role')}")
+            if is_ad_approver and step_role == "ad" and (app.get("directorate") == user["directorate"] or not app.get("directorate")):
                 return i, step
-            if is_dd_approver and step.get("role") == "dd" and app.get("directorate") == user["directorate"]:
-                print(f"✅ DD role match: {step.get('role')}")
+            if is_dd_approver and step_role == "dd" and (app.get("directorate") == user["directorate"] or not app.get("directorate")):
+                return i, step
+            if (user.get("role") == "director" or 'director' in str(user.get("role", ""))) and step_role == "director" and (app.get("directorate") == user["directorate"] or not app.get("directorate")):
                 return i, step
 
         return None, None
 
     user_step_index, user_step = find_user_step(chain, current_user, app)
-    print(f"🔎 user_step_index = {user_step_index}, user_step = {user_step}")
+    print(f"[REJECT] user_step_index = {user_step_index}, user_step = {user_step}")
 
     if user_step_index is None:
-        flash("This application is not waiting for your action.", "error")
-        return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+        return _reject_error("This application is not waiting for your action.", 400)
 
     # ── 6. Ensure all previous steps are approved/recommended ──────
     for i in range(user_step_index):
         if chain[i]["status"] not in ("approved", "Recommended for Approval"):
-            flash("Cannot reject: Previous approvals are still pending.", "error")
-            return redirect(url_for('approver_dashboard.dashboard_leave_pass'))
+            return _reject_error("Cannot reject: Previous approvals are still pending.", 400)
 
     # ── 7. Handle POST (actual rejection) ─────────────────────────
     if request.method == 'POST':
         comments = request.form.get('comments', '').strip()
-        print(f"🔍 DEBUG: Received comments = '{comments}' (length: {len(comments)})")
+        print(f"[REJECT] DEBUG: Received comments = '{comments}' (length: {len(comments)})")
 
         if not comments:
-            flash("Comments are required for rejection.", "error")  # ← Better error message
-            return redirect(url_for('approver_dashboard.view_application', app_id=app_id))
+            return _reject_error("Comments are required for rejection.", 400)
 
         # ── Check if leave was already deducted (case‑insensitive) ──
         current_status = app.get("status", "").lower()
         is_leave_deducted = current_status in ("issued", "approved")
-        print(f"💰 is_leave_deducted = {is_leave_deducted} (status = {current_status})")
+        print(f"[REJECT] is_leave_deducted = {is_leave_deducted} (status = {current_status})")
 
         if is_leave_deducted:
-            print(f"⚠️ Rejecting after leave deducted for {app.get('referenceId')}")
+            print(f"[REJECT] Warning: Rejecting after leave deducted for {app.get('referenceId')}")
             try:
                 from .leave_helper import refund_leave_balance
                 refund_success = refund_leave_balance(
@@ -2331,14 +2787,20 @@ def calendar_days_between(start_date, end_date):
 @approver_dashboard.route('/view/<string:app_id>')
 def view_application(app_id):
 
+    user_roles = session.get("roles") or ([session.get("role")] if session.get("role") else [])
     current_user = {
-        "service_number": session.get("service_number"),
-        "name":           session.get("name"),
-        "directorate":     session.get("directorate"),
-        "role":            session.get("role"),
-        "designation":     session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
-        "rankOrGrade":     session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
-        "email":           session.get("email")
+        "service_number":   session.get("service_number"),
+        "name":             session.get("name"),
+        "directorate":      session.get("directorate"),
+        "role":             session.get("role"),
+        "roles":            user_roles,
+        "designation":      session.get("appt") or session.get("onboarding_data", {}).get("step_1", {}).get("appt"),
+        "rankOrGrade":      session.get("rankOrGrade") or session.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
+        "email":            session.get("email"),
+        "is_so_approver":   session.get("is_so_approver", False) or session.get("role") == "so",
+        "is_dd_approver":   session.get("is_dd_approver", False) or session.get("role") == "dd",
+        "is_ad_approver":   session.get("is_ad_approver", False) or session.get("role") == "ad",
+        "is_final_approver": session.get("is_final_approver", False) or session.get("role") == "director" or 'director' in str(session.get("role", "")),
     }
 
     # Read which listing page the user came from
@@ -2404,6 +2866,7 @@ def view_application(app_id):
     return render_template('application_detail.html', 
                            application=app, 
                            user=current_user,
+                           role=current_user.get('role'),
                            permissions=user_allowed_features,  
                            active_page=came_from
                            )
@@ -2793,7 +3256,7 @@ def download_receipt(app_id):
                 print(f"Error adding logo: {e}")
         
         # Header
-        story.append(Paragraph("DIRECTORATE OF ADMINISTRATION (DOA)", title_style))
+        story.append(Paragraph("DEFENCE SPACE ADMINISTRATION", title_style))
         story.append(Paragraph("LEAVE/PASS APPROVAL", subtitle_style))
         
         # Receipt number box

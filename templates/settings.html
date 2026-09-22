@@ -553,7 +553,7 @@
               <span class="status-badge badge-not-set">✘ No signing password set yet</span>
               {% endif %}
 
-              <form action="{{ url_for('setting_routes.set_signing_password') }}" method="POST">
+              <form id="signingPasswordForm" action="{{ url_for('setting_routes.set_signing_password') }}" method="POST" onsubmit="return validateSigningPasswordForm(event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="form-group">
@@ -624,7 +624,7 @@
             </div>
 
             <!-- Panel 6: Delegation -->
-            {% if user_detail.role in ['cdsa', 'director', 'deputy_director'] %}
+            {% if user_detail.role in ['cdsa', 'director', 'dd'] %}
             <div class="settings-panel" id="panel-delegation">
               <h2 class="panel-title">Delegation & Out of Office Settings</h2>
               <p class="panel-desc">Assign a delegate officer to receive and approve documents in your queue while you
@@ -682,18 +682,89 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="{{ url_for('static', filename='main.js') }}"></script>
   <script>
+    let statusModalCallback = null;
+
+    window.showStatusModal = function(type, title, message, callback = null) {
+      const modal = document.getElementById('statusModal');
+      const iconSuccess = document.getElementById('modalIconSuccess');
+      const iconError = document.getElementById('modalIconError');
+      const titleEl = document.getElementById('modalStatusTitle');
+      const msgEl = document.getElementById('modalStatusMessage');
+
+      if (!modal) return;
+
+      statusModalCallback = callback;
+
+      if (type === 'success') {
+        iconSuccess.style.display = 'flex';
+        iconError.style.display = 'none';
+        titleEl.textContent = title || 'Success';
+      } else {
+        iconSuccess.style.display = 'none';
+        iconError.style.display = 'flex';
+        titleEl.textContent = title || 'Unsuccessful';
+      }
+
+      msgEl.textContent = message || '';
+      modal.style.display = 'flex';
+    };
+
+    window.closeStatusModal = function() {
+      const modal = document.getElementById('statusModal');
+      if (modal) modal.style.display = 'none';
+      if (typeof statusModalCallback === 'function') {
+        const cb = statusModalCallback;
+        statusModalCallback = null;
+        cb();
+      }
+    };
+
+    window.addEventListener('click', function (e) {
+      const modal = document.getElementById('statusModal');
+      if (modal && e.target === modal) {
+        closeStatusModal();
+      }
+    });
+
     function switchPanel(panelId) {
       // Toggle nav buttons active style
       document.querySelectorAll('.settings-nav-btn').forEach(btn => {
         btn.classList.remove('active');
       });
-      document.getElementById(`nav-${panelId}`).classList.add('active');
+      const navBtn = document.getElementById(`nav-${panelId}`);
+      if (navBtn) navBtn.classList.add('active');
 
       // Toggle content panels
       document.querySelectorAll('.settings-panel').forEach(panel => {
         panel.classList.remove('active');
       });
-      document.getElementById(`panel-${panelId}`).classList.add('active');
+      const targetPanel = document.getElementById(`panel-${panelId}`);
+      if (targetPanel) targetPanel.classList.add('active');
+    }
+
+    function validateSigningPasswordForm(e) {
+      const form = document.getElementById('signingPasswordForm');
+      if (!form) return true;
+      const currentPass = (form.querySelector('input[name="current_password"]')?.value || '').trim();
+      const newPass = (form.querySelector('input[name="new_signing_password"]')?.value || '').trim();
+      const confirmPass = (form.querySelector('input[name="confirm_signing_password"]')?.value || '').trim();
+
+      if (!currentPass) {
+        e.preventDefault();
+        showStatusModal('error', 'Unsuccessful', 'Please enter your current login password.');
+        return false;
+      }
+      if (newPass.length < 4) {
+        e.preventDefault();
+        showStatusModal('error', 'Unsuccessful', 'Signing password must be at least 4 characters.');
+        return false;
+      }
+      if (newPass !== confirmPass) {
+        e.preventDefault();
+        showStatusModal('error', 'Unsuccessful', 'Signing passwords do not match.');
+        return false;
+      }
+      return true;
     }
 
     // ── Canvas Signature Drawing Logic ──
@@ -749,14 +820,15 @@
 
         // Reset styles
         passwordInput.style.borderColor = '#d1d5db';
-        passwordError.style.display = 'none';
-        passwordError.textContent = '';
+        if (passwordError) {
+          passwordError.style.display = 'none';
+          passwordError.textContent = '';
+        }
 
         if (!password) {
           passwordInput.style.borderColor = '#dc2626';
-          passwordError.textContent = 'Please enter your signing password.';
-          passwordError.style.display = 'block';
           passwordInput.focus();
+          showStatusModal('error', 'Unsuccessful', 'Please enter your signing password before saving signature.');
           return;
         }
 
@@ -766,8 +838,7 @@
           .data.some(channel => channel !== 0);
 
         if (isEmpty) {
-          passwordError.textContent = 'Please draw your signature first.';
-          passwordError.style.display = 'block';
+          showStatusModal('error', 'Unsuccessful', 'Please draw or import your signature first.');
           return;
         }
 
@@ -800,27 +871,19 @@
             const preview = document.getElementById('savedSigPreview');
             if (preview) {
               preview.src = dataURL;
-            } else {
-              window.location.reload();
             }
-
-            document.getElementById('sig-save-msg').style.display = 'block';
             passwordInput.value = '';
-            setTimeout(() => {
-              document.getElementById('sig-save-msg').style.display = 'none';
-              window.location.reload(); // Reload page to sync signature badges
-            }, 1500);
-
+            showStatusModal('success', 'Success', result.message || 'Signature saved successfully!', function() {
+              window.location.reload();
+            });
           } else {
             passwordInput.style.borderColor = '#dc2626';
-            passwordError.textContent = result.message || 'Incorrect signing password or save failed.';
-            passwordError.style.display = 'block';
+            showStatusModal('error', 'Unsuccessful', result.message || 'Incorrect signing password or failed to save signature.');
           }
 
         } catch (err) {
           console.error('Save signature error:', err);
-          passwordError.textContent = 'Network error. Please try again.';
-          passwordError.style.display = 'block';
+          showStatusModal('error', 'Unsuccessful', 'A network error occurred. Please try again.');
         }
       }
 
@@ -832,7 +895,7 @@
           if (!file) return;
 
           if (!file.type.startsWith('image/')) {
-            alert('Please select a valid image file.');
+            showStatusModal('error', 'Unsuccessful', 'Please select a valid image file (PNG, JPG, JPEG).');
             return;
           }
 
@@ -861,6 +924,84 @@
       }
     }
   </script>
+
+  <!-- Generic Status Modal (Success / Unsuccessful) -->
+  <div id="statusModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:99999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:14px; padding:28px; width:450px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); font-family:'Inter', 'Poppins', sans-serif; text-align:center; position:relative;">
+      
+      <!-- Success Icon -->
+      <div id="modalIconSuccess" style="display:none; width:60px; height:60px; background:#dcfce7; color:#15803d; border-radius:50%; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px; font-weight:bold;">
+        ✔
+      </div>
+      
+      <!-- Error/Unsuccessful Icon -->
+      <div id="modalIconError" style="display:none; width:60px; height:60px; background:#fee2e2; color:#b91c1c; border-radius:50%; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px; font-weight:bold;">
+        ✖
+      </div>
+
+      <!-- Title -->
+      <h3 id="modalStatusTitle" style="margin:0 0 10px 0; font-size:1.18rem; color:#111827; font-weight:700;">
+        Notification
+      </h3>
+
+      <!-- Message Body -->
+      <p id="modalStatusMessage" style="font-size:0.92rem; color:#374151; margin-bottom:24px; line-height:1.5;">
+        Message text here
+      </p>
+
+      <!-- OK Button -->
+      <button type="button" id="modalStatusOkBtn" onclick="closeStatusModal()" style="background:#0d1b45; color:white; border:none; padding:11px 24px; border-radius:8px; font-size:0.92rem; font-weight:600; cursor:pointer; width:100%; transition:background 0.2s;">
+        OK
+      </button>
+    </div>
+  </div>
+
+  <!-- Flashed Messages Handler -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          {% for category, message in messages %}
+            {% if loop.first %}
+              const msg = {{ message|tojson }};
+              const cat = {{ category|tojson }};
+              
+              // Switch to appropriate tab based on message content
+              if (msg.toLowerCase().includes('signing password')) {
+                switchPanel('signing');
+              } else if (msg.toLowerCase().includes('signature')) {
+                switchPanel('signature');
+              } else if (msg.toLowerCase().includes('password')) {
+                switchPanel('security');
+              } else if (msg.toLowerCase().includes('profile')) {
+                switchPanel('profile');
+              } else if (msg.toLowerCase().includes('delegation')) {
+                switchPanel('delegation');
+              } else if (msg.toLowerCase().includes('preference')) {
+                switchPanel('preferences');
+              }
+
+              if (cat === 'success') {
+                showStatusModal('success', 'Success', msg);
+              } else {
+                showStatusModal('error', 'Unsuccessful', msg);
+              }
+            {% endif %}
+          {% endfor %}
+        });
+      </script>
+    {% endif %}
+  {% endwith %}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && document.getElementById(`nav-${hash}`)) {
+        switchPanel(hash);
+      }
+    });
+  </script>
+
   <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
 </body>
 

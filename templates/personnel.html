@@ -56,6 +56,38 @@
           <button type="button" class="tab-btn" data-category="nysc">NYSC</button>
         </div>
 
+        {% if active_page == 'personnel_approved' %}
+        <!-- Directorate Filter Dropdown -->
+        <div class="directorate-filter-container" style="display: flex; align-items: center; gap: 8px;">
+          <label for="directorateFilter" style="font-size: 13.5px; font-weight: 600; color: #4a5568;">Directorate:</label>
+          <select id="directorateFilter" style="padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 13.5px; background: #ffffff; color: #1a202c; outline: none; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: border-color 0.2s; cursor: pointer;">
+            <option value="all">All Directorates</option>
+            {% set clean_role = (user.role or '') | lower | replace('_', '') | replace(' ', '') %}
+            {% set is_global_scope = (clean_role in ['superadmin', 'cdsa', 'dcdsa']) or (clean_role in ['director', 'registry'] and user.directorate | lower == 'doa') %}
+            
+            {% if is_global_scope %}
+              {% set all_dirs = ['DOA', 'DCS', 'DNPT', 'DFA', 'DLSO', 'DEO', 'DCYBER', 'DPPR', 'DLOG', 'DELSPACE'] %}
+              {% set unique_dirs = [] %}
+              {% for d in all_dirs %}
+                {% if d.upper() not in unique_dirs %}
+                  {% set _ = unique_dirs.append(d.upper()) %}
+                {% endif %}
+              {% endfor %}
+              {% for staff in personnel %}
+                {% if staff.directorate and staff.directorate.upper() not in unique_dirs %}
+                  {% set _ = unique_dirs.append(staff.directorate.upper()) %}
+                {% endif %}
+              {% endfor %}
+              {% for dir in unique_dirs | sort %}
+                <option value="{{ dir | lower }}">{{ dir }}</option>
+              {% endfor %}
+            {% else %}
+              <option value="{{ user.directorate | lower }}">{{ user.directorate | upper }}</option>
+            {% endif %}
+          </select>
+        </div>
+        {% endif %}
+
         <!-- Universal Live Search Bar -->
         <div style="position: relative; flex-grow: 1; max-width: 420px; min-width: 250px;">
           <input type="text" id="personnelSearchInput" placeholder=" Search any detail (Name, SN, Rank, Directorate...)"
@@ -104,7 +136,7 @@
             {% set search_data = (staff.service_number or '') ~ ' ' ~ (staff.name or '') ~ ' ' ~ (staff.email or '') ~ '
             ' ~ (staff.directorate or '') ~ ' ' ~ staff_cat ~ ' ' ~ rank_val ~ ' ' ~ appt_val ~ ' ' ~ cur_status %}
 
-            <tr class="personnel-row" data-category="{{ staff_cat }}" data-search="{{ search_data | lower }}">
+            <tr class="personnel-row" data-category="{{ staff_cat }}" data-directorate="{{ (staff.directorate or '') | lower | trim }}" data-search="{{ search_data | lower }}">
               <td><input type="checkbox" class="row-checkbox" /></td>
               <td class="text-bold">{{ staff.service_number }}</td>
               <td class="text">{{ staff.name }}</td>
@@ -488,8 +520,10 @@
       const tabButtons = document.querySelectorAll(".category-tabs .tab-btn");
       const tableRows = document.querySelectorAll(".personnel-row");
       const tableBody = document.getElementById("personnelTableBody");
+      const dirFilterSelect = document.getElementById("directorateFilter");
 
       let activeCategory = "all";
+      let activeDirectorate = "all";
 
       function filterPersonnelTable() {
         const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
@@ -497,15 +531,19 @@
 
         tableRows.forEach(row => {
           const rowCat = (row.dataset.category || "").toLowerCase();
+          const rowDir = (row.dataset.directorate || "").toLowerCase();
           const rowSearchData = (row.dataset.search || row.textContent || "").toLowerCase();
 
           // Category match rule
           const categoryMatch = (activeCategory === "all") || (rowCat === activeCategory);
 
+          // Directorate match rule
+          const directorateMatch = (activeDirectorate === "all") || (rowDir === activeDirectorate);
+
           // Search query match rule
           const searchMatch = !query || rowSearchData.includes(query);
 
-          if (categoryMatch && searchMatch) {
+          if (categoryMatch && directorateMatch && searchMatch) {
             row.style.display = "";
             visibleCount++;
           } else {
@@ -516,19 +554,22 @@
         // Dynamic Empty State Display
         let emptyRow = document.getElementById("emptyFilterStateRow");
         if (visibleCount === 0 && tableRows.length > 0) {
+          const catText = activeCategory.toUpperCase();
+          const dirText = activeDirectorate.toUpperCase();
+          const searchMsg = query ? ` and search query "${query}"` : "";
           if (!emptyRow) {
             emptyRow = document.createElement("tr");
             emptyRow.id = "emptyFilterStateRow";
             emptyRow.innerHTML = `
               <td colspan="8" style="text-align: center; color: #718096; padding: 35px; font-style: italic;">
-                🔍 No personnel records match the category "${activeCategory.toUpperCase()}" and search query "${query}".
+                🔍 No personnel records match Category: "${catText}", Directorate: "${dirText}"${searchMsg}.
               </td>
             `;
             tableBody.appendChild(emptyRow);
           } else {
             emptyRow.innerHTML = `
               <td colspan="8" style="text-align: center; color: #718096; padding: 35px; font-style: italic;">
-                🔍 No personnel records match the category "${activeCategory.toUpperCase()}" and search query "${query}".
+                🔍 No personnel records match Category: "${catText}", Directorate: "${dirText}"${searchMsg}.
               </td>
             `;
             emptyRow.style.display = "";
@@ -547,6 +588,14 @@
           filterPersonnelTable();
         });
       });
+
+      // Directorate Select Listener
+      if (dirFilterSelect) {
+        dirFilterSelect.addEventListener("change", (e) => {
+          activeDirectorate = e.target.value;
+          filterPersonnelTable();
+        });
+      }
 
       // Search Bar Input Listener
       if (searchInput) {

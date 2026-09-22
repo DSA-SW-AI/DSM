@@ -233,7 +233,7 @@
                         {% endif %}
                       </div>
                     </td>
-                    <td>{{ app.startDate.strftime('%d %b %Y') }} – {{ app.endDate.strftime('%d %b %Y') }}</td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and app.endDate.strftime else (app.endDate or 'N/A') }}</td>
                     <td>{{ app.numberOfDays }}</td>
                     <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
                     <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago
@@ -335,7 +335,7 @@
                         {% endif %}
                       </div>
                     </td>
-                    <td>{{ app.startDate.strftime('%d %b %Y') }} – {{ app.endDate.strftime('%d %b %Y') }}</td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and app.endDate.strftime else (app.endDate or 'N/A') }}</td>
                     <td>{{ app.numberOfDays }}</td>
                     <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
                     <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago
@@ -429,7 +429,7 @@
                         </div>
                       </div>
                     </td>
-                    <td>{{ app.startDate.strftime('%d %b %Y') }} – {{ app.endDate.strftime('%d %b %Y') }}</td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and app.endDate.strftime else (app.endDate or 'N/A') }}</td>
                     <td>{{ app.numberOfDays }}</td>
                     <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
                     <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago

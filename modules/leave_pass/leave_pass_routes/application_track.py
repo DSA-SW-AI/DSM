@@ -327,7 +327,7 @@ def get_step_description(step):
             return "Awaiting Civilian HOD approval"
         elif role == "officer":
             return "Awaiting Officer approval"
-        elif role == "deputy_director":
+        elif role == "dd":
             return "Awaiting Deputy Director approval"
         elif role == "director":
             return "Awaiting Director approval"

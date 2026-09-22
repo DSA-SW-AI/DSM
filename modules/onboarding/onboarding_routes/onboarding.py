@@ -45,12 +45,29 @@ def personnel_view():
     is_global_scope = (user_role_clean in ['cdsa', 'dcdsa']) or (user_role_clean in ['director', 'registry'] and user_dir_clean == 'DOA')
 
     if is_global_scope:
-        personnel_list = list(db.users.find({"role": {"$nin": ["cdsa", "dcdsa"]}}).sort("_id", -1))
+        query = {"role": {"$nin": ["cdsa", "dcdsa"]}}
     else:
-        personnel_list = list(db.users.find({
+        query = {
             "directorate": {"$regex": f"^{user_dir_clean}$", "$options": "i"},
             "role": {"$nin": ["cdsa", "dcdsa"]}
-        }).sort("_id", -1))
+        }
+
+    status_filter = request.args.get('filter', '').strip().lower()
+    active_page = 'personnel'
+    if status_filter == 'pending':
+        active_page = 'personnel_pending'
+        query["$or"] = [
+            {"status": {"$in": ["Pending Onboarding", "Awaiting Approval"]}},
+            {"status": {"$exists": False}}
+        ]
+    elif status_filter == 'approved':
+        active_page = 'personnel_approved'
+        query["status"] = "Approved"
+
+    if status_filter == 'approved':
+        personnel_list = list(db.users.find(query).sort([("directorate", 1), ("_id", -1)]))
+    else:
+        personnel_list = list(db.users.find(query).sort("_id", -1))
 
     # Construct the exact data layout payload structure expected by personnel.html
     ui_user_profile = {
@@ -70,7 +87,8 @@ def personnel_view():
         user=ui_user_profile,
         permissions=user_allowed_features,
         personnel=personnel_list,
-        role_permissions=ROLE_PERMISSIONS
+        role_permissions=ROLE_PERMISSIONS,
+        active_page=active_page
     )
 
 
@@ -273,6 +291,18 @@ def resend_pending_emails():
         return jsonify({"status": "error", "sent_count": 0, "failed_count": failed_count, "message": "Internet/GovMail gateway unavailable. Could not send emails. Verify server network connection."}), 400
 
 
+def sanitize_for_json(data):
+    if isinstance(data, dict):
+        return {k: sanitize_for_json(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_for_json(item) for item in data]
+    elif isinstance(data, ObjectId):
+        return str(data)
+    elif isinstance(data, (datetime.date, datetime.datetime)):
+        return data.isoformat()
+    return data
+
+
 @onboarding_routes.route('/onboarding')
 def onboarding_portal():
     if 'user_email' not in session:
@@ -296,7 +326,14 @@ def onboarding_portal():
     username_part = email_string.split('@')[0]
     generated_file_no = username_part.replace('_', '/').upper()
 
-    # Split full name back into surname and firstname
+    onboarding_data = user_data.get("onboarding_data", {})
+    if not isinstance(onboarding_data, dict):
+        onboarding_data = {}
+    step_1_data = onboarding_data.get("step_1", {})
+    if not isinstance(step_1_data, dict):
+        step_1_data = {}
+
+    # Split full name back into surname and firstname, prioritizing step_1 saved details if present
     name_str = user_data.get("name", "").strip()
     name_parts = name_str.split()
     if len(name_parts) >= 2:
@@ -309,32 +346,72 @@ def onboarding_portal():
         surname = ""
         firstname = ""
 
+    # Prefer step_1 overrides if previously populated
+    surname = step_1_data.get("surname") or user_data.get("surname") or surname
+    firstname = step_1_data.get("firstName") or user_data.get("firstname") or firstname
+    middlename = step_1_data.get("middleName") or user_data.get("middlename") or ""
+
+    user_cat = str(user_data.get("category", "civilian")).strip().lower()
+    if user_cat in ['it', 'nysc']:
+        valid_steps = [1, 3, 4]
+    elif user_cat == 'military':
+        valid_steps = [1, 3, 4, 5]
+    else:
+        valid_steps = [1, 2, 3, 4, 5]
+
+    # Evaluate completed milestones
+    completed_steps = {}
+    for s in [1, 2, 3, 4, 5]:
+        s_data = onboarding_data.get(f"step_{s}", {})
+        is_done = False
+        if isinstance(s_data, dict) and len(s_data) > 0:
+            if s == 3:
+                is_done = bool(s_data.get("id_card_status") or onboarding_data.get("step_3_completed"))
+            else:
+                is_done = True
+        completed_steps[str(s)] = is_done
+
+    # Determine resume_step (the first uncompleted step in the user's category pipeline)
+    has_any_completed = any(completed_steps.get(str(s)) for s in valid_steps)
+    resume_step = 0
+    if has_any_completed:
+        for s in valid_steps:
+            if not completed_steps.get(str(s)):
+                resume_step = s
+                break
+        if resume_step == 0:
+            resume_step = valid_steps[-1]
+
     ui_user_profile = {
         "email": user_data.get("email"),
         "name": user_data.get("name", "NEW USER"),
         "role": user_data.get("role", "civilian"),
-        "category": user_data.get("category", "civilian"), # Default for missing legacy accounts
+        "category": user_cat,
         "directorate": str(user_data.get("directorate", "DOA")).upper(),
         "file_no": generated_file_no,
         "training_request_active": user_data.get("training_request_active", False),
-        "appt": user_data.get("appt") or user_data.get("onboarding_data", {}).get("step_1", {}).get("appt"),
-        "rankOrGrade": user_data.get("rankOrGrade") or user_data.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade"),
-        "middlename": user_data.get("middlename"),
-        "firstname": user_data.get("firstname"),
+        "appt": step_1_data.get("appt") or user_data.get("appt") or "",
+        "rankOrGrade": step_1_data.get("rankOrGrade") or user_data.get("rankOrGrade") or "",
+        "middlename": middlename,
+        "firstname": firstname,
         "service_number": user_data.get("service_number"),
-
+        "is_onboarded": user_data.get("is_onboarded", False),
+        "status": status,
     }
 
-
-    import datetime
     current_time = datetime.datetime.now().strftime("%A, %d %B %Y")
+    sanitized_onboarding_data = sanitize_for_json(onboarding_data)
 
     return render_template(
         'onboarding.html', 
         user=ui_user_profile, 
         current_time=current_time,
         surname=surname,
-        firstname=firstname
+        firstname=firstname,
+        onboarding_data=sanitized_onboarding_data,
+        completed_steps=completed_steps,
+        resume_step=resume_step,
+        active_page='onboarding'
     )
 
 
@@ -342,7 +419,56 @@ def onboarding_portal():
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# app.py - Replace your submission endpoint with this updated version
+
+@onboarding_routes.route('/get-my-onboarding-data')
+def get_my_onboarding_data():
+    if 'user_email' not in session:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    user_data = db.users.find_one({"email": session['user_email']})
+    if not user_data:
+        return jsonify({"status": "error", "message": "User not found"}), 404
+
+    onboarding_data = user_data.get("onboarding_data", {})
+    if not isinstance(onboarding_data, dict):
+        onboarding_data = {}
+
+    user_cat = str(user_data.get("category", "civilian")).strip().lower()
+    if user_cat in ['it', 'nysc']:
+        valid_steps = [1, 3, 4]
+    elif user_cat == 'military':
+        valid_steps = [1, 3, 4, 5]
+    else:
+        valid_steps = [1, 2, 3, 4, 5]
+
+    completed_steps = {}
+    for s in [1, 2, 3, 4, 5]:
+        s_data = onboarding_data.get(f"step_{s}", {})
+        is_done = False
+        if isinstance(s_data, dict) and len(s_data) > 0:
+            if s == 3:
+                is_done = bool(s_data.get("id_card_status") or onboarding_data.get("step_3_completed"))
+            else:
+                is_done = True
+        completed_steps[str(s)] = is_done
+
+    has_any_completed = any(completed_steps.get(str(s)) for s in valid_steps)
+    resume_step = 0
+    if has_any_completed:
+        for s in valid_steps:
+            if not completed_steps.get(str(s)):
+                resume_step = s
+                break
+        if resume_step == 0:
+            resume_step = valid_steps[-1]
+
+    return jsonify({
+        "status": "success",
+        "category": user_cat,
+        "onboarding_data": sanitize_for_json(onboarding_data),
+        "completed_steps": completed_steps,
+        "resume_step": resume_step
+    }), 200
+
 
 @onboarding_routes.route('/submit-onboarding-step', methods=['POST'])
 def submit_onboarding_step():
@@ -355,12 +481,20 @@ def submit_onboarding_step():
     if not user_data:
         return jsonify({"status": "error", "message": "User document not found"}), 404
         
-    step_data = {}
-    
     # 2. HYBRID ENGINE: Check if incoming request contains Form Files or standard JSON data
+    existing_onboarding = user_data.get("onboarding_data", {})
+    if not isinstance(existing_onboarding, dict):
+        existing_onboarding = {}
+
     if request.content_type and 'multipart/form-data' in request.content_type:
         # --- HANDLE STEP 1 (File Uploads & Text Fields) ---
         step = int(request.form.get('step', 1))
+        existing_step_data = existing_onboarding.get(f"step_{step}", {})
+        if not isinstance(existing_step_data, dict):
+            existing_step_data = {}
+
+        # Preserve previously saved fields and files to avoid destructive overwrites
+        step_data = dict(existing_step_data)
         
         raw_rank = request.form.get('rankOrGrade', '')
         if raw_rank and "grade level" in raw_rank.lower():
@@ -370,15 +504,22 @@ def submit_onboarding_step():
         else:
             normalized_rank = raw_rank.title().strip() if raw_rank else ''
 
-        # Extract text field datasets cleanly
-        step_data = {
-            "staffTitle": request.form.get('staffTitle'),
-            "appt": request.form.get('appt') or request.form.get('appointment'),
-            "phoneNo": request.form.get('phoneNo') or request.form.get('phone'),
-            "rankOrGrade": normalized_rank
-        }
+        # Extract all form input fields cleanly
+        for key, val in request.form.items():
+            if key not in ['step']:
+                str_val = str(val).strip()
+                if str_val:
+                    step_data[key] = str_val
+
+        if normalized_rank:
+            step_data["rankOrGrade"] = normalized_rank
+        if request.form.get('appt') or request.form.get('appointment'):
+            step_data["appt"] = request.form.get('appt') or request.form.get('appointment')
+        if request.form.get('phoneNo') or request.form.get('phone'):
+            step_data["phoneNo"] = request.form.get('phoneNo') or request.form.get('phone')
 
         # Extract and save physical file attachments safely into MongoDB GridFS
+        # Only overwrite file keys where an actual new non-empty file was submitted
         for key in request.files:
             file = request.files[key]
             if file and file.filename != '':
@@ -392,57 +533,90 @@ def submit_onboarding_step():
                         "upload_date": datetime.datetime.utcnow()
                     }
                 )
-                
-                # Store the GridFS attachment url path inside onboarding_data
                 step_data[key] = f"/attachment/{str(file_id)}"
 
     else:
-        # --- HANDLE STEPS 2, 3, & 4 (Standard JSON payloads) ---
+        # --- HANDLE STEPS 2, 3, 4, & 5 (Standard JSON payloads) ---
         json_payload = request.get_json()
         if not json_payload:
             return jsonify({"status": "error", "message": "Missing request footprint dataset"}), 400
             
         step = int(json_payload.get('step'))
-        step_data = json_payload.get('formData', {})
+        existing_step_data = existing_onboarding.get(f"step_{step}", {})
+        if not isinstance(existing_step_data, dict):
+            existing_step_data = {}
+
+        step_data = dict(existing_step_data)
+        incoming_form_data = json_payload.get('formData', {})
+        if isinstance(incoming_form_data, dict):
+            step_data.update(incoming_form_data)
 
     # 3. Guard validation checking rule
     if not step:
         return jsonify({"status": "error", "message": "Invalid step tracker parameter configuration"}), 400
+
+    if step == 3:
+        step_data["id_card_status"] = "GENERATED_AND_VERIFIED"
+        step_data["verified_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     if step == 5 and "gender" in step_data:
         raw_gender = step_data.get("gender") or ""
         step_data["gender"] = raw_gender.title().strip()
 
     # 4. DATABASE TRANSACTIONS: Map values inside your 'DSM' users collection document node
-    update_node_query = {f"onboarding_data.step_{step}": step_data}
+    update_node_query = {
+        f"onboarding_data.step_{step}": step_data,
+        f"onboarding_data.step_{step}_completed": True,
+        f"onboarding_data.step_{step}_updated_at": datetime.datetime.now()
+    }
     
-    # Overwrite the user's primary name field to match their newly typed Surname/Firstname string 
+    # Sync Step 1 primary identity fields to root user record
     if step == 1:
-        compiled_name = f"{step_data.get('surname', '')} {step_data.get('firstName', '')}".strip().upper()
+        surname_val = (step_data.get('surname') or '').strip().upper()
+        firstname_val = (step_data.get('firstName') or '').strip().upper()
+        middlename_val = (step_data.get('middleName') or '').strip().upper()
+        
+        if middlename_val:
+            compiled_name = f"{firstname_val} {middlename_val} {surname_val}".replace("  ", " ").strip()
+        else:
+            compiled_name = f"{firstname_val} {surname_val}".strip()
+
         if compiled_name:
             update_node_query["name"] = compiled_name
+        if surname_val:
+            update_node_query["surname"] = surname_val
+        if firstname_val:
+            update_node_query["firstname"] = firstname_val
+        if middlename_val:
+            update_node_query["middlename"] = middlename_val
+        if step_data.get('appt'):
+            update_node_query["appt"] = step_data.get('appt')
+        if step_data.get('rankOrGrade'):
+            update_node_query["rankOrGrade"] = step_data.get('rankOrGrade')
+        if step_data.get('phoneNo'):
+            update_node_query["telephone"] = step_data.get('phoneNo')
 
-    # FIXED DIRECT REGISTRY ASSIGNMENT ENFORCEMENT:
+    # DIRECT REGISTRY ASSIGNMENT ENFORCEMENT:
     # If the user completes Step 5... Or if they are IT/NYSC and they just completed Step 4:
-    user_category = user_data.get("category", "civilian")
+    user_category = str(user_data.get("category", "civilian")).lower().strip()
     is_special_role = user_category in ['it', 'nysc']
 
     if step == 5 or (step == 4 and is_special_role):
         update_node_query["status"] = "Awaiting Approval"
         update_node_query["is_onboarded"] = False 
         
-        # Duplicate appt and rankOrGrade to the root fields
-        onboarding_data = user_data.get("onboarding_data", {})
-        step_1 = onboarding_data.get("step_1", {})
-        step_5 = onboarding_data.get("step_5", {})
+        step_1 = existing_onboarding.get("step_1", {}) if step != 1 else step_data
+        step_5 = step_data if step == 5 else existing_onboarding.get("step_5", {})
         
-        appt_val = step_data.get("appt") or step_5.get("appt") or step_1.get("appt") or user_data.get("appt")
-        rank_val = step_data.get("rankOrGrade") or step_5.get("rankOrGrade") or step_1.get("rankOrGrade") or user_data.get("rankOrGrade")
+        appt_val = step_data.get("appt") or step_5.get("appt") or step_5.get("milDsaAppt") or step_1.get("appt") or user_data.get("appt")
+        rank_val = step_data.get("rankOrGrade") or step_data.get("milRank") or step_5.get("rankOrGrade") or step_5.get("milRank") or step_1.get("rankOrGrade") or user_data.get("rankOrGrade")
         
         if appt_val:
             update_node_query["appt"] = appt_val
         if rank_val:
             update_node_query["rankOrGrade"] = rank_val
+        if step_data.get("gender") or step_5.get("gender"):
+            update_node_query["gender"] = step_data.get("gender") or step_5.get("gender")
 
     db.users.update_one(
         {"email": session['user_email']},
@@ -455,7 +629,7 @@ def submit_onboarding_step():
         2: "Completed Step 2: Additional Personal Background Information Details",
         3: "Completed Step 3: Generated and Certified Digital ID Card Preview Layout",
         4: "Completed Step 4: Submitted Salary Account Emolument Details Roster Form",
-        5: "Completed Step 5: Submitted DSA Civilian Staff Registration Form"
+        5: "Completed Step 5: Submitted DSA Staff Registration Form"
     }
     action_log_message = step_logs_matrix.get(step, f"Updated Onboarding Phase Milestone Step {step}")
 

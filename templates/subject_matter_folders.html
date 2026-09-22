@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subject Matter Filing - Folders</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .folders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .folder-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .folder-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      border-color: #3b82f6;
+    }
+
+    .folder-icon-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .folder-icon {
+      color: #f59e0b;
+      fill: rgba(245, 158, 11, 0.2);
+    }
+
+    .folder-count-badge {
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 9999px;
+    }
+
+    .folder-count-badge.empty {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .folder-suffix {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #2563eb;
+      text-transform: uppercase;
+      background: #eff6ff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      width: fit-content;
+      margin-bottom: 8px;
+    }
+
+    .folder-subject {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #111827;
+      line-height: 1.4;
+      margin-bottom: 10px;
+      flex-grow: 1;
+    }
+
+    .search-filter-container {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 25px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 16px;
+      padding-left: 40px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+      width: 18px;
+      height: 18px;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .filter-tab {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      background: #f3f4f6;
+      color: #4b5563;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .filter-tab:hover {
+      background: #e5e7eb;
+    }
+
+    .filter-tab.active {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 50px 20px;
+      color: #9ca3af;
+      background: white;
+      border-radius: 12px;
+      border: 1px dashed #d1d5db;
+      margin-top: 20px;
+      display: none;
+    }
+  </style>
+</head>
+
+<body data-active-page="subject_matter_filing">
+  <div class="dashboard-wrapper">
+    {% include "sidebar.html" %}
+    <div class="main-content">
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 ODOGWU &gt; <span class="active-crumb"> Filing Cabinet</span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="reg_doc_container" style="padding: 25px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px;">
+          <div>
+            <h1 style="font-size:1.8rem; font-weight:700; color:#111827; margin:0;">Subject Matter Filing Cabinet</h1>
+            <p style="color:#6b7280; margin:5px 0 0 0; font-size:0.9rem;">Browse and search official correspondence
+              grouped by subject matter classification.</p>
+          </div>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="search-filter-container">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input type="text" id="folderSearch" class="search-input"
+              placeholder="Search folders by suffix code or subject matter..." oninput="filterFolders()">
+          </div>
+
+          <div class="filter-tabs">
+            <button class="filter-tab active" onclick="setFilter('all', this)">All</button>
+            <button class="filter-tab" onclick="setFilter('active', this)">With Documents</button>
+            <button class="filter-tab" onclick="setFilter('empty', this)">Empty</button>
+          </div>
+        </div>
+      </div>
+      <div style="padding: 25px;">
+        <!-- Folder Grid -->
+        <div class="folders-grid" id="foldersGrid">
+          {% for folder in folders %}
+          <div class="folder-card" data-suffix="{{ folder.suffix }}" data-subject="{{ folder.subject }}"
+            data-count="{{ folder.count }}"
+            onclick="window.location.href='/subject_matter_filing?suffix={{ folder.suffix }}'">
+            <div>
+              <div class="folder-icon-container">
+                <svg class="folder-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span class="folder-count-badge {% if folder.count == 0 %}empty{% endif %}">
+                  {{ folder.count }} {{ 'Doc' if folder.count == 1 else 'Docs' }}
+                </span>
+              </div>
+              <div class="folder-suffix">{{ folder.suffix }}</div>
+              <div class="folder-subject">{{ folder.subject }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- No Results -->
+        <div class="no-results" id="noResults">
+          <svg style="margin:0 auto 15px; color:#9ca3af;" width="48" height="48" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          <h3 style="margin:0; font-size:1.1rem; color:#4b5563;">No folders found</h3>
+          <p style="margin:5px 0 0; font-size:0.9rem; color:#6b7280;">Try adjusting your keywords or category filters.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    lucide.createIcons();
+
+    let currentFilter = 'all';
+
+    function setFilter(filterType, buttonEl) {
+      currentFilter = filterType;
+      document.querySelectorAll('.filter-tab').forEach(btn => btn.classList.remove('active'));
+      buttonEl.classList.add('active');
+      filterFolders();
+    }
+
+    function filterFolders() {
+      const query = document.getElementById('folderSearch').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.folder-card');
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        const suffix = card.getAttribute('data-suffix').toLowerCase();
+        const subject = card.getAttribute('data-subject').toLowerCase();
+        const count = parseInt(card.getAttribute('data-count'), 10);
+
+        const matchesQuery = suffix.includes(query) || subject.includes(query);
+        let matchesFilter = true;
+
+        if (currentFilter === 'active') {
+          matchesFilter = count > 0;
+        } else if (currentFilter === 'empty') {
+          matchesFilter = count === 0;
+        }
+
+        if (matchesQuery && matchesFilter) {
+          card.style.display = 'flex';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      const noResults = document.getElementById('noResults');
+      if (visibleCount === 0) {
+        noResults.style.display = 'block';
+      } else {
+        noResults.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Registry Documents</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="dashboard">
+        {% include "sidebar.html" %}
+
+        <div class="main-content">
+            <!-- Header -->
+            {% include "base.html" %}
+
+            <div class="dashboard-content">
+                <div class="table-containerReg">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 class="general-header-text">Documents Registry</h2>
+                        <a href="{{ url_for('add_document_routes.add_document') }}" class="login-btn" style="text-decoration: none; display: inline-block; width: auto;">+ Add Document</a>
+                    </div>
+                
+                    <div class="table-responsive">
+                        <table class="documents-table">
+                            <thead>
+                                <tr>
+                                    <th>Ref Number</th>
+                                    <th>Subject</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documents %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('open_document_routes.open_document', doc_id=doc['_id']) }}" style="font-weight: bold; color: inherit; text-decoration: none;">
+                                            {{ doc.reference_number }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('open_document_routes.open_document', doc_id=doc['_id']) }}" style="color: inherit; text-decoration: none;">
+                                            {{ doc.subject }}
+                                        </a>
+                                    </td>
+                                    <td>{{ doc.origin_directorate or doc.sender }}</td>
+                                    <td>
+                                      {% if doc.origin_directorate == session.get('directorate') and doc.dispatched_directorates %}
+                                        <span title="{{ doc.dispatched_directorates | join(', ') }}" style="cursor:help; border-bottom: 1px dotted #6b7280; font-weight: 600;">
+                                          {% if doc.dispatched_directorates | length > 1 %}
+                                            {{ doc.dispatched_directorates[0] }} (+{{ doc.dispatched_directorates | length - 1 }} others)
+                                          {% else %}
+                                            {{ doc.dispatched_directorates[0] }}
+                                          {% endif %}
+                                        </span>
+                                      {% else %}
+                                        {{ doc.target_directorate or 'N/A' }}
+                                      {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if doc.status == 'Completed' or doc.doc_lifecycle_stage == 'closed' %}
+                                            <span style="background-color: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600;">Completed</span>
+                                        {% elif doc.viewed_by_target and doc.origin_directorate == session.get('directorate') %}
+                                            <span style="background-color: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600;">Received</span>
+                                        {% elif doc.origin_directorate == session.get('directorate') %}
+                                             <span style="background-color: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600;">Sent</span>
+                                        {% else %}
+                                            <span style="background-color: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600;">Incoming</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ doc.created_at.strftime('%Y-%m-%d') if doc.created_at else '' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" style="text-align: center;">No documents found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- <script src="{{ url_for('static', filename='main.js') }}"></script> -->
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

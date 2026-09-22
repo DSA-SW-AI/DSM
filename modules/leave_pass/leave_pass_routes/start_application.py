@@ -4,6 +4,7 @@ from bson.objectid import ObjectId
 from werkzeug.utils import secure_filename, send_file
 from gridfs import GridFS
 import os
+import re
 from .leave_logic import validate_leave_request, LeaveBalances, working_days_between, get_legacy_fields
 from .leave_helper import update_leave_balance, deduct_casual_with_annual, get_public_holidays, get_staff_object, get_current_balances, get_hospitalization_records, calendar_days_between
 import holidays
@@ -16,6 +17,94 @@ from permissions import ROLE_PERMISSIONS
 
 csrf = CSRFProtect()
 application_routes = Blueprint('application_routes', __name__)
+
+
+def _parse_leave_date(val):
+    """Parse date value from application document into a datetime.date object."""
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, str):
+        val = val.strip()
+        try:
+            return datetime.fromisoformat(val.replace('Z', '+00:00')).date()
+        except Exception:
+            try:
+                return datetime.strptime(val[:10], '%Y-%m-%d').date()
+            except Exception:
+                pass
+    return None
+
+
+def get_staff_on_leave_identifiers(apps_coll, ref_date=None):
+    """
+    Returns a tuple of sets: (service_numbers_on_leave, emails_on_leave).
+    A staff member is on active leave/pass if:
+      - They have an active/approved/issued leave or pass application of ANY leave type.
+      - They have not officially returned (returned_from_leave is not True and returned_status != 'approved').
+    """
+    if apps_coll is None:
+        return set(), set()
+
+    service_numbers = set()
+    emails = set()
+
+    users_coll = None
+    try:
+        users_coll = apps_coll.database.get_collection('users')
+    except Exception:
+        pass
+
+    query = {
+        'status': {
+            '$in': [
+                'approved', 'Approved', 
+                'issued', 'Issued', 
+                'pending', 'Pending', 
+                'Recommended for Approval', 'recommended for approval', 
+                'awaiting_reliever'
+            ]
+        }
+    }
+    try:
+        for app_doc in apps_coll.find(query):
+            # Check if staff member has already returned from leave
+            ret = app_doc.get('leave_pass_returned') or {}
+            is_returned = (
+                ret.get('returned_from_leave') is True or 
+                str(ret.get('returned_status', '')).lower() == 'approved'
+            )
+            if is_returned:
+                continue
+
+            # Record applicant service number and email
+            app_id_val = str(app_doc.get('applicantId') or '').strip()
+            if app_id_val:
+                if '@' in app_id_val:
+                    emails.add(app_id_val.lower())
+                    if users_coll is not None:
+                        u = users_coll.find_one({'email': app_id_val.lower()})
+                        if u and u.get('service_number'):
+                            service_numbers.add(str(u.get('service_number')).strip().upper())
+                else:
+                    service_numbers.add(app_id_val.upper())
+                    if users_coll is not None:
+                        u = users_coll.find_one({'service_number': app_id_val.upper()})
+                        if u and u.get('email'):
+                            emails.add(str(u.get('email')).strip().lower())
+
+            app_email = str(app_doc.get('applicantEmail') or app_doc.get('email') or '').strip().lower()
+            if app_email:
+                emails.add(app_email)
+                if users_coll is not None:
+                    u = users_coll.find_one({'email': app_email})
+                    if u and u.get('service_number'):
+                        service_numbers.add(str(u.get('service_number')).strip().upper())
+    except Exception as err:
+        print(f"Error querying staff on leave: {err}")
+
+    return service_numbers, emails
 
 
 def generate_reference_id(directorate):
@@ -80,11 +169,65 @@ def convert_doc_to_LeaveBalances(doc: dict, service_number: str, year: int):
 
 def notify_pending_approval(app, next_step, current_user):
     """
-    Emits Socket.IO notification to next approver(s)
+    Emits Socket.IO notification to next approver(s).
+    Ensures notifications strictly target the approver's private email room and role room,
+    never leaking to other users via shared/duplicate service numbers.
     """
     users_coll = current_app.users_collection
     directorate = app.get("directorate")
     message = f"Application {app['referenceId']} is awaiting your approval."
+
+    role = next_step.get("role")
+    approver_id = next_step.get("approverId")
+    approver_email = (next_step.get("approverEmail") or "").strip().lower()
+
+    # If approverEmail is missing from step, resolve it from users_coll accurately
+    if not approver_email and users_coll is not None:
+        target_user = None
+        if role in ("civilian_head_cao", "civilian_head"):
+            target_user = users_coll.find_one({
+                "role": {"$in": ["civilian_head_cao", "civilian_head"]},
+                "is_active": True
+            })
+            if not target_user:
+                target_user = users_coll.find_one({
+                    "role": "deputy_civilian_head_cao" if role == "civilian_head_cao" else "deputy_civilian_head",
+                    "is_active": True
+                })
+        elif role == "so":
+            target_user = users_coll.find_one({"directorate": directorate, "is_so_approver": True, "is_active": True})
+        elif role == "ad":
+            target_user = users_coll.find_one({"directorate": directorate, "is_ad_approver": True, "is_active": True})
+        elif role == "dd":
+            target_user = users_coll.find_one({"directorate": directorate, "is_dd_approver": True, "is_active": True})
+        elif role == "director":
+            if next_step.get("is_final_approver") in (True, "true", "True"):
+                target_user = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}, "is_active": True})
+            else:
+                target_user = users_coll.find_one({"directorate": directorate, "role": "director", "is_active": True})
+        elif role == "central_registry":
+            target_user = users_coll.find_one({"directorate": "CDSA", "role": "central_registry", "is_active": True}) \
+                or users_coll.find_one({"directorate": "CDSA", "role": "registry", "is_active": True}) \
+                or users_coll.find_one({"is_cdsa_approver": {"$in": ["true", True]}, "is_active": True})
+        elif approver_id:
+            target_user = users_coll.find_one({
+                "service_number": approver_id,
+                "$or": [
+                    {"is_approval_role": True},
+                    {"role": role},
+                    {"is_so_approver": True},
+                    {"is_ad_approver": True},
+                    {"is_dd_approver": True},
+                    {"is_final_approver": True}
+                ]
+            }) or users_coll.find_one({"service_number": approver_id})
+
+        if target_user and target_user.get("email"):
+            approver_email = target_user["email"].strip().lower()
+
+    date_str = None
+    if app.get("createdAt"):
+        date_str = app.get("createdAt").strftime('%Y-%m-%d') if hasattr(app.get("createdAt"), 'strftime') else str(app.get("createdAt"))
 
     payload = {
         "type": "leave_approval",
@@ -93,58 +236,26 @@ def notify_pending_approval(app, next_step, current_user):
         "triggeredBy": current_user.get("fullName", current_user.get("name")),
         "referenceId": app["referenceId"],
         "message": message,
-        "role": next_step.get("role"),
+        "role": role,
+        "approverEmail": approver_email,
         "leave_type": app.get("leave_type"),
         "directorate": directorate,
-        "date": app.get("createdAt").strftime('%Y-%m-%d') if app.get("createdAt") else None,
+        "date": date_str,
     }
 
-    approver_id = next_step.get("approverId")
-    role = next_step.get("role")
+    print(f"[SOCKET] Notifying next approver for role: {role}, approverEmail: {approver_email}")
 
-    print(f"[SOCKET] Attempting to notify next approver for role: {role}")
+    # Emit to individual approver's email room (each user joins USER_{email.lower()})
+    if approver_email:
+        email_room = f"USER_{approver_email}"
+        print(f"[SOCKET] Direct notification to email room: {email_room}")
+        socketio.emit("new_notification", payload, room=email_room)
 
-    # If the step already has a bound approverId (which it always does from build_approval_chain)
-    if approver_id:
-        safe_id = approver_id.replace("/", "_")
-        room = f"USER_{safe_id}"
-        print(f"[SOCKET] Direct notification by approverId: {approver_id} to room: {room}")
-        socketio.emit("new_notification", payload, room=room)
-        return
-
-    # Fallback dynamic lookup in case approverId is missing
-    fallback_user = None
-    if role == "so":
-        fallback_user = users_coll.find_one({"directorate": directorate, "is_so_approver": True, "is_active": True})
-    elif role == "ad":
-        fallback_user = users_coll.find_one({"directorate": directorate, "is_ad_approver": True, "is_active": True})
-    elif role == "dd":
-        fallback_user = users_coll.find_one({"directorate": directorate, "is_dd_approver": True, "is_active": True})
-    elif role == "director":
-        if next_step.get("is_final_approver") in (True, "true", "True"):
-            fallback_user = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}, "is_active": True})
-        else:
-            fallback_user = users_coll.find_one({"directorate": directorate, "role": "director", "is_active": True})
-    elif role == "central_registry":
-        fallback_user = users_coll.find_one({"directorate": "CDSA", "role": "central_registry", "is_active": True})
-        if not fallback_user:
-            fallback_user = users_coll.find_one({"directorate": "CDSA", "role": "registry", "is_active": True})
-        if not fallback_user:
-            fallback_user = users_coll.find_one({"is_cdsa_approver": {"$in": ["true", True]}, "is_active": True})
-    elif role in ("civilian_head_cao", "civilian_head"):
-        target_deputy = "deputy_civilian_head_cao" if role == "civilian_head_cao" else "deputy_civilian_head"
-        target_dir = "DOA" if role == "civilian_head_cao" else directorate
-        fallback_user = users_coll.find_one({"role": role, "directorate": target_dir, "is_active": True}) or \
-                        users_coll.find_one({"role": target_deputy, "directorate": target_dir, "is_active": True})
-
-    if fallback_user and fallback_user.get("service_number"):
-        fallback_id = fallback_user.get("service_number")
-        safe_id = fallback_id.replace("/", "_")
-        room = f"USER_{safe_id}"
-        print(f"[SOCKET] Fallback notification to room: {room}")
-        socketio.emit("new_notification", payload, room=room)
-    else:
-        print(f"[SOCKET] Warning: No approver found for role {role} and no approverId present.")
+    # Emit to role room (e.g. ROLE_civilian_head_cao, ROLE_so, etc.)
+    if role:
+        role_room = f"ROLE_{role}"
+        print(f"[SOCKET] Role-based notification to room: {role_room}")
+        socketio.emit("new_notification", payload, room=role_room)
 
 
 
@@ -154,17 +265,22 @@ def notify_pending_approval(app, next_step, current_user):
 def ensure_applicant_metadata(applicant):
     if not applicant:
         return
-    keys_to_check = ['rankOrGrade', 'designation', 'is_so_approver', 'is_ad_approver', 'is_dd_approver', 'is_final_approver']
+    keys_to_check = ['rankOrGrade', 'designation', 'is_so_approver', 'is_ad_approver', 'is_dd_approver', 'is_final_approver', 'category', 'role']
     if any(k not in applicant for k in keys_to_check):
         collections = get_db_collections()
         users_coll = collections.get('users')
         if users_coll is not None:
-            user_doc = users_coll.find_one({
-                "$or": [
-                    {"service_number": applicant.get('service_number')},
-                    {"email": applicant.get('email')}
-                ]
-            })
+            user_doc = None
+            if applicant.get('email'):
+                user_doc = users_coll.find_one({"email": applicant.get('email')})
+            if not user_doc and applicant.get('service_number'):
+                user_doc = users_coll.find_one({
+                    "service_number": applicant.get('service_number'),
+                    "is_approval_role": {"$ne": True}
+                })
+            if not user_doc and applicant.get('service_number'):
+                user_doc = users_coll.find_one({"service_number": applicant.get('service_number')})
+
             if user_doc:
                 applicant['rankOrGrade'] = user_doc.get('rankOrGrade', '')
                 applicant['designation'] = user_doc.get('appt', '') or user_doc.get('designation', '')
@@ -173,6 +289,10 @@ def ensure_applicant_metadata(applicant):
                 applicant['is_ad_approver'] = user_doc.get('is_ad_approver') in (True, "true", "True")
                 applicant['is_dd_approver'] = user_doc.get('is_dd_approver') in (True, "true", "True")
                 applicant['is_final_approver'] = user_doc.get('is_final_approver') in (True, "true", "True")
+                if 'category' not in applicant or not applicant.get('category'):
+                    applicant['category'] = user_doc.get('category', '')
+                if 'role' not in applicant or not applicant.get('role'):
+                    applicant['role'] = user_doc.get('role', '')
 
 @application_routes.route('/application_form', methods=['GET', 'POST'])
 def application_form():
@@ -205,7 +325,10 @@ def application_form():
     if role_bucket != 'civilian':
         ROLE_ENDPOINTS = {
             'officer':         'application_routes.application_form_officer',
-            'deputy_director': 'application_routes.application_form_dd',
+            'dd': 'application_routes.application_form_dd',
+            'ad': 'application_routes.application_form_officer',
+            'so': 'application_routes.application_form_officer',
+            'personnel': 'application_routes.application_form_officer',
             'director':        'application_routes.application_form_director',
         }
         return redirect(url_for(ROLE_ENDPOINTS[role_bucket]))
@@ -219,14 +342,38 @@ def application_form():
     try:
         collections = get_db_collections()
         users_coll = collections.get('users')
+        apps_coll = collections.get('applications')
         applicant_dir = (applicant.get('directorate') or '').strip().lower()
+        applicant_email = (applicant.get('email') or '').strip().lower()
+        applicant_svc = (applicant.get('service_number') or '').strip().upper()
+
         if users_coll is not None and applicant_dir:
-            potential_relievers = list(users_coll.find({
-                "directorate": {"$regex": f"^{applicant_dir}$", "$options": "i"},
+            # Query staff currently on any leave/pass type
+            svc_nums_on_leave, emails_on_leave = get_staff_on_leave_identifiers(apps_coll)
+
+            raw_candidates = list(users_coll.find({
+                "directorate": {"$regex": f"^{re.escape(applicant_dir)}$", "$options": "i"},
                 "role": {"$in": ["civilian", "civilian_head_cao"]},
+                "category": {"$regex": "^civilian$", "$options": "i"},
                 "email": {"$ne": applicant.get('email')},
                 "is_active": True
             }))
+
+            for u in raw_candidates:
+                u_email = (u.get('email') or '').strip().lower()
+                u_svc = (u.get('service_number') or '').strip().upper()
+
+                # Exclude applicant themselves
+                if applicant_email and u_email == applicant_email:
+                    continue
+                if applicant_svc and u_svc == applicant_svc and (applicant.get('name') or '').strip().lower() == (u.get('name') or '').strip().lower():
+                    continue
+
+                # Exclude if staff member is currently on any leave/pass type
+                if (u_svc and u_svc in svc_nums_on_leave) or (u_email and u_email in emails_on_leave):
+                    continue
+
+                potential_relievers.append(u)
     except Exception as e:
         print(f"Error fetching potential relievers: {e}")
 
@@ -314,7 +461,7 @@ def application_form_dd():
         
     ensure_applicant_metadata(applicant)
 
-    role_bucket = applicant.get('role_bucket', 'deputy_director')
+    role_bucket = applicant.get('role_bucket', 'dd')
     leave_data = get_leave_data_for_applicant(applicant, request)
     if request.method == 'POST':
         return handle_application_post(applicant, request, leave_data,
@@ -607,7 +754,10 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
     ROLE_FORM_ENDPOINTS = {
         'civilian':        'application_routes.application_form',
         'officer':         'application_routes.application_form_officer',
-        'deputy_director': 'application_routes.application_form_dd',
+        'personnel':         'application_routes.application_form_officer',
+        'ad':         'application_routes.application_form_officer',
+        'so':         'application_routes.application_form_officer',
+        'dd': 'application_routes.application_form_dd',
         'director':        'application_routes.application_form_director',
     }
     form_endpoint = ROLE_FORM_ENDPOINTS.get(role_bucket, 'application_routes.application_form_officer')
@@ -871,6 +1021,14 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
     app_status = "pending"
     reliever_status = None
     if role_bucket == 'civilian' and reliever_email:
+        # Ensure selected reliever is not currently on leave/pass
+        svc_nums_on_leave, emails_on_leave = get_staff_on_leave_identifiers(applications_coll)
+        reliever_user = users_coll.find_one({"email": reliever_email}) if users_coll is not None else None
+        reliever_svc = (reliever_user.get('service_number') or '').strip().upper() if reliever_user else ''
+        if reliever_email in emails_on_leave or (reliever_svc and reliever_svc in svc_nums_on_leave):
+            flash("The selected reliever is currently on leave/pass. Please select an available reliever.", "error")
+            return redirect(url_for(form_endpoint))
+
         app_status = "pending"
         reliever_status = "accepted"
 
@@ -999,12 +1157,23 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
             first_pending = next((s for s in chain if s['status'] == 'pending'), None)
             if first_pending:
                 notify_pending_approval(application, first_pending, applicant)
+                target_email = first_pending.get("approverEmail")
+                if not target_email and users_coll is not None:
+                    target_u = users_coll.find_one({"service_number": first_pending.get("approverId"), "role": first_pending.get("role")}) or users_coll.find_one({"role": first_pending.get("role")})
+                    if target_u:
+                        target_email = (target_u.get("email") or "").strip().lower()
+
                 notifications_coll = current_app.notifications_collection
                 notifications_coll.insert_one({
                     "type":          "action_required",
                     "applicationId": result.inserted_id,
                     "referenceId":   reference_id,
-                    "target":        {"type": "user", "userId": first_pending.get("approverId"), "role": first_pending.get("role")},
+                    "target":        {
+                        "type":   "user",
+                        "userId": target_email or first_pending.get("approverId"),
+                        "email":  target_email,
+                        "role":   first_pending.get("role")
+                    },
                     "message":       f"Application {reference_id} from {applicant.get('fullName')} is awaiting your approval.",
                     "status":        "unread",
                     "readBy":        [],
@@ -1052,15 +1221,43 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
 
 def build_approval_chain(applicant, role_bucket, users_coll):
     chain = []
-    sn          = applicant['service_number']
-    directorate = applicant['directorate']
+    sn          = applicant.get('service_number', '')
+    directorate = applicant.get('directorate', '')
 
-    def create_step(role, approver):
+    # Fetch fresh applicant user doc to be 100% certain of category, role and approver flags
+    user_doc = None
+    if applicant.get('email'):
+        user_doc = users_coll.find_one({"email": applicant.get('email')})
+    if not user_doc and sn:
+        user_doc = users_coll.find_one({
+            "service_number": sn,
+            "is_approval_role": {"$ne": True}
+        })
+    if not user_doc and sn:
+        user_doc = users_coll.find_one({"service_number": sn}) or (users_coll.find_one({"email": sn}) if sn else None)
+    user_doc = user_doc or {}
+
+    category = (applicant.get('category') or user_doc.get('category') or '').lower().strip()
+    raw_role = applicant.get('role') or user_doc.get('role') or ''
+    if isinstance(raw_role, list):
+        roles_list = [r.lower().strip() for r in raw_role if isinstance(r, str)]
+        primary_role = roles_list[0] if roles_list else ''
+    else:
+        primary_role = str(raw_role).lower().strip()
+        roles_list = [primary_role]
+
+    is_so_applicant = (applicant.get('is_so_approver') == True) or (user_doc.get('is_so_approver') in (True, "true", "True")) or ('so' in roles_list)
+    is_ad_applicant = (applicant.get('is_ad_approver') == True) or (user_doc.get('is_ad_approver') in (True, "true", "True")) or ('ad' in roles_list)
+    is_dd_applicant = (applicant.get('is_dd_approver') == True) or (user_doc.get('is_dd_approver') in (True, "true", "True")) or ('dd' in roles_list)
+    is_director_applicant = ('director' in roles_list) or (role_bucket == 'director')
+
+    def create_step(role, approver, is_final_approver=False, registry_type=None):
         if not approver:
             return None
-        return {
+        step = {
             "role":                role,
             "approverId":          approver.get('service_number'),
+            "approverEmail":       (approver.get('email') or '').strip().lower(),
             "approverName":        approver.get('name'),
             "approverRank":        approver.get('rankOrGrade'),
             "approverDesignation": approver.get('appt'),
@@ -1068,18 +1265,36 @@ def build_approval_chain(applicant, role_bucket, users_coll):
             "comments":            "",
             "timestamp":           None,
         }
+        if role == "so" or approver.get("is_so_approver"):
+            step["is_so_approver"] = True
+        if role == "ad" or approver.get("is_ad_approver"):
+            step["is_ad_approver"] = True
+        if role == "dd" or approver.get("is_dd_approver"):
+            step["is_dd_approver"] = True
+        if is_final_approver:
+            step["is_final_approver"] = True
+        if registry_type:
+            step["registry_type"] = registry_type
+        return step
 
     def add_registry_step(approver, registry_type="directorate"):
         """Directorate registry only — physical file acknowledgement."""
-        step = create_step("registry", approver)
+        step = create_step("registry", approver, registry_type=registry_type)
         if step:
-            step["registry_type"] = registry_type
-            step["acknowledged"]  = False        # replaces forward_status
+            step["acknowledged"]   = False
+            step["acknowledgedAt"] = None
+        return step
+
+    def add_central_registry_step(approver):
+        """Central registry (CDSA) — physical file acknowledgement."""
+        step = create_step("central_registry", approver, registry_type="central")
+        if step:
+            step["acknowledged"]   = False
             step["acknowledgedAt"] = None
         return step
 
     def get_central_registry():
-        """CDSA central registry — issues receipts for all non-civilian forms."""
+        """CDSA central registry — acknowledges receipts for non-civilian forms."""
         central = users_coll.find_one({
             "directorate": "CDSA",
             "role": "central_registry"
@@ -1095,31 +1310,90 @@ def build_approval_chain(applicant, role_bucket, users_coll):
             })
         return central
 
-    # ─── CIVILIAN ─────────────────────────────────────────────────────
-    if role_bucket == 'civilian':
+    # Identify Director DOA (the final approver)
+    director_doa = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}})
 
-        # 1. Civilian head (exclude self, fallback to deputy civilian head)
+    # Identify Local Director for applicant's directorate
+    local_director = users_coll.find_one({
+        "directorate": directorate,
+        "role": "director",
+        "service_number": {"$ne": sn}
+    })
+
+    # Check if applicant is in same directorate as final approver
+    is_same_directorate_as_final = False
+    if local_director and director_doa and local_director.get("service_number") == director_doa.get("service_number"):
+        is_same_directorate_as_final = True
+    elif director_doa and directorate and directorate.strip().upper() == (director_doa.get("directorate") or "DOA").strip().upper():
+        is_same_directorate_as_final = True
+
+    def add_director_approval_steps():
+        if is_same_directorate_as_final:
+            step = create_step("director", director_doa or local_director, is_final_approver=True, registry_type="director_doa")
+            if step:
+                chain.append(step)
+            else:
+                flash(f"Warning: No Director found in {directorate}", "warning")
+        else:
+            # Step: Local director
+            step_local = create_step("director", local_director)
+            if step_local:
+                chain.append(step_local)
+            else:
+                flash(f"Warning: No Director found in {directorate}", "warning")
+
+            # Step: Final approver (Director DOA)
+            if director_doa:
+                step_final = create_step("director", director_doa, is_final_approver=True, registry_type="director_doa")
+                chain.append(step_final)
+            else:
+                flash("Warning: Director-DOA not found", "warning")
+
+    # ─── 1. CIVILIAN (category == 'civilian') ─────────────────────────
+    if category == 'civilian' or role_bucket == 'civilian' or 'civilian' in roles_list or 'civilian_head_cao' in roles_list:
+        # 1. Civilian head
         target_role = "civilian_head_cao"
         target_deputy = "deputy_civilian_head_cao"
 
-        civ_head = users_coll.find_one({
-            "directorate": "DOA",
-            "role": target_role,
-            "service_number": {"$ne": sn}
-        })
-        if not civ_head:
-            civ_head = users_coll.find_one({
-                "directorate": "DOA",
-                "role": target_deputy,
-                "service_number": {"$ne": sn}
-            })
-        step = create_step(target_role, civ_head)
-        if step:
-            chain.append(step)
-        else:
-            flash("Warning: No Civilian Head found in DOA", "warning")
+        applicant_email = (applicant.get('email') or user_doc.get('email') or '').strip().lower()
+        applicant_role = (applicant.get('role') or user_doc.get('role') or '').strip().lower()
 
-        # 2. SO Approver (skip if applicant is the SO; matches role == ad and is_so_approver == true)
+        is_civ_head_applicant = (
+            applicant_role in (target_role, "civilian_head")
+            or (applicant_email and applicant_email == "civilianhead.cao@dsa.mil.ng")
+            or (target_role in roles_list and "civilian" not in roles_list)
+        )
+
+        if not is_civ_head_applicant:
+            # Regular civilian applying: Civilian Head CAO is ALWAYS the 1st approver
+            civ_head = users_coll.find_one({
+                "role": {"$in": [target_role, "civilian_head"]}
+            })
+            if not civ_head:
+                civ_head = users_coll.find_one({
+                    "appt": {"$regex": "Head.*Civilian", "$options": "i"}
+                })
+            if not civ_head:
+                civ_head = users_coll.find_one({
+                    "role": target_deputy
+                })
+            step = create_step(target_role, civ_head)
+            if step:
+                chain.append(step)
+            else:
+                flash("Warning: No Civilian Head found in DOA", "warning")
+        else:
+            # Civilian Head himself applying: route to deputy or skip to SO
+            deputy = users_coll.find_one({
+                "role": target_deputy,
+                "email": {"$ne": applicant_email}
+            })
+            if deputy:
+                step = create_step(target_deputy, deputy)
+                if step:
+                    chain.append(step)
+
+        # 2. SO Approver
         so = users_coll.find_one({
             "directorate": directorate,
             "role": "ad",
@@ -1144,7 +1418,7 @@ def build_approval_chain(applicant, role_bucket, users_coll):
         else:
             flash(f"Warning: No SO approver found in {directorate}", "warning")
 
-        # 3. DD Approver (skip if applicant is the DD)
+        # 3. DD Approver
         dd = users_coll.find_one({
             "directorate": directorate,
             "role": "dd",
@@ -1163,31 +1437,10 @@ def build_approval_chain(applicant, role_bucket, users_coll):
         else:
             flash(f"Warning: No Deputy Director found in {directorate}", "warning")
 
-        # 4. Director
-        director = users_coll.find_one({
-            "directorate": directorate,
-            "role": "director",
-            "service_number": {"$ne": sn}
-        })
-        
-        director_doa = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}})
-        
-        # Check if the director is also the final approver (same directorate)
-        is_director_same_as_final = False
-        if director and director_doa and director.get("service_number") == director_doa.get("service_number"):
-            is_director_same_as_final = True
+        # 4 & 5. Director (same directorate auto-issues receipt; cross-directorate: local director then director_doa)
+        add_director_approval_steps()
 
-        step = create_step("director", director)
-        if step:
-            if is_director_same_as_final:
-                # If they are the same, this director step acts as the final approval step directly
-                step["is_final_approver"] = True
-                step["registry_type"] = "director_doa"
-            chain.append(step)
-        else:
-            flash(f"Warning: No Director found in {directorate}", "warning")
-
-        # 5a. Directorate registry
+        # 6. Registries (applicant directorate, and if cross-directorate, issuing DOA directorate)
         dir_registry = users_coll.find_one({
             "directorate": directorate,
             "role": "registry"
@@ -1198,58 +1451,165 @@ def build_approval_chain(applicant, role_bucket, users_coll):
         else:
             flash(f"Warning: No Registry found in {directorate}", "warning")
 
-        # 5b. Director DOA (Final Approval / Receipt)
-        # Only append this step if the final approver is NOT the same person as the director step
-        if director_doa and not is_director_same_as_final:
-            director_doa_step = {
-                "role":                             "director",
-                "is_final_approver":                True,
-                "approverId":          director_doa.get('service_number'),
-                "approverName":        director_doa.get('name'),
-                "approverRank":        director_doa.get('rankOrGrade'),
-                "approverDesignation": director_doa.get('appt'),
-                "status":              "pending",
-                "comments":            "",
-                "timestamp":           None,
-                "registry_type":       "director_doa",
-            }
-            chain.append(director_doa_step)
-        elif not director_doa:
-            flash("Warning: Director-DOA not found", "warning")
+        if not is_same_directorate_as_final:
+            doa_registry = users_coll.find_one({
+                "directorate": director_doa.get("directorate", "DOA") if director_doa else "DOA",
+                "role": "registry"
+            })
+            if doa_registry and (not dir_registry or doa_registry.get("service_number") != dir_registry.get("service_number")):
+                step_doa_reg = add_registry_step(doa_registry, registry_type="issuing_directorate")
+                if step_doa_reg:
+                    chain.append(step_doa_reg)
 
-    # ─── MILITARY: OFFICER / RATING / AIRMAN (role_bucket == 'officer') ───
-    elif role_bucket == 'officer':
-        is_so_applicant = (applicant.get('is_so_approver') == True)
-        is_ad_applicant = (applicant.get('is_ad_approver') == True)
-        is_dd_applicant = (applicant.get('is_dd_approver') == True)
+    # ─── 5. MILITARY: DIRECTOR (role == 'director') ───────────────────
+    elif is_director_applicant:
+        # 1. role == cdsa
+        cdsa = users_coll.find_one({
+            "role": "cdsa",
+            "service_number": {"$ne": sn}
+        })
+        if not cdsa:
+            cdsa = users_coll.find_one({
+                "is_cdsa_approver": {"$in": ["true", True]},
+                "service_number": {"$ne": sn}
+            })
+        step = create_step("cdsa", cdsa)
+        if step:
+            chain.append(step)
+        else:
+            flash("Warning: CDSA approver not found", "warning")
 
-        # 1. SO Approver (skip if applicant is SO or AD)
-        if not is_so_applicant and not is_ad_applicant:
+        # 6. role == registry (applicant directorate)
+        dir_registry = users_coll.find_one({
+            "directorate": directorate,
+            "role": "registry"
+        })
+        step = add_registry_step(dir_registry, registry_type="directorate")
+        if step:
+            chain.append(step)
+        else:
+            flash(f"Warning: No Registry found in {directorate}", "warning")
+
+        # 7. role == central_registry
+        central = get_central_registry()
+        if central:
+            chain.append(add_central_registry_step(central))
+        else:
+            flash("Warning: No Central Registry (CDSA) found", "warning")
+
+    # ─── 4. MILITARY: DD (role == 'dd') ───────────────────────────────
+    elif is_dd_applicant:
+        # 1 & 5. Director (same directorate vs cross-directorate)
+        add_director_approval_steps()
+
+        # 6. role == registry (applicant directorate)
+        dir_registry = users_coll.find_one({
+            "directorate": directorate,
+            "role": "registry"
+        })
+        step = add_registry_step(dir_registry, registry_type="directorate")
+        if step:
+            chain.append(step)
+        else:
+            flash(f"Warning: No Registry found in {directorate}", "warning")
+
+        # 7. role == central_registry
+        central = get_central_registry()
+        if central:
+            chain.append(add_central_registry_step(central))
+        else:
+            flash("Warning: No Central Registry (CDSA) found", "warning")
+
+    # ─── 2. MILITARY: PERSONNEL (role == 'personnel') ─────────────────
+    elif 'personnel' in roles_list or role_bucket == 'personnel':
+        # 1. is_so_approver == true
+        so = users_coll.find_one({
+            "directorate": directorate,
+            "role": "ad",
+            "is_so_approver": True,
+            "service_number": {"$ne": sn}
+        })
+        if not so:
             so = users_coll.find_one({
                 "directorate": directorate,
-                "role": "ad",
                 "is_so_approver": True,
                 "service_number": {"$ne": sn}
             })
-            if not so:
-                so = users_coll.find_one({
-                    "directorate": directorate,
-                    "is_so_approver": True,
-                    "service_number": {"$ne": sn}
-                })
-            if not so:
-                so = users_coll.find_one({
-                    "directorate": directorate,
-                    "role": "ad",
-                    "service_number": {"$ne": sn}
-                })
-            step = create_step("so", so)
-            if step:
-                chain.append(step)
-            else:
-                flash(f"Warning: No SO approver found in {directorate}", "warning")
+        if not so:
+            so = users_coll.find_one({
+                "directorate": directorate,
+                "role": "ad",
+                "service_number": {"$ne": sn}
+            })
+        step = create_step("so", so)
+        if step:
+            chain.append(step)
+        else:
+            flash(f"Warning: No SO approver found in {directorate}", "warning")
 
-        # 2. AD Approver (skip if applicant is AD)
+        # 2. is_ad_approver == true
+        ad = users_coll.find_one({
+            "directorate": directorate,
+            "role": "ad",
+            "is_ad_approver": True,
+            "service_number": {"$ne": sn}
+        })
+        if not ad:
+            ad = users_coll.find_one({
+                "directorate": directorate,
+                "role": "ad",
+                "service_number": {"$ne": sn}
+            })
+        step = create_step("ad", ad)
+        if step:
+            chain.append(step)
+        else:
+            flash(f"Warning: No AD approver found in {directorate}", "warning")
+
+        # 3. is_dd_approver == true
+        dd = users_coll.find_one({
+            "directorate": directorate,
+            "role": "dd",
+            "is_dd_approver": True,
+            "service_number": {"$ne": sn}
+        })
+        if not dd:
+            dd = users_coll.find_one({
+                "directorate": directorate,
+                "role": "dd",
+                "service_number": {"$ne": sn}
+            })
+        step = create_step("dd", dd)
+        if step:
+            chain.append(step)
+        else:
+            flash(f"Warning: No Deputy Director found in {directorate}", "warning")
+
+        # 4 & 5. Director (same vs cross)
+        add_director_approval_steps()
+
+        # 6. role == registry (applicant directorate)
+        dir_registry = users_coll.find_one({
+            "directorate": directorate,
+            "role": "registry"
+        })
+        step = add_registry_step(dir_registry, registry_type="directorate")
+        if step:
+            chain.append(step)
+        else:
+            flash(f"Warning: No Registry found in {directorate}", "warning")
+
+        # 7. role == central_registry
+        central = get_central_registry()
+        if central:
+            chain.append(add_central_registry_step(central))
+        else:
+            flash("Warning: No Central Registry (CDSA) found", "warning")
+
+    # ─── 3. MILITARY: OFFICER (role == 'officer') ─────────────────────
+    else:
+        # Commissioned officers skip SO!
+        # 1. is_ad_approver == true (skip if applicant is AD)
         if not is_ad_applicant:
             ad = users_coll.find_one({
                 "directorate": directorate,
@@ -1269,7 +1629,7 @@ def build_approval_chain(applicant, role_bucket, users_coll):
             else:
                 flash(f"Warning: No AD approver found in {directorate}", "warning")
 
-        # 3. DD Approver (skip if applicant is DD)
+        # 2. is_dd_approver == true (skip if applicant is DD)
         if not is_dd_applicant:
             dd = users_coll.find_one({
                 "directorate": directorate,
@@ -1289,19 +1649,10 @@ def build_approval_chain(applicant, role_bucket, users_coll):
             else:
                 flash(f"Warning: No Deputy Director found in {directorate}", "warning")
 
-        # 4. Director
-        director = users_coll.find_one({
-            "directorate": directorate,
-            "role": "director",
-            "service_number": {"$ne": sn}
-        })
-        step = create_step("director", director)
-        if step:
-            chain.append(step)
-        else:
-            flash(f"Warning: No Director found in {directorate}", "warning")
+        # 4 & 5. Director (same vs cross)
+        add_director_approval_steps()
 
-        # 5a. Directorate registry
+        # 6. role == registry (applicant directorate)
         dir_registry = users_coll.find_one({
             "directorate": directorate,
             "role": "registry"
@@ -1312,108 +1663,10 @@ def build_approval_chain(applicant, role_bucket, users_coll):
         else:
             flash(f"Warning: No Registry found in {directorate}", "warning")
 
-        # 5b. Central registry (CDSA)
+        # 7. role == central_registry
         central = get_central_registry()
         if central:
-            chain.append({
-                "role":                "central_registry",
-                "approverId":          central.get('service_number'),
-                "approverName":        central.get('name'),
-                "approverRank":        central.get('rank'),
-                "approverDesignation": central.get('appt'),
-                "status":              "pending",
-                "comments":            "",
-                "timestamp":           None,
-                "registry_type":       "central",
-            })
-        else:
-            flash("Warning: No Central Registry (CDSA) found", "warning")
-
-    # ─── MILITARY: DEPUTY DIRECTOR (role_bucket == 'deputy_director') ───
-    elif role_bucket == 'deputy_director':
-        # 1. Director
-        director = users_coll.find_one({
-            "directorate": directorate,
-            "role": "director",
-            "service_number": {"$ne": sn}
-        })
-        step = create_step("director", director)
-        if step:
-            chain.append(step)
-        else:
-            flash(f"Warning: No Director found in {directorate}", "warning")
-
-        # 2a. Directorate registry
-        dir_registry = users_coll.find_one({
-            "directorate": directorate,
-            "role": "registry"
-        })
-        step = add_registry_step(dir_registry, registry_type="directorate")
-        if step:
-            chain.append(step)
-        else:
-            flash(f"Warning: No Registry found in {directorate}", "warning")
-
-        # 2b. Central registry (CDSA)
-        central = get_central_registry()
-        if central:
-            chain.append({
-                "role":                "central_registry",
-                "approverId":          central.get('service_number'),
-                "approverName":        central.get('name'),
-                "approverRank":        central.get('rank'),
-                "approverDesignation": central.get('appt'),
-                "status":              "pending",
-                "comments":            "",
-                "timestamp":           None,
-                "registry_type":       "central",
-            })
-        else:
-            flash("Warning: No Central Registry (CDSA) found", "warning")
-
-    # ─── MILITARY: DIRECTOR (role_bucket == 'director') ───
-    elif role_bucket == 'director':
-        # 1. CDSA Approver
-        cdsa = users_coll.find_one({
-            "role": "cdsa",
-            "service_number": {"$ne": sn}
-        })
-        if not cdsa:
-            cdsa = users_coll.find_one({
-                "is_cdsa_approver": {"$in": ["true", True]},
-                "service_number": {"$ne": sn}
-            })
-        step = create_step("cdsa", cdsa)
-        if step:
-            chain.append(step)
-        else:
-            flash("Warning: CDSA approver not found", "warning")
-
-        # 2a. Directorate registry
-        dir_registry = users_coll.find_one({
-            "directorate": directorate,
-            "role": "registry"
-        })
-        step = add_registry_step(dir_registry, registry_type="directorate")
-        if step:
-            chain.append(step)
-        else:
-            flash(f"Warning: No Registry found in {directorate}", "warning")
-
-        # 2b. Central registry (CDSA)
-        central = get_central_registry()
-        if central:
-            chain.append({
-                "role":                "central_registry",
-                "approverId":          central.get('service_number'),
-                "approverName":        central.get('name'),
-                "approverRank":        central.get('rank'),
-                "approverDesignation": central.get('appt'),
-                "status":              "pending",
-                "comments":            "",
-                "timestamp":           None,
-                "registry_type":       "central",
-            })
+            chain.append(add_central_registry_step(central))
         else:
             flash("Warning: No Central Registry (CDSA) found", "warning")
 
@@ -1585,11 +1838,22 @@ def reliever_action_accept(app_id):
             }
             notify_pending_approval(app_doc, first_pending, applicant_user)
             if notifications_coll is not None:
+                target_email = first_pending.get("approverEmail")
+                if not target_email and current_app.users_collection is not None:
+                    target_u = current_app.users_collection.find_one({"service_number": first_pending.get("approverId"), "role": first_pending.get("role")}) or current_app.users_collection.find_one({"role": first_pending.get("role")})
+                    if target_u:
+                        target_email = (target_u.get("email") or "").strip().lower()
+
                 notifications_coll.insert_one({
                     "type":          "action_required",
                     "applicationId": app_doc["_id"],
                     "referenceId":   app_doc.get("referenceId"),
-                    "target":        {"type": "user", "userId": first_pending.get("approverId"), "role": first_pending.get("role")},
+                    "target":        {
+                        "type":   "user",
+                        "userId": target_email or first_pending.get("approverId"),
+                        "email":  target_email,
+                        "role":   first_pending.get("role")
+                    },
                     "message":       f"Application {app_doc.get('referenceId')} from {app_doc.get('applicantName')} is awaiting your approval.",
                     "status":        "unread",
                     "readBy":        [],
@@ -1711,12 +1975,27 @@ def api_reliever_request_send():
 
     collections = get_db_collections()
     users_coll = collections.get('users')
+    apps_coll = collections.get('applications')
     notifications_coll = current_app.notifications_collection
 
     # Verify reliever exists
     reliever = users_coll.find_one({"email": reliever_email, "is_active": True})
     if not reliever:
         return jsonify({"error": "Reliever not found or inactive"}), 404
+
+    # Verify reliever is not currently on any leave/pass type
+    svc_nums_on_leave, emails_on_leave = get_staff_on_leave_identifiers(apps_coll)
+    reliever_svc = str(reliever.get('service_number') or '').strip().upper()
+    if reliever_email in emails_on_leave or (reliever_svc and reliever_svc in svc_nums_on_leave):
+        return jsonify({"error": f"{reliever.get('name', 'The selected staff')} is currently on leave/pass and cannot stand as a reliever."}), 400
+
+    # Ensure role and category requirements for civilian application
+    applicant_bucket = applicant.get('role_bucket', 'civilian')
+    if applicant_bucket == 'civilian':
+        r_cat = str(reliever.get('category') or '').strip().lower()
+        r_role = str(reliever.get('role') or '').strip().lower()
+        if r_cat != 'civilian' or (r_role != 'civilian' and r_role != 'civilian_head_cao'):
+            return jsonify({"error": "Only civilian staff can stand as a reliever for this application."}), 400
 
     # Create request doc in reliever_requests collection
     reliever_requests_coll = users_coll.database["reliever_requests"]

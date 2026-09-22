@@ -497,6 +497,8 @@
                                         <option value="{{ reliever.email }}"
                                             data-appt="{{ reliever.appt or reliever.title or '' }}">{{ reliever.name }}
                                         </option>
+                                        {% else %}
+                                        <option value="" disabled>No available relievers found (all colleagues in your directorate may be on leave/pass)</option>
                                         {% endfor %}
                                     </select>
                                     <input type="hidden" id="reliever_email" name="reliever_email" value="">
@@ -781,7 +783,7 @@
                                     <div class="form-group">
                                         <label>Reason(s) for the Application</label>
                                         <textarea autocomplete="off" id="reasons_for_application"
-                                            name="reasons_for_application" placeholder="">
+                                            name="reasons_for_application" placeholder="Reasons">
                                     </textarea>
                                     </div>
                                     <div class="form-group">

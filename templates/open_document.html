@@ -1,0 +1,3482 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Open Document</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" /> -->
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" /> -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+
+  <style>
+    /* Style signature images inside document body */
+    .document-preview img[src^="data:image/"],
+    .memo-document img[src^="data:image/"] {
+      max-width: 120px !important;
+      height: auto !important;
+      display: block;
+      margin-left: auto !important;
+      margin-right: 0 !important;
+    }
+
+    /* Preserve whitespace and tabs from Quill content */
+    .ql-editor p,
+    .memo-document-body p,
+    .document-preview p {
+      white-space: pre-wrap;
+    }
+
+    /* Quill alignment classes */
+    .ql-align-right {
+      text-align: right !important;
+    }
+
+    .ql-align-center {
+      text-align: center !important;
+    }
+
+    .ql-align-justify {
+      text-align: justify !important;
+    }
+
+    /* Quill indent classes */
+    .ql-indent-1 {
+      padding-left: 3em !important;
+    }
+
+    .ql-indent-2 {
+      padding-left: 6em !important;
+    }
+
+    .ql-indent-3 {
+      padding-left: 9em !important;
+    }
+
+    .ql-indent-4 {
+      padding-left: 12em !important;
+    }
+
+    .ql-indent-5 {
+      padding-left: 15em !important;
+    }
+
+    /* Tab character width */
+    .memo-document-body,
+    .document-preview {
+      tab-size: 8;
+      -moz-tab-size: 8;
+    }
+
+    /* ── Memo document display styles ── */
+    .memo-a4-header {
+      font-family: 'Crimson Text', Georgia, serif;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .memo-restricted-band {
+      text-align: center;
+      font-size: 10pt;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #1a1a1a;
+      margin-bottom: 8mm;
+    }
+
+    .memo-org-name {
+      text-align: center;
+      font-weight: 600;
+      font-size: 13.5pt;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 4mm;
+      color: #111;
+    }
+
+    .memo-logo-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 5mm;
+    }
+
+    .memo-logo-wrap img,
+    .memo-crest-svg {
+      width: 24mm;
+      height: 24mm;
+      object-fit: contain;
+    }
+
+    .memo-title-band {
+      text-align: center;
+      font-family: 'IM Fell English', serif;
+      font-size: 15pt;
+      letter-spacing: .04em;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+      color: #111;
+      margin-bottom: 6mm;
+    }
+
+    .memo-address-grid {
+      display: grid;
+      grid-template-columns: 1fr 2px 1fr;
+      border-top: 1px solid #444;
+      border-bottom: 1px solid #444;
+      margin-bottom: 6mm;
+    }
+
+    .memo-addr-cell {
+      padding: 3mm 4mm;
+    }
+
+    .memo-addr-divider {
+      background: #444;
+      align-self: stretch;
+    }
+
+    .memo-addr-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      line-height: 2.1;
+      font-size: 11pt;
+      color: #111;
+    }
+
+    .memo-addr-label {
+      font-weight: 600;
+      min-width: 38px;
+    }
+
+    .memo-live-field {
+      color: #1a3060;
+    }
+
+    .memo-document-body {
+      font-family: 'Crimson Text', Georgia, serif;
+      font-size: 12pt;
+      line-height: 1.8;
+      margin-top: 10mm;
+    }
+
+    .memo-document {
+      padding: 10mm;
+    }
+
+
+
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #f5f5f5;
+    }
+
+    .topbar {
+      padding: 20px;
+      background: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .content {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .form-section {
+      flex: 1;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 60%;
+      max-width: 500px;
+    }
+
+    .form-section h3 {
+      margin-top: 0;
+    }
+
+    .form-section form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-section label {
+      margin: 10px 0 5px;
+    }
+
+    .form-section input,
+    .form-section select {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .buttons {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    button.forward {
+      background: green;
+      color: white;
+    }
+
+    .document-preview {
+      flex: 1;
+      background: #fff;
+      border-radius: 8px;
+      padding: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 150vh;
+    }
+
+    .document-preview iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+
+    #modalSigCanvas {
+      display: block;
+    }
+
+
+    .correspondence-container {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+
+    .correspondence-header {
+      margin: 0 0 12px 0;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .badge-count {
+      background: #e0e7ff;
+      color: #4338ca;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .thread-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .thread-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      position: relative;
+    }
+
+    .thread-connector {
+      position: absolute;
+      left: 15px;
+      top: 28px;
+      width: 2px;
+      bottom: 0;
+      background: #e5e7eb;
+    }
+
+    .sequence-bubble {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    .sequence-bubble-active {
+      background: #0d1b45;
+      color: white;
+    }
+
+    .sequence-bubble-original {
+      background: #f59e0b;
+      color: white;
+    }
+
+    .sequence-bubble-default {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .entry-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .entry-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .entry-title-active {
+      font-weight: 700;
+      color: #0d1b45;
+    }
+
+    .status-badge {
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+    }
+
+    .status-viewing {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .status-original {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status-forwarded {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-edited {
+      background: #fef9c3;
+      color: #854d0e;
+    }
+
+    .status-saved {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .view-button {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .view-button:hover {
+      background: #e5e7eb;
+    }
+
+    /* =========================================================
+       RESPONSIVE DESIGN SYSTEM (TABLETS & MOBILE SCREENS)
+       ========================================================= */
+
+    /* Touch & Mobile Base Reset Rules */
+    .dashboard-wrapper {
+      width: 100%;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .main-content {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .mobile-view-tabs {
+      display: none;
+    }
+
+    .mobile-tab-jump,
+    .mobile-tab-jump-back {
+      display: none;
+    }
+
+    .document-preview img {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    .document-preview table {
+      max-width: 100% !important;
+      overflow-x: auto !important;
+      display: block !important;
+    }
+
+    /* ── Breakpoint: Tablet Devices (max-width: 1024px) ── */
+    @media (max-width: 1024px) {
+      .main-content {
+        padding: 14px 12px;
+      }
+
+      .content {
+        flex-direction: column;
+        padding: 14px 8px;
+        gap: 20px;
+        width: 100%;
+      }
+
+      .document-preview {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: 550px !important;
+        padding: 16px !important;
+        flex: none !important;
+      }
+
+      .document-preview iframe#docViewer {
+        height: 68vh !important;
+        min-height: 480px !important;
+      }
+
+      .form-section {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: none !important;
+        padding: 20px 18px !important;
+      }
+
+      .topbar {
+        padding: 16px !important;
+      }
+    }
+
+    /* ── Breakpoint: Tablets Portrait & Large Mobile (max-width: 992px) ── */
+    @media (max-width: 992px) {
+      .topbar {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+        padding: 14px 16px !important;
+        border-radius: 8px !important;
+        margin-bottom: 12px !important;
+      }
+
+      .topbar .title {
+        font-size: 15px !important;
+        width: 100% !important;
+        word-break: break-word !important;
+      }
+
+      .doc-buttons {
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+      }
+
+      .doc-buttons button,
+      .doc-buttons a {
+        padding: 8px 14px !important;
+        font-size: 12.5px !important;
+        flex: 1 1 auto !important;
+        min-height: 38px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+      }
+    }
+
+    /* ── Breakpoint: Standard Mobile Screens (max-width: 768px) ── */
+    @media (max-width: 768px) {
+      .main-content {
+        padding: 10px 6px !important;
+      }
+
+      /* Mobile Segmented View Control */
+      .mobile-view-tabs {
+        display: flex !important;
+        width: 100% !important;
+        margin-bottom: 14px !important;
+        background: #e2e8f0 !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+        gap: 4px !important;
+      }
+
+      .mobile-tab-btn {
+        flex: 1 !important;
+        padding: 10px 10px !important;
+        border: none !important;
+        background: transparent !important;
+        color: #475569 !important;
+        font-weight: 600 !important;
+        font-size: 0.84rem !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+      }
+
+      .mobile-tab-btn.active {
+        background: #0d1b45 !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+      }
+
+      .mobile-tab-jump,
+      .mobile-tab-jump-back {
+        display: block !important;
+      }
+
+      .content {
+        padding: 6px 0 !important;
+        gap: 14px !important;
+      }
+
+      .document-preview {
+        padding: 10px !important;
+        min-height: 480px !important;
+      }
+
+      .document-preview iframe#docViewer {
+        height: 60vh !important;
+        min-height: 380px !important;
+      }
+
+      .form-section {
+        padding: 16px 12px !important;
+      }
+
+      /* Final Signature Grid collapse to 1 column */
+      .final-sig-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+        padding: 0 !important;
+        margin-top: 24px !important;
+      }
+
+      #finalSignBtn {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+
+      /* Review Action Grids */
+      .review-actions-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+
+      /* Enclosures & Linked items responsive stack */
+      .enclosure-item,
+      .linked-item {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+      }
+
+      .enclosure-actions,
+      .linked-actions {
+        width: 100% !important;
+        margin-left: 0 !important;
+        display: flex !important;
+        gap: 8px !important;
+      }
+
+      .enclosure-actions a,
+      .linked-actions a {
+        flex: 1 !important;
+        text-align: center !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+
+      /* Seen Stamp Table & Form */
+      .seen-stamp-table-wrapper {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        margin-bottom: 12px !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 6px !important;
+      }
+
+      .seen-stamp-table {
+        min-width: 500px !important;
+      }
+
+      #seenStampBtn {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 12px !important;
+        font-size: 0.9rem !important;
+      }
+
+      /* Modals */
+      .responsive-modal-box {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        padding: 20px 16px !important;
+        border-radius: 12px !important;
+      }
+
+      /* A4 Memo Header & Address Table on Mobile */
+      .memo-document {
+        padding: 8px 4px !important;
+      }
+
+      .memo-restricted-band {
+        font-size: 8pt !important;
+        margin-bottom: 3mm !important;
+      }
+
+      .memo-org-name {
+        font-size: 11pt !important;
+        letter-spacing: .02em !important;
+        margin-bottom: 2mm !important;
+      }
+
+      .memo-logo-wrap img,
+      .memo-crest-svg {
+        width: 18mm !important;
+        height: 18mm !important;
+      }
+
+      .memo-title-band {
+        font-size: 12pt !important;
+        margin-bottom: 3mm !important;
+      }
+
+      .memo-address-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        border-top: 1px solid #444 !important;
+        border-bottom: 1px solid #444 !important;
+        margin-bottom: 4mm !important;
+      }
+
+      .memo-addr-divider {
+        display: none !important;
+      }
+
+      .memo-addr-cell {
+        padding: 4px 6px !important;
+        border-bottom: 1px dashed #cbd5e1 !important;
+      }
+
+      .memo-addr-cell:last-child {
+        border-bottom: none !important;
+      }
+
+      .memo-addr-row {
+        font-size: 9.5pt !important;
+        line-height: 1.5 !important;
+        flex-wrap: wrap !important;
+      }
+
+      .memo-document-body {
+        font-size: 10.5pt !important;
+        line-height: 1.65 !important;
+        margin-top: 5mm !important;
+        word-break: break-word !important;
+      }
+
+      /* Thread list */
+      .entry-title {
+        white-space: normal !important;
+        word-break: break-word !important;
+      }
+    }
+
+    /* ── Breakpoint: Compact Mobile Screens (max-width: 480px) ── */
+    @media (max-width: 480px) {
+
+      .doc-buttons button,
+      .doc-buttons a {
+        flex: 1 1 100% !important;
+        font-size: 12px !important;
+      }
+
+      .top-navbar {
+        padding: 8px 10px !important;
+        margin-bottom: 12px !important;
+      }
+
+      .breadcrumb {
+        font-size: 12px !important;
+        max-width: 150px !important;
+      }
+
+      .user-avatar-circle {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 12px !important;
+      }
+
+      .topbar {
+        padding: 12px 10px !important;
+      }
+
+      .form-section {
+        padding: 14px 10px !important;
+      }
+    }
+  </style>
+</head>
+
+<body data-active-page="{{ active_page | default('documents_content') }}">
+  <script>window.checkedRows = window.checkedRows || new Set();</script>
+  {# ── Global signature and forward status variables ── #}
+  {% set active_sig = active_correspondence.get('signatures') if active_correspondence else None %}
+  {% set has_active_sig = active_sig and active_sig | length > 0 %}
+  {% set root_sig = document.get('signatures') if document else None %}
+  {% set has_root_sig = root_sig and root_sig | length > 0 %}
+  {% set has_curr_signature = has_active_sig or (active_seq == 0 and has_root_sig) %}
+  {% set active_fwd = active_correspondence.get('forwarded_status', '') if active_correspondence else
+  document.get('forwarded_status', '') %}
+
+  {# ── Global normalized directorate variables ── #}
+  {% set user_dir_norm = (session.get('directorate') or '') | trim | upper %}
+  {% set doc_target_dir_norm = (document.get('target_directorate') or '') | trim | upper %}
+  {% set doc_origin_dir_norm = (document.get('origin_directorate') or '') | trim | upper %}
+
+  <div class="dashboard-wrapper">
+    {% include "sidebar.html" %}
+    <!-- Sidebar -->
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 ODOGWU &gt; <span class="active-crumb"> All Document</span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+      <!-- Header -->
+
+      <!-- Dashboard Content -->
+      <div class="dashboard-content">
+        <main class="main">
+          {# ── Concluded & Closed Banner ── #}
+          {% set is_closed = doc_lifecycle_stage == 'closed' or document.get('status') == 'Completed' or
+          document.get('concluded_at') %}
+          {% if is_closed %}
+          <div
+            style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:5px solid #059669; border-radius:8px; padding:14px 20px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+            <div style="flex:1; min-width:280px;">
+              <h4
+                style="margin:0 0 4px 0; color:#065f46; font-size:0.98rem; font-weight:700; display:flex; align-items:center; gap:8px;">
+                ✅ Correspondence Concluded &amp; Closed
+              </h4>
+              <p style="margin:0; font-size:0.86rem; color:#047857; line-height:1.45;">
+                This correspondence thread was concluded and filed on
+                <strong>{{ (document.concluded_at or document.date_completed).strftime('%d-%b-%Y') if
+                  (document.concluded_at or document.date_completed) else 'Recently' }}</strong>
+                by <strong>{{ document.concluded_by_appt or document.concluded_by_name or 'Director' }}</strong>.
+                {% if document.closing_remark %}
+                <span
+                  style="display:block; margin-top:5px; font-style:italic; color:#065f46; background:rgba(255,255,255,0.6); padding:4px 10px; border-radius:4px; border-left:3px solid #059669;">
+                  &ldquo;{{ document.closing_remark }}&rdquo;
+                </span>
+                {% endif %}
+              </p>
+            </div>
+            <span
+              style="background:#059669; color:white; font-size:0.75rem; font-weight:700; text-transform:uppercase; padding:5px 12px; border-radius:12px; letter-spacing:0.05em; display:inline-flex; align-items:center; gap:4px;">
+              📁 Filed
+            </span>
+          </div>
+          {% endif %}
+
+          <header class="topbar">
+            <div class="title" style="font-weight: bold; font-size: 16px; color: #0b78cc;"
+              title="{{ document.memo_title }}">
+              {{ document.memo_title | truncate(60, True, '...') }}
+            </div>
+            <div class="doc-buttons" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+
+              {% set is_external = (document.get('target_directorate') or '') | trim | upper == 'EXTERNAL' or
+              (document.get('origin_directorate') or '') | trim | upper == 'EXTERNAL' %}
+              {% set is_target_directorate = user_dir_norm == doc_target_dir_norm %}
+              {% set is_origin_directorate = user_dir_norm == doc_origin_dir_norm %}
+
+              {% set curr_holder_email = phase_current_holder or document.get('current_holder') %}
+              {% set is_with_me = (session.get('email') == curr_holder_email) or (is_current_holder | default(false)) %}
+
+              {# ── Check if the user's directorate phase is signed ── #}
+              {% set phase_sigs = display_phase.get('signatures') if display_phase else None %}
+              {% set phase_is_signed = phase_sigs and (phase_sigs | length > 0) %}
+
+              {% if is_origin_directorate %}
+              {% if display_phase and display_phase.get('phase_number', 0) > 0 %}
+              {# Origin directorate viewing reply phase: check if this reply phase is signed #}
+              {% set my_phase_is_signed = phase_is_signed %}
+              {% else %}
+              {% set my_phase_is_signed = has_root_sig if active_seq == 0 else has_active_sig %}
+              {% endif %}
+              {% else %}
+              {# In target directorate: sequence 0 was signed by origin, not target #}
+              {% if active_seq == 0 %}
+              {% set my_phase_is_signed = phase_is_signed %}
+              {% else %}
+              {% set my_phase_is_signed = has_active_sig or phase_is_signed %}
+              {% endif %}
+              {% endif %}
+
+              {# ── Actions for Current Holder (only when not closed) ── #}
+              {% if not is_closed and is_with_me %}
+
+              {# Add Correspondence & Add Loose Minute: only if phase is not yet signed #}
+              {% if not my_phase_is_signed %}
+              <!-- Add Correspondence -->
+              <button onclick="addCorrespondence()"
+                style="background:#0d1b45; color:white; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
+                + Add Correspondence
+              </button>
+
+              <!-- Add Loose Minute -->
+              <button onclick="addLooseMinute()"
+                style="background:#0d1b45; color:white; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
+                + Add Loose Minute
+              </button>
+              {% endif %}
+
+              <!-- Conclude & File -->
+              <button type="button" onclick="openConcludeModal()"
+                style="background:#059669; color:white; padding:8px 16px; border:none; border-radius:4px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                📁 Conclude &amp; File
+              </button>
+
+              {# ── Edit button: only for editable entries created in this phase / origin ── #}
+              {% if not my_phase_is_signed %}
+              {% set edit_target = active_correspondence if active_correspondence else document %}
+              {% set edit_source = edit_target.get('source') %}
+              {% set edit_fwd = edit_target.get('forwarded_status', '') %}
+              {% set was_returned = edit_fwd == 'Returned' %}
+
+              {% set can_edit = (is_origin_directorate and active_seq == 0 and (edit_source == 'created_in_system' or
+              document.content_html)) or (active_seq > 0 and (edit_source == 'created_in_system' or
+              edit_target.get('content_html'))) %}
+
+              {% if can_edit %}
+              {% if was_returned %}
+              <button onclick="editDocument({{ active_seq }})" style="background:#ea580c; color:white; padding:8px 16px;
+                             border:none; border-radius:4px; cursor:pointer;">
+                ✏️ Edit (Returned)
+              </button>
+              {% else %}
+              <button onclick="editDocument({{ active_seq }})" style="background:#e8e7e7; color:#111; padding:8px 16px;
+                             border:none; border-radius:4px; cursor:pointer;">
+                ✏️ Edit
+              </button>
+              {% endif %}
+              {% endif %}
+              {% endif %}
+
+              {% endif %}
+
+              {# ── Signed Phase Action: Print Letterhead ── #}
+              {% if has_curr_signature and ((active_correspondence and active_correspondence.get('content_html')) or
+              (not active_correspondence and document.content_html)) %}
+              <button onclick="printLetterhead()" style="background:#1e3a8a; color:white; font-weight: 500;">
+                Print Letterhead
+              </button>
+              {% endif %}
+            </div>
+          </header>
+
+          <!-- Mobile Segmented View Toggle (Visible on screens <= 768px) -->
+          <div class="mobile-view-tabs" id="mobileViewTabs">
+            <button type="button" class="mobile-tab-btn active" id="tabBtnDoc" onclick="switchMobileTab('doc')">
+              📄 Document Preview
+            </button>
+            <button type="button" class="mobile-tab-btn" id="tabBtnActions" onclick="switchMobileTab('actions')">
+              ⚡ Actions &amp; Minute Sheet
+            </button>
+          </div>
+
+          <section class="content">
+            <div class="document-preview" style="position: relative">
+              {% if active_correspondence %}
+              {# ── Entry created in the system (has content_html) ── #}
+              {% if active_correspondence.get('content_html') %}
+              <div style="padding: 20px; background: white; height: 100%; overflow-y: auto;">
+                {{ active_correspondence['content_html'] | safe }}
+              </div>
+
+              <!-- {# ── Entry is an uploaded file ── #} -->
+              {% elif active_correspondence.get('main_file_id') %}
+              {% set fname = active_correspondence.get('main_filename', '')|lower %}
+
+              {% if fname.endswith('.pdf') %}
+              <iframe id="docViewer" src="{{ url_for('view_stream_correspondence_routes.stream_correspondence_file',
+                        doc_id=document._id,
+                        sequence=active_correspondence.sequence) }}" frameborder="0"
+                style="flex:1; width:100%; height:100%; border:none;">
+              </iframe>
+
+              {% elif fname.endswith('.doc') or fname.endswith('.docx') %}
+              <div style="display:flex; flex-direction:column; align-items:center;
+                  justify-content:center; height:100%; text-align:center; gap:12px;">
+                <p style="color:#4b5563;">Word documents cannot be previewed directly.</p>
+                <a href="{{ url_for('view_stream_correspondence_routes.stream_correspondence_file',
+                            doc_id=document._id,
+                            sequence=active_correspondence.sequence) }}" style="background:#4f46e5; color:white; padding:10px 20px;
+                  text-decoration:none; border-radius:6px; font-size:14px;">
+                  ⬇ Download to View
+                </a>
+              </div>
+
+              {% else %}
+              <div style="display:flex; align-items:center; justify-content:center; height:100%;">
+                <p style="color:#6b7280;">Unsupported file type for preview.</p>
+              </div>
+              {% endif %}
+
+              <!-- {# ── Nothing attached to this entry ── #} -->
+              {% else %}
+              <div style="display:flex; flex-direction:column; align-items:center;
+                justify-content:center; height:100%; text-align:center;">
+                <p style="color:#6b7280;">No content attached to this correspondence entry.</p>
+              </div>
+              {% endif %}
+
+              {% else %}
+              <!-- {# ── Fallback: old document with no correspondence array ── #} -->
+              {% if document.content_html %}
+              <div style="padding: 20px; background: white; height: 100%; overflow-y: auto;">
+                {{ document.content_html | safe }}
+              </div>
+              {% elif document.main_file_id %}
+              <iframe id="docViewer"
+                src="{{ url_for('view_stream_correspondence_routes.stream_document', doc_id=document._id) }}"
+                frameborder="0" style="flex:1; width:100%; height:100%; border:none;">
+              </iframe>
+              {% else %}
+              <div style="display:flex; align-items:center; justify-content:center; height:100%;">
+                <p style="color:#6b7280;">No content attached to this document.</p>
+              </div>
+              {% endif %}
+              {% endif %}
+
+
+              <!-- ══════════════════════════════════════════
+                 ENCLOSURES / ANNEXES SECTION
+              ══════════════════════════════════════════ -->
+              {% set active_attachments = active_correspondence.get('attachments', []) if active_correspondence else
+              document.get('attachments', []) %}
+              {% if active_attachments and active_attachments | length > 0 %}
+              <div class="enclosures-container"
+                style="  margin-top: 20px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); width: 100%; ">
+
+                <h4
+                  style="margin: 0 0 14px 0; font-size: 0.92rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 8px; ">
+                  📎 Enclosures / Annexes
+                  <span
+                    style="background: #e0e7ff; color: #4338ca; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; ">{{
+                    active_attachments | length }}</span>
+                </h4>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  {% for att in active_attachments %}
+                  <div class="enclosure-item"
+                    style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.05); ">
+                    <!-- Left: attachment info -->
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                      <div
+                        style="font-size: 11px; font-weight: 700; color: #1d4ed8; letter-spacing: .04em; text-transform: uppercase;">
+                        {{ att.code }}
+                      </div>
+                      <div style="font-size: 14px; font-weight: 600; color: #111827;">
+                        {{ att.title }}
+                      </div>
+                      <div style="font-size: 12px; color: #6b7280;">
+                        📄 {{ att.filename }}
+                      </div>
+                      <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">
+                        Uploaded by {{ att.uploaded_by }}
+                        {% if att.uploaded_at %}
+                        · {{ att.uploaded_at.strftime('%d %b %Y %H:%M') }}
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <!-- Right: action buttons -->
+                    <div class="enclosure-actions" style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
+                      <a href="{{ url_for('document_attachment_routes.view_attachment', file_id=att.file_id) }}"
+                        target="_blank"
+                        style=" background: #f3f4f6; color: #111827; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; text-decoration: none; border: 1px solid #e5e7eb; ">
+                        👁 View
+                      </a>
+                      <a href="{{ url_for('document_attachment_routes.download_attachment', file_id=att.file_id, filename=att.filename) }}"
+                        style=" background: #0d1b45; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; text-decoration: none; ">
+                        ⬇ Download
+                      </a>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+
+              </div>
+              {% endif %}
+              <!-- ══ END ENCLOSURES / ANNEXES ══ -->
+
+              <!-- FINAL SIGNATURE -->
+              {% if (has_curr_signature and session.get('role') in ['director', 'dd', 'cdsa', 'dcdsa',
+              'registry', 'central_registry', 'ad', 'so']) or
+              (not has_curr_signature and session.get('role') in ['director', 'cdsa', 'dcdsa', 'dd'] and
+              (active_fwd == 'Completed' or session.get('email') == document.get('current_holder') or
+              is_current_holder)) %}
+
+              {% set signature_list = active_sig if has_active_sig else (root_sig if (active_seq == 0 and has_root_sig)
+              else []) %}
+              {% set has_signature = has_curr_signature %}
+
+              {% set last_sig = signature_list | last if has_signature else None %}
+
+              {# Also check if the active entry is the original (sequence 0) #}
+              {% set is_original = active_seq == 0 %}
+
+              <form action="{{ url_for('document_signing_routes.append_final_signature', doc_id=document._id) }}"
+                method="POST" id="finalSignatureForm" style="width: 100%;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="sequence" value="{{ active_seq }}" />
+
+                <div class="final-sig-grid"
+                  style="display:grid; grid-template-columns:1fr 1fr; gap:30px; padding: 0 16px; margin-top: 50px; margin-bottom:1.5rem;">
+                  <!-- Left Column -->
+                  <div>
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label style="display:block;margin-bottom:5px;font-weight:500;">
+                        Name
+                      </label>
+                      <input type="text" id="modalName" name="name"
+                        value="{% if has_signature %}{{ last_sig.signer }}{% else %}{{ user_name or session.get('name', '') }}{% endif %}"
+                        required readonly
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label style="display:block;margin-bottom:5px;font-weight:500;">
+                        Appointment
+                      </label>
+                      <input type="text" id="modalAppt" name="appt"
+                        value="{% if has_signature %}{{ last_sig.signer_appt }}{% else %}{{ user_appt or session.get('appt') or (session.get('role', '') | replace('_', ' ') | title) }}{% endif %}"
+                        required readonly
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                    </div>
+                  </div>
+
+                  <!-- Right Column -->
+                  <div>
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label style="display:block;margin-bottom:5px;font-weight:500;">
+                        Rank
+                      </label>
+                      <input type="text" id="modalRank" name="rank"
+                        value="{% if has_signature %}{{ last_sig.signer_rank if last_sig.signer_rank and last_sig.signer_rank != 'None' else '' }}{% else %}{{ user_rank or (session.get('rank') if session.get('rank') and session.get('rank') != 'None' else '') or (session.get('rankOrGrade') if session.get('rankOrGrade') and session.get('rankOrGrade') != 'None' else '') or '' }}{% endif %}"
+                        readonly
+                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px">
+                      <label style="display:block;margin-bottom:5px;font-weight:500;">Signature</label>
+                      <!-- Signature Preview Area -->
+                      <div id="signaturePreview"
+                        style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 16px; text-align: center; background: #f9fafb; min-height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                        <span id="signaturePlaceholder" style="color: #9ca3af; font-size: 0.85rem;">
+                          {% if has_signature %}
+                          <div style="margin-top: 30px; padding: 20px;">
+                            <div style="display: flex; justify-content: flex-end;">
+                              <div style="text-align: center;">
+                                {% if last_sig.signature_image %}
+                                <img src="{{ last_sig.signature_image }}"
+                                  style="max-width: 200px; height: auto; display: block; margin-bottom: 8px;" />
+                                {% endif %}
+                                <div style="font-weight: 700; margin-top: 8px;">
+                                  {{ last_sig.signer }}
+                                </div>
+                                <div style="font-size: 0.8rem; color: #6b7280;">
+                                  {{ last_sig.signer_rank }} · {{ last_sig.signer_appt }}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #9ca3af;">
+                                  Signed: {{ last_sig.timestamp.strftime('%d %b %Y %H:%M') if
+                                  last_sig.timestamp else '' }}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          {% else %}
+                          {% if is_original %}
+                          No signature appended yet. Click "Sign Document" below.
+                          {% else %}
+                          This correspondence entry has not been signed yet.
+                          {% endif %}
+                          {% endif %}
+                        </span>
+                      </div>
+                      <!-- Signature Button -->
+                      <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+                        <button type="button" onclick="finalSignatureModal()" id="finalSignBtn" {% if has_signature
+                          %}disabled{% endif %} style="background:#0d1b45; color:white; border:none; padding:10px 24px; border-radius:6px;
+                  font-size:0.88rem; font-weight:600; cursor:pointer; 
+                  {% if has_signature %}opacity:0.5; cursor:not-allowed;{% endif %}">
+                          ✍️ {% if has_signature %}Already Signed{% else %}Sign Document{% endif %}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+              {% endif %}
+
+              <!-- Mobile continuation prompt -->
+              <div class="mobile-tab-jump" style="display:none; margin-top:20px; padding: 10px 4px;">
+                <button type="button" onclick="switchMobileTab('actions')"
+                  style="width:100%; background:#0d1b45; color:white; padding:12px 18px; border-radius:8px; font-weight:600; font-size:0.9rem; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                  <span>Continue to Actions &amp; Minute Sheet</span>
+                  <span>↓</span>
+                </button>
+              </div>
+
+            </div>
+
+            <div class="form-section">
+              <!-- Mobile jump back prompt -->
+              <div class="mobile-tab-jump-back" style="display:none; margin-bottom:14px;">
+                <button type="button" onclick="switchMobileTab('doc')"
+                  style="width:100%; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:9px 16px; border-radius:8px; font-weight:600; font-size:0.84rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                  <span>↑ Return to Document Preview</span>
+                </button>
+              </div>
+
+              <h3>Document Actions</h3><br>
+
+              <div class="title" style="font-weight: bold; font-size: 16px; color: #0b78cc;">
+                {{ document.memo_title }}
+
+                {% if document.is_editable %}
+                {% endif %}
+              </div>
+
+              {# ═══════════════════════════════════════════════════════════════════
+              REVIEW ACTIONS — driven by root-level document.review_chain
+              ═══════════════════════════════════════════════════════════════════ #}
+
+              {# ── Review chain visual ─────────────────────────────────────────── #}
+              <div style="background:var(--color-background-secondary); border:1px solid var(--color-border-tertiary);
+              border-radius:10px; padding:14px 16px; margin-bottom:16px;">
+                <p style="font-size:0.7rem; color:var(--color-text-secondary); margin:0 0 10px 0;
+                font-weight:600; letter-spacing:.05em; text-transform:uppercase;">
+                  Review chain
+                </p>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  {% for m in chain %}
+                  {% set is_me = m.get('email') == current_email %}
+                  {% set is_holder = m.get('email') == document.get('current_holder') %}
+
+
+                  <span class="chain-member" data-me="{{ 'true' if is_me else 'false' }}"
+                    data-holder="{{ 'true' if is_holder else 'false' }}">
+                    {% if is_me %}You — {% endif %}{{ m.get('appt') or (m.get('role', '').replace('_', ' ').title() if
+                    m.get('role') else m.get('name')) }}
+                    {% if is_holder and not is_me %} 📍{% endif %}
+                  </span>
+                  {% if not loop.last %}
+                  <span style="color:var(--color-text-secondary); font-size:0.8rem;">→</span>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+
+                {% if not is_current_holder and is_in_chain %}
+                <p style="margin:10px 0 0; font-size:0.78rem; color:var(--color-text-secondary);">
+                  Currently with:
+                  <strong>
+                    {% for m in chain %}{% if m.get('email') == document.get('current_holder') %}{{ m.get('appt') or
+                    (m.get('role', '').replace('_', ' ').title() if m.get('role') else m.get('name')) }}{%
+                    endif %}{% endfor %}
+                  </strong>
+                </p>
+                {% endif %}
+              </div>
+
+              {% if is_current_holder and is_in_chain and active_seq == (document.correspondence | length) - 1 and
+              doc_lifecycle_stage not in ['awaiting_dispatch_to_target', 'awaiting_dispatch_to_origin'] %}
+
+              {# ════════════════════════════════════════════════════════════
+              CASE 1 — TOP OF CHAIN (index 0)
+              Shows: ✅ Mark complete + ↩ Return down for amendment
+              ════════════════════════════════════════════════════════════ #}
+              {% if is_top %}
+              <div style="background:var(--color-background-secondary); border:1px solid var(--color-border-tertiary);
+                  border-left:4px solid #7c3aed; border-radius:10px; padding:16px 20px; margin-bottom:16px;">
+                <h4 style="margin:0 0 6px 0; font-size:0.92rem; font-weight:700; color:var(--color-text-primary);">
+                  📋 Final review actions
+                </h4>
+                <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0 0 14px 0;">
+                  You are the originating reviewer. Mark complete or return for amendment.
+                </p>
+                <div class="review-actions-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+
+                  <!-- ✅ Mark complete -->
+                  <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px;">
+                    <h5 style="margin:0 0 4px 0; font-size:0.85rem; font-weight:700; color:#166534;">✅ Mark complete
+                    </h5>
+                    <p style="font-size:0.72rem; color:var(--color-text-secondary); margin:0 0 8px 0;">
+                      Close this review and mark the task as done.
+                    </p>
+                    <form
+                      action="{{ url_for('forward_returned_routes.forward_correspondence', doc_id=document._id, seq=active_seq) }}"
+                      method="POST" onsubmit="return preventReviewSubmit(this)">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                      <textarea name="forward_remark" rows="2" placeholder="Final remarks (optional)…" style="width:100%; padding:6px 8px; border:1px solid #d1d5db; border-radius:4px;
+                     font-size:0.78rem; margin-bottom:8px; box-sizing:border-box; resize:vertical;"></textarea>
+                      {% if active_fwd in ['Completed', 'Dispatched'] %}
+                      <button type="button" class="review-action-btn" disabled
+                        style="background:#9ca3af; color:white; border:none; padding:9px 12px;
+                     border-radius:4px; font-size:0.78rem; font-weight:600; cursor:not-allowed; opacity:0.6; width:100%;">
+                        ✅ Completed
+                      </button>
+                      {% else %}
+                      <button type="submit" class="review-action-btn" style="background:#16a34a; color:white; border:none; padding:9px 12px;
+                     border-radius:4px; font-size:0.78rem; font-weight:600; cursor:pointer; width:100%;">
+                        ✅ Mark as completed
+                      </button>
+                      {% endif %}
+                    </form>
+                  </div>
+
+                  <!-- ↩ Return for amendment -->
+                  {% if below %}
+                  {% set below_title = (below.get('appt') or (below.get('role', '').replace('_', ' ').title() if
+                  below.get('role') else below.get('name', 'Reviewer'))) if below else '' %}
+                  <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:12px;">
+                    <h5 style="margin:0 0 4px 0; font-size:0.85rem; font-weight:700; color:#ea580c;">↩ Return for
+                      amendment</h5>
+                    <p style="font-size:0.72rem; color:var(--color-text-secondary); margin:0 0 8px 0;">
+                      Return to <strong>
+                        {{ below_title }} </strong> for correction.
+                    </p>
+                    <form
+                      action="{{ url_for('forward_returned_routes.return_for_amendment', doc_id=document._id, seq=active_seq) }}"
+                      method="POST" onsubmit="return preventReviewSubmit(this)">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                      <textarea name="return_remark" rows="2" placeholder="Reason for return…" style="width:100%; padding:6px 8px; border:1px solid #d1d5db; border-radius:4px;
+                     font-size:0.78rem; margin-bottom:8px; box-sizing:border-box; resize:vertical;"></textarea>
+                      {% if active_fwd in ['Completed', 'Dispatched'] %}
+                      <button type="button" class="review-action-btn" disabled
+                        style="background:#9ca3af; color:white; border:none; padding:9px 12px;
+                     border-radius:4px; font-size:0.78rem; font-weight:600; cursor:not-allowed; opacity:0.6; width:100%;">
+                        ↩ Return to {{ below_title }}
+                      </button>
+                      {% else %}
+                      <button type="submit" class="review-action-btn" style="background:#ea580c; color:white; border:none; padding:9px 12px;
+                     border-radius:4px; font-size:0.78rem; font-weight:600; cursor:pointer; width:100%;">
+                        ↩ Return to {{ below_title }}
+                      </button>
+                      {% endif %}
+                    </form>
+                  </div>
+                  {% endif %}
+
+                </div>
+              </div>
+
+              {# ════════════════════════════════════════════════════════════
+              CASE 2 — BOTTOM OF CHAIN (last index)
+              Shows: 📤 Forward up only (no one below to return to)
+              ════════════════════════════════════════════════════════════ #}
+              {% elif is_bottom %}
+              {% set above_title = (above.get('appt') or (above.get('role', '').replace('_', ' ').title() if
+              above.get('role') else above.get('name', 'Reviewer'))) if above else '' %}
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0;
+                border-left:4px solid #16a34a; border-radius:10px; padding:16px 20px; margin-bottom:16px;">
+                <h4 style="margin:0 0 6px 0; font-size:0.92rem; font-weight:700; color:#166534;">
+                  📤 Forward for review
+                </h4>
+                <p style="font-size:0.8rem; color:#4b5563; margin:0 0 14px 0;">
+                  Send your response up to <strong> {{ above_title }} </strong>
+                </p>
+                <form
+                  action="{{ url_for('forward_returned_routes.forward_correspondence', doc_id=document._id, seq=active_seq) }}"
+                  method="POST" onsubmit="return preventReviewSubmit(this)">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <textarea name="forward_remark" rows="2" placeholder="Remarks (optional)…" style="width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px;
+                 font-size:0.85rem; resize:vertical; box-sizing:border-box; margin-bottom:10px;"></textarea>
+                  <button type="submit" class="review-action-btn" style="background:#16a34a; color:white; border:none; padding:10px 22px;
+                 border-radius:6px; font-size:0.88rem; font-weight:600; cursor:pointer; width:100%;">
+                    📤 Forward to {{ above_title }}
+                  </button>
+                </form>
+              </div>
+
+              {# ════════════════════════════════════════════════════════════
+              CASE 3 — MIDDLE OF CHAIN
+              Shows: ⬆ Forward up + ⬇ Return down
+              ════════════════════════════════════════════════════════════ #}
+              {% elif is_middle %}
+              {% set above_title = (above.get('appt') or (above.get('role', '').replace('_', ' ').title() if
+              above.get('role') else above.get('name', 'Reviewer'))) if above else '' %}
+              {% set below_title = (below.get('appt') or (below.get('role', '').replace('_', ' ').title() if
+              below.get('role') else below.get('name', 'Reviewer'))) if below else '' %}
+              <div style="background:var(--color-background-secondary); border:1px solid var(--color-border-tertiary);
+                  border-left:4px solid #7c3aed; border-radius:10px; padding:16px 20px; margin-bottom:16px;">
+                <h4 style="margin:0 0 6px 0; font-size:0.92rem; font-weight:700; color:var(--color-text-primary);">
+                  📋 Review actions
+                </h4>
+                <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0 0 14px 0;">
+                  Forward up to <strong>{{ above_title }}</strong>
+                  or return down to <strong>{{ below_title }}</strong>.
+                </p>
+                <div class="review-actions-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+
+                  <!-- ⬆ Forward up -->
+                  <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px;">
+                    <h5 style="margin:0 0 4px 0; font-size:0.85rem; font-weight:700; color:#16a34a;">⬆ Forward up</h5>
+                    <p style="font-size:0.72rem; color:var(--color-text-secondary); margin:0 0 8px 0;">
+                      To <strong>
+                        {{ above_title }}</strong>
+                    </p>
+                    <form
+                      action="{{ url_for('forward_returned_routes.forward_correspondence', doc_id=document._id, seq=active_seq) }}"
+                      method="POST" onsubmit="return preventReviewSubmit(this)">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                      <textarea name="forward_remark" rows="2" placeholder="Remarks…" style="width:100%; padding:6px 8px; border:1px solid #d1d5db; border-radius:4px;
+                     font-size:0.78rem; margin-bottom:8px; box-sizing:border-box; resize:vertical;"></textarea>
+                      <button type="submit" class="review-action-btn" style="background:#16a34a; color:white; border:none; padding:8px 12px;
+                     border-radius:4px; font-size:0.78rem; font-weight:600; cursor:pointer; width:100%;">
+                        ⬆ Forward to {{ above_title }}
+                      </button>
+                    </form>
+                  </div>
+
+                  <!-- ⬇ Return down -->
+                  <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:12px;">
+                    <h5 style="margin:0 0 4px 0; font-size:0.85rem; font-weight:700; color:#ea580c;">⬇ Return for
+                      Amendment</h5>
+                    <p style="font-size:0.72rem; color:var(--color-text-secondary); margin:0 0 8px 0;">
+                      To <strong>
+                        {{ below_title }}</strong>
+                    </p>
+                    <form
+                      action="{{ url_for('forward_returned_routes.return_for_amendment', doc_id=document._id, seq=active_seq) }}"
+                      method="POST" onsubmit="return preventReviewSubmit(this)">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                      <textarea name="return_remark" rows="2" placeholder="Reason for return…" style="width:100%; padding:6px 8px; border:1px solid #d1d5db; border-radius:4px;
+                     font-size:0.78rem; margin-bottom:8px; box-sizing:border-box; resize:vertical;"></textarea>
+                      <button type="submit" class="review-action-btn" style="background:#ea580c; color:white; border:none; padding:8px 12px;
+                     border-radius:4px; font-size:0.78rem; font-weight:600; cursor:pointer; width:100%;">
+                        ⬇ Return to {{ below_title }}
+                      </button>
+                    </form>
+                  </div>
+
+                </div>
+              </div>
+              {% endif %}
+
+              {% elif pending_acknowledgement %}
+              <div
+                style="background:#fffbeb; border:1px solid #fef3c7; border-left:4px solid #d97706; border-radius:10px; padding:16px 20px; margin-bottom:16px;">
+                <h4
+                  style="margin:0 0 6px 0; font-size:0.92rem; font-weight:700; color:#b45309; display:flex; align-items:center; gap:6px;">
+                  📋 Action Required: Acknowledge Document
+                </h4>
+                <p style="font-size:0.8rem; color:#6b7280; margin:0 0 12px 0;">
+                  This document was sent to you by
+                  <strong>
+                    {{ pending_acknowledgement.stamped_appt or (pending_acknowledgement.stamped_role.replace('_', '
+                    ').title() if pending_acknowledgement.get('stamped_role') else (pending_acknowledgement.stamped_by
+                    or 'System')) }}
+                  </strong>
+                  for acknowledgement/information.
+                </p>
+                <form action="{{ url_for('document_acknowledgment_routes.acknowledge_document', doc_id=document._id) }}"
+                  method="POST" style="margin-top:10px;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <div style="margin-bottom:10px;">
+                    <input type="password" name="signing_password"
+                      placeholder="Enter signing password to acknowledge..." required
+                      style="width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:0.8rem; box-sizing:border-box;" />
+                  </div>
+                  <button type="submit"
+                    style="background:#d97706; color:white; border:none; padding:10px 18px; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer; width:100%;">
+                    ✓ Confirm & Acknowledge
+                  </button>
+                </form>
+              </div>
+              {% elif not is_in_chain %}
+              {# User is not part of this review chain at all — show observer note only for third parties #}
+              {% if session.get('role') not in ['director', 'cdsa', 'dcdsa', 'registry', 'central_registry'] %}
+              <div
+                style="background:var(--color-background-secondary); border:1px solid var(--color-border-tertiary); border-radius:10px; padding:12px 16px; margin-bottom:16px;">
+                <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0;">
+                  You are not part of the review chain for this correspondence.
+                </p>
+              </div>
+              {% endif %}
+              {% endif %}
+
+
+
+
+
+
+              {% set stage = doc_lifecycle_stage %}
+              {% set is_registry = session.get('role') in ['registry', 'central_registry'] %}
+              {% set is_signing_role = session.get('role') in ['director', 'cdsa', 'dcdsa', 'dd'] %}
+              {% set is_forwardable_role = session.get('role') in [
+              'cdsa', 'dcdsa', 'director', 'dd', 'ad', 'so', 'civilian_head', 'civilian_head_cao'
+              ] %}
+
+
+              {% set is_target_user = user_dir_norm == doc_target_dir_norm %}
+              {% set is_origin_user = user_dir_norm == doc_origin_dir_norm %}
+              {% set is_cross_doc = doc_origin_dir_norm != doc_target_dir_norm %}
+              {% set i_am_current_holder = (document.get('current_holder') == session.get('email')) or
+              (phase_current_holder == session.get('email')) or (is_current_holder | default(false)) %}
+
+
+              {% set is_closed = doc_lifecycle_stage == 'closed' or document.get('status') == 'Completed' or
+              document.get('concluded_at') %}
+
+              {% if is_closed %}
+              <div
+                style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:4px solid #16a34a; border-radius:10px; padding:18px 20px; margin-bottom:20px;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                  <span style="font-size:1.3rem;">📁</span>
+                  <h4 style="margin:0; font-weight:700; font-size:0.98rem; color:#14532d;">Correspondence Concluded
+                    &amp; Filed</h4>
+                </div>
+                <p style="margin:0; font-size:0.84rem; color:#166534; line-height:1.45;">
+                  This correspondence thread was concluded and filed on <strong>{{ (document.concluded_at or
+                    document.date_completed).strftime('%d-%b-%Y') if (document.concluded_at or document.date_completed)
+                    else 'Recently' }}</strong>.
+                  The file is closed in the registry archive. No further forwarding, assignment, or dispatching is
+                  required.
+                </p>
+                {% if document.closing_remark %}
+                <div
+                  style="margin-top:10px; padding:8px 12px; background:rgba(255,255,255,0.7); border-radius:6px; border-left:3px solid #16a34a; font-size:0.82rem; color:#14532d; font-style:italic;">
+                  &ldquo;{{ document.closing_remark }}&rdquo;
+                </div>
+                {% endif %}
+              </div>
+              {% else %}
+
+              {# ══════════════════════════════════════════════════════════
+              BLOCK A: FORWARD DOCUMENT
+              Shows for: Registry or subordinate forwardable roles who
+              currently hold the document.
+              EXCLUDES Director/CDSA/DCDSA: They use the Seen Stamp
+              section to assign directives and initialize review chain.
+              ══════════════════════════════════════════════════════════ #}
+
+              {% if session.get('role') in ['director', 'cdsa', 'dcdsa']
+              and i_am_current_holder
+              and stage in ['draft', 'in_review', 'at_target']
+              and not is_in_chain
+              %}
+
+              <div
+                style="background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #1d4ed8; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
+                <h4
+                  style="margin:0 0 6px 0; font-size:0.92rem; font-weight:700; color:#1e40af; display:flex; align-items:center; gap:6px;">
+                  📋 Action Required: Seen Stamp
+                </h4>
+                <p style="font-size:0.82rem; color:#1e3a8a; margin:0; line-height:1.4;">
+                  Please use the <strong>Seen Stamp</strong> form below to assign tasks, comments, and instructions to
+                  appointments in your directorate.
+                </p>
+              </div>
+
+              {% elif (is_forwardable_role or is_registry)
+              and session.get('role') not in ['director', 'cdsa', 'dcdsa']
+              and i_am_current_holder
+              and stage in ['draft', 'in_review', 'at_target']
+              and not is_in_chain
+              %}
+
+              <form id="mainSendForm" action="{{ url_for('send_document_routes.send_document') }}" method="post"
+                onsubmit="return preventDoubleSubmit(this)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="doc_id" value="{{ document._id }}" />
+                <input type="hidden" name="submitted" value="false" id="submittedFlag" />
+                {% if stage == 'at_target' %}
+                <input type="hidden" name="action_type" value="target_forward" />
+                {% else %}
+                <input type="hidden" name="action_type" value="forward" />
+                {% endif %}
+
+                <h4>📨 Forward Document</h4><br>
+
+                {% if stage == 'at_target' %}
+                <div style="background:#e3f2fd; padding:10px; border-radius:4px;
+              margin-bottom:15px; border-left:4px solid #0d47a1;">
+                  <small style="color:#0d47a1;">
+                    ✅ This document has been dispatched from
+                    <strong>{{ document.origin_directorate }}</strong>
+                    to <strong>{{ document.target_directorate }}</strong>.
+                    Forward to the appropriate appointment for review and action.
+                  </small>
+                </div>
+                {% endif %}
+
+                {% set dir_target = namespace(item=none) %}
+                {% if document.get('dispatch_targets') %}
+                {% for dt in document.get('dispatch_targets', []) %}
+                {% if dt.get('directorate') and (dt.get('directorate') | trim | upper == user_dir_norm) %}
+                {% set dir_target.item = dt %}
+                {% endif %}
+                {% endfor %}
+                {% if dir_target.item %}
+                <div
+                  style="background:#fefce8; border:1px solid #fef08a; border-left:4px solid #ca8a04; border-radius:6px; padding:10px 14px; margin-bottom:12px; font-size:0.83rem; color:#854d0e;">
+                  <div style="font-weight:700; margin-bottom:3px;">📌 CDSA Directive for your Directorate:</div>
+                  <div>Forward to <strong>{{ dir_target.item.name or dir_target.item.appt or dir_target.item.email
+                      }}</strong>: <em>{{ dir_target.item.task or 'For review and action' }}</em></div>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <label>Current Status</label>
+                <input type="text" value="{{ document.status or 'Pending' }}" readonly
+                  style="background-color:#f3f4f6" />
+
+                <label style="color:#111; font-weight:600">Forward To</label>
+                <select id="mainRecipient" name="recipient_email" required>
+
+                  <option value="" disabled {% if not dir_target.item %}selected{% endif %}>Select Recipient...</option>
+                  {% set ns = namespace(found_own=false) %}
+                  {% for u in users %}
+                  {% if (u.directorate or '') | trim | upper == user_dir_norm %}
+                  {% set ns.found_own = true %}
+                  {% set is_selected_target = (dir_target.item and u.email == dir_target.item.email) %}
+                  <option value="{{ u.email }}" {% if is_selected_target %}selected{% endif %}>
+                    {{ u.appt if u.appt else (u.name ~ (' (' ~ u.role.replace('_', ' ').title() ~ ')' if u.role else
+                    '')) }}{% if is_selected_target %} (★★ CDSA Target){% endif %}
+                  </option>
+                  {% endif %}
+                  {% endfor %}
+                  {% if not ns.found_own %}
+                  <option value="" disabled>No approval users in your directorate</option>
+                  {% endif %}
+                </select>
+
+                {% if session.get('role') in ['registry', 'central_registry'] %}
+                <div style="margin-top: 14px; margin-bottom: 14px;">
+                  <label style="color:#ff2d93; font-weight:800; display: block; margin-bottom: 6px;">Copy Other
+                    appointments within your Directorate </label>
+                  <div
+                    style="max-height: 150px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; background: #f8fafc; box-sizing: border-box;">
+                    {% set cc_ns = namespace(found_any=false) %}
+                    {% for u in users %}
+                    {% if (u.directorate or '') | trim | upper == user_dir_norm and u.email != session.get('email') and
+                    u.role not in ['director', 'cdsa'] %}
+                    {% set cc_ns.found_any = true %}
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                      <input type="checkbox" name="cc_emails" value="{{ u.email }}"
+                        id="cc_{{ u.email.replace('@','_').replace('.','_') }}"
+                        style="width: 16px; height: 16px; cursor: pointer; accent-color: #0d1b45;">
+                      <label for="cc_{{ u.email.replace('@','_').replace('.','_') }}"
+                        style="margin: 0; font-weight: 500; font-size: 0.8rem; color: #334155; cursor: pointer;">
+                        {{ u.appt if u.appt else u.role.replace('_', ' ').title() }}
+                      </label>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% if not cc_ns.found_any %}
+                    <div style="font-size: 0.78rem; color: #94a3b8; text-align: center; padding: 10px 0;">No other
+                      appointments in your directorate</div>
+                    {% endif %}
+                  </div>
+                </div>
+                {% endif %}
+
+                <label style="color:#111; font-weight:600">Remark (If any)</label>
+                <textarea id="mainRemark" name="remark" rows="3" placeholder="Add your comments here..."></textarea>
+
+                <div class="buttons">
+                  <button type="submit" id="forwardButton" class="forward" style="width:100%">
+                    Forward Document
+                  </button>
+                </div>
+              </form>
+
+
+              {# ══════════════════════════════════════════════════════════
+              BLOCK B: FORWARD FOR DISPATCH
+              Shows for: signing roles only (Director/CDSA/DCDSA)
+              after they have signed — they forward to their registry
+              ══════════════════════════════════════════════════════════ #}
+
+              {% elif is_signing_role
+              and stage == 'awaiting_dispatch_to_target'
+              and (is_origin_user or session.get('role') in ['cdsa', 'dcdsa'])
+              and (has_curr_signature or session.get('role') in ['cdsa', 'dcdsa']) %}
+
+              <form id="dispatchForm" action="{{ url_for('send_document_routes.send_document') }}" method="post"
+                onsubmit="return preventDoubleSubmit(this)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="doc_id" value="{{ document._id }}" />
+                <input type="hidden" name="submitted" value="false" id="submittedFlag" />
+                <input type="hidden" name="action_type" value="dispatch" />
+
+                <h4>📤 Forward For Dispatch</h4>
+                <div style="background:#e3f2fd; padding:10px;
+              border-radius:4px; margin-bottom:15px;">
+                  <small style="color:#0d47a1;">
+                    ✅ Document signed. Forward to Registry for dispatch to the target directorate.
+                  </small>
+                </div>
+
+                <label>Current Status</label>
+                <input type="text" value="{{ document.status or 'Pending' }}" readonly
+                  style="background-color:#f3f4f6" />
+
+                <label style="color:#111; font-weight:600">Forward To</label>
+                <select id="mainRecipient" name="recipient_email" required {% if
+                  forward_status=='Forwarded for Dispatch' or doc_status=='Treated' %}{% endif %}>
+                  {% if session.get('role') in ['cdsa', 'dcdsa'] %}
+                  <option value="" disabled selected>
+                    Select Central Registry User...
+                  </option>
+                  {% set ns = namespace(found=false) %}
+                  {% for u in users %}
+                  {% if u.role in ['registry', 'central_registry'] %}
+                  {% set ns.found = true %}
+                  <option value="{{ u.email }}">
+                    {{ u.name }} ({{ u.directorate or 'N/A' }}) - {{ u.role }}
+                  </option>
+                  {% endif %}
+                  {% endfor %}
+                  {% if not ns.found %}
+                  <option value="" disabled>No registry users found</option>
+                  {% endif %}
+                  {% else %}
+                  <option value="" disabled selected>
+                    Select Registry User in {{ document.origin_directorate }}...
+                  </option>
+                  {% set ns = namespace(found=false) %}
+                  {% for u in users %}
+                  {% if u.role in ['registry', 'central_registry']
+                  and (u.directorate or '') | trim | upper == doc_origin_dir_norm %}
+                  {% set ns.found = true %}
+                  <option value="{{ u.email }}">
+                    {{ u.name }} ({{ u.directorate or 'N/A' }}) - {{ u.role }}
+                  </option>
+                  {% endif %}
+                  {% endfor %}
+                  {% if not ns.found %}
+                  <option value="" disabled>
+                    No registry users found in {{ document.origin_directorate }}
+                  </option>
+                  {% endif %}
+                  {% endif %}
+                </select>
+
+                <label style="color:#111; font-weight:600">Forwarding Comments</label>
+                <textarea id="mainRemark" name="remark" rows="3"
+                  placeholder="Add forwarding instructions for Registry..."></textarea>
+
+                <div class="buttons">
+                  <button type="submit" id="dispatchButton" class="forward" style="width:100%; background:#0d47a1;">
+                    📤 Forward to Registry for Dispatch
+                  </button>
+                </div>
+              </form>
+
+
+              {% elif is_signing_role
+              and stage == 'awaiting_dispatch_to_origin'
+              and is_target_user
+              and has_curr_signature %}
+
+              <form id="dispatchForm" action="{{ url_for('send_document_routes.send_document') }}" method="post"
+                onsubmit="return preventDoubleSubmit(this)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="doc_id" value="{{ document._id }}" />
+                <input type="hidden" name="submitted" value="false" id="submittedFlag" />
+                <input type="hidden" name="action_type" value="dispatch" />
+
+                <h4>📤 Forward For Dispatch</h4>
+                <div style="background:#e3f2fd; padding:10px;
+              border-radius:4px; margin-bottom:15px;">
+                  <small style="color:#0d47a1;">
+                    ✅ Reply signed. Forward to Registry in
+                    <strong>{{ document.target_directorate }}</strong>
+                    for dispatch to the originating/targeting directorates.
+                  </small>
+                </div>
+
+                <label>Current Status</label>
+                <input type="text" value="{{ document.status or 'Pending' }}" readonly
+                  style="background-color:#f3f4f6" />
+
+                <label style="color:#111; font-weight:600">Forward To</label>
+                <select id="mainRecipient" name="recipient_email" required {% if
+                  forward_status=='Forwarded for Dispatch' or doc_status=='Treated' %}disabled{% endif %}>
+                  <option value="" disabled selected>
+                    Select Registry User in {{ document.target_directorate }}...
+                  </option>
+                  {% set ns = namespace(found=false) %}
+                  {% for u in users %}
+                  {% if u.role in ['registry', 'central_registry']
+                  and (u.directorate or '') | trim | upper == doc_target_dir_norm %}
+                  {% set ns.found = true %}
+                  <option value="{{ u.email }}">
+                    {{ u.name }} ({{ u.directorate or 'N/A' }}) - {{ u.role }}
+                  </option>
+                  {% endif %}
+                  {% endfor %}
+                  {% if not ns.found %}
+                  <option value="" disabled>
+                    No registry users found in {{ document.target_directorate }}
+                  </option>
+                  {% endif %}
+                </select>
+
+                <label style="color:#111; font-weight:600">Forwarding Comments</label>
+                <textarea id="mainRemark" name="remark" rows="3"
+                  placeholder="Add forwarding instructions for Registry..."></textarea>
+
+                <div class="buttons">
+                  <button type="submit" id="dispatchButton" class="forward" style="width:100%; background:#0d47a1;">
+                    📤 Forward to Registry for Dispatch
+                  </button>
+                </div>
+              </form>
+
+
+              {# ══════════════════════════════════════════════════════════
+              BLOCK C: DISPATCH DOCUMENT
+              Shows for: registry only
+              They are physically dispatching the document out
+              ══════════════════════════════════════════════════════════ #}
+
+              {% elif is_registry
+              and i_am_current_holder
+              and stage in [
+              'awaiting_dispatch_to_target',
+              'awaiting_dispatch_to_origin'
+              ]
+              and not is_in_chain %}
+
+              <form id="dispatchForm" action="{{ url_for('send_document_routes.send_document') }}" method="post"
+                onsubmit="return validateDispatchForm(this)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="doc_id" value="{{ document._id }}" />
+                <input type="hidden" name="submitted" value="false" id="submittedFlag" />
+                <input type="hidden" name="action_type" value="dispatch" />
+
+                <h4>📤 Dispatch Document</h4>
+                <div style="background:#e8f5e9; padding:10px;
+              border-radius:4px; margin-bottom:15px;">
+                  <small style="color:#2e7d32;">
+                    {% if stage == 'awaiting_dispatch_to_target' %}
+                    ✅ Document forwarded by Director for dispatch to target directorate.
+                    {% else %}
+                    ✅ Reply forwarded by Director for dispatch back to origin directorate.
+                    {% endif %}
+                  </small>
+                </div>
+
+                <label>Current Status</label>
+                <input type="text" value="{{ document.status or 'Pending' }}" readonly
+                  style="background-color:#f3f4f6" />
+
+                <!-- External Dispatch Option -->
+                <div style="margin-top: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="dispatchExternalCheck" name="recipient_email" value="external"
+                    onchange="toggleExternalDispatch(this)" style="width:16px; height:16px; cursor:pointer;" />
+                  <label for="dispatchExternalCheck"
+                    style="font-size:0.85rem; color:#111827; cursor:pointer; font-weight:600;">
+                    External Dispatch (Outside System)
+                  </label>
+                </div>
+
+                <!-- Internal Registry Users Checklist -->
+                <div id="internalDispatchContainer"
+                  style="background:#fff; border:1px solid #d1d5db; border-radius:8px; padding:12px; margin-bottom:15px;">
+                  {% if document.get('dispatch_targets') %}
+                  <div
+                    style="background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #2563eb; border-radius:6px; padding:10px 14px; margin-bottom:14px; font-size:0.83rem; color:#1e40af;">
+                    <div style="font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                      <span>📋</span> CDSA Directive &amp; Assigned Targets:
+                    </div>
+                    <div style="margin-bottom:6px; color:#1e3a8a;">
+                      Forwarded by CDSA for dispatch to the following:
+                    </div>
+                    <ul style="margin:0 0 0 18px; padding:0; line-height:1.5;">
+                      {% for dt in document.get('dispatch_targets', []) %}
+                      <li><strong>{{ dt.name or dt.appt or dt.email }}</strong> ({{ dt.directorate or 'N/A' }}): <em>{{
+                          dt.task or 'For action' }}</em></li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+
+                  <label style="color:#111; font-weight:600; display:block; margin-bottom:8px;">Dispatch To (Select
+                    Directorate(s))</label>
+
+                  <div
+                    style="display:flex; align-items:center; gap:8px; border-bottom:1px solid #e5e7eb; padding-bottom:8px; margin-bottom:8px;">
+                    <input type="checkbox" id="selectAllRegistry" onchange="toggleSelectAllRegistry(this)"
+                      style="width:15px; height:15px; cursor:pointer;" />
+                    <label for="selectAllRegistry"
+                      style="font-size:0.8rem; font-weight:600; color:#374151; cursor:pointer;">
+                      Select All Directorates
+                    </label>
+                  </div>
+
+                  <div style="max-height:160px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+                    {% set ns = namespace(found=false) %}
+                    {% for u in users %}
+                    {% if u.role in ['registry', 'central_registry']
+                    and (u.directorate or '') | trim | upper != user_dir_norm %}
+                    {% set ns.found = true %}
+                    {% set is_target_dir = false %}
+                    {% if document.get('dispatch_targets') %}
+                    {% for dt in document.get('dispatch_targets') %}
+                    {% if dt.get('directorate') and (u.directorate or '') | trim | upper == dt.get('directorate') | trim
+                    | upper %}
+                    {% set is_target_dir = true %}
+                    {% endif %}
+                    {% endfor %}
+                    {% elif (u.directorate or '') | trim | upper == (document.target_directorate or '') | trim | upper
+                    %}
+                    {% set is_target_dir = true %}
+                    {% endif %}
+                    <div style="display:flex; align-items:center; gap:8px; padding:2px 0;">
+                      <input type="checkbox" name="recipient_email" value="{{ u.email }}" class="registry-check"
+                        id="reg_{{ u.email | replace('@','_') | replace('.','_') }}" onchange="updateSelectAllState()"
+                        style="width:15px; height:15px; cursor:pointer;" {% if is_target_dir %}checked{% endif %} />
+                      <label for="reg_{{ u.email | replace('@','_') | replace('.','_') }}"
+                        style="font-size:0.82rem; color:#4b5563; cursor:pointer; {% if is_target_dir %}font-weight:600; color:#1d4ed8;{% endif %}">
+                        {{ u.appt or u.role.replace('_', ' ').title() }} ({{ u.directorate or 'N/A' }})
+                        {% if is_target_dir %}<span style="font-size:0.75rem; color:#2563eb; margin-left:4px;">★
+                          Target</span>{% endif %}
+                      </label>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% if not ns.found %}
+                    <div style="font-size:0.82rem; color:#9ca3af; font-style:italic; padding:4px 0;">
+                      No registry users in other directorates
+                    </div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <!-- Input for External Recipient Name -->
+                <div id="externalRecipientGroup" style="display:none; margin-top:10px; margin-bottom:15px;">
+                  <label style="color:#111; font-weight:600">External Destination / Entity Name</label>
+                  <input type="text" name="external_recipient" id="externalRecipientInput"
+                    placeholder="e.g. National Communication Commission"
+                    value="{% if document.correspondence_type == 'incoming' %}{{ document.sender }}{% else %}{{ document.target_directorate }}{% endif %}"
+                    style="width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:0.85rem;" />
+                </div>
+
+                <label style="color:#111; font-weight:600">Dispatch Comments</label>
+                <textarea id="mainRemark" name="remark" rows="3"
+                  placeholder="Add dispatch instructions or comments..."></textarea>
+
+                <div class="buttons">
+                  <button type="submit" id="dispatchButton" class="forward" style="width:100%; background:#2e7d32;">
+                    📤 Dispatch Document
+                  </button>
+                </div>
+              </form>
+
+              {% endif %}
+              {% endif %} {# End is_closed check #}
+              <br><br>
+
+
+              <!-- ══ CORRESPONDENCE THREAD ══ -->
+              {% if correspondence_list and correspondence_list | length > 1 %}
+              <div style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; 
+            padding:16px 20px; margin-bottom:16px;">
+
+                <h4 style="margin:0 0 12px 0; font-size:0.88rem; font-weight:700;
+            color:#374151; text-transform:uppercase; letter-spacing:.05em;">
+                  🧵 Correspondence Thread
+                  <span style="background:#e0e7ff; color:#4338ca; font-size:0.75rem;
+                padding:2px 8px; border-radius:999px; font-weight:600;">
+                    {{ correspondence_list | length }}
+                  </span>
+                </h4>
+
+                <div style="display:flex; flex-direction:column; gap:0;">
+                  {% for entry in correspondence_list %}
+
+                  {# Use active_seq (from route, not DB) to determine which is active #}
+                  {% set is_active = (entry.sequence == active_seq) %}
+
+                  <div class="thread-row" data-last="{{ 'true' if loop.last else 'false' }}"
+                    style="display:flex; gap:12px; align-items:flex-start; position:relative;">
+                    {% if not loop.last %}
+                    <div style="position:absolute; left:15px; top:28px; width:2px;
+                  bottom:0; background:#e5e7eb;"></div>
+                    {% endif %}
+
+                    <!-- Bubble -->
+                    <div class="thread-bubble" data-active="{{ 'true' if is_active else 'false' }}"
+                      data-original="{{ 'true' if entry.sequence == 0 else 'false' }}">
+                      {{ entry.sequence }}
+                    </div>
+
+                    <!-- Info -->
+                    <div style="flex:1; min-width:0;">
+                      <div class="thread-title" data-active="{{ 'true' if is_active else 'false' }}"
+                        style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        {{ entry.get('memo_title', 'Untitled') }}
+                        {% if is_active %}
+                        <span style="font-size:0.7rem; background:#dbeafe; color:#1d4ed8;
+                        padding:1px 6px; border-radius:4px; margin-left:6px;">
+                          Viewing
+                        </span>
+                        {% endif %}
+                        {% if entry.sequence == 0 %}
+                        <span style="font-size:0.7rem; background:#fef3c7; color:#92400e;
+                        padding:1px 6px; border-radius:4px; margin-left:6px;">
+                          Original
+                        </span>
+                        {% endif %}
+                        {% if entry.sequence > 0 and entry.get('forwarded_status') == 'Dispatched' %}
+                        <span style="font-size:0.7rem; background:#dcfce7; color:#166534;
+                        padding:1px 6px; border-radius:4px; margin-left:6px;">
+                          📤 Dispatched
+                        </span>
+                        {% endif %}
+                        {% if entry.sequence > 0 and entry.get('forwarded_status') == 'Forwarded for Dispatch' %}
+                        <span style="font-size:0.7rem; background:#fef3c7; color:#92400e;
+                        padding:1px 6px; border-radius:4px; margin-left:6px;">
+                          ⏳ Pending Dispatch
+                        </span>
+                        {% endif %}
+                      </div>
+
+                      <div style="font-size:0.75rem; color:#6b7280; margin-top:2px;">
+                        {{ entry.get('created_by', '') }}
+                        {% if entry.get('created_at') %}
+                        · {{ entry['created_at'].strftime('%d %b %Y %H:%M') }}
+                        {% endif %}
+                        {% if entry.sequence > 0 and entry.get('forwarded_status') != 'Dispatched' and not
+                        is_target_user and user_dir_norm == doc_origin_dir_norm %}
+                        <span style="color:#dc2626; font-size:0.7rem; margin-left:6px;">
+                          (Pending dispatch from {{ document.target_directorate }})
+                        </span>
+                        {% endif %}
+                      </div>
+
+                      <div style="margin-top:3px;">
+                        {% if entry.get('forwarded_status') == 'Forwarded' %}
+                        <span style="font-size:0.7rem; background:#dcfce7; color:#166534;
+                        padding:1px 6px; border-radius:4px;">✅ Forwarded</span>
+                        {% elif entry.get('status') == 'Edited' %}
+                        <span style="font-size:0.7rem; background:#fef9c3; color:#854d0e;
+                        padding:1px 6px; border-radius:4px;">✏️ Edited</span>
+                        {% elif entry.get('forwarded_status') == 'Dispatched' %}
+                        <span style="font-size:0.7rem; background:#dbeafe; color:#1d4ed8;
+                        padding:1px 6px; border-radius:4px;">📤 Dispatched</span>
+                        {% else %}
+                        <span style="font-size:0.7rem; background:#f3f4f6; color:#6b7280;
+                        padding:1px 6px; border-radius:4px;">💾 Saved</span>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <!-- View button — shown on ALL non-active entries including the reply -->
+                    {% if not is_active %}
+                    <a href="{{ url_for('view_stream_correspondence_routes.view_correspondence_entry',
+                        doc_id=document._id, sequence=entry.sequence) }}" style="background:#f3f4f6; color:#374151; border:1px solid #e5e7eb;
+              padding:5px 12px; border-radius:6px; font-size:0.75rem;
+              font-weight:500; text-decoration:none; flex-shrink:0;">
+                      View →
+                    </a>
+                    {% endif %}
+
+                  </div>
+
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
+              <!-- ══ END CORRESPONDENCE THREAD ══ -->
+
+              <!-- Current Task (most recent only) -->
+              <div
+                style=" margin-bottom: 20px; background: #f9fafb; padding: 10px; border-radius: 6px; border: 1px solid #e5e7eb; ">
+                <h4 style=" margin-top: 0; margin-bottom: 10px; font-size: 0.9em; color: #4b5563; ">
+                  Current Task
+                </h4>
+
+
+                {% if current_dir_task %}
+                <div style="font-size: 0.9em;">
+                  <div style="font-weight: 600; color: #111">
+                    {{ current_dir_task.appt or (current_dir_task.role.replace('_', ' ').title() if
+                    current_dir_task.get('role') else current_dir_task.user) }}
+                    <span
+                      style="float: right; font-size: 0.75rem; background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px;">Directorate
+                      Task</span>
+                  </div>
+                  <div style="color: #3b82f6; margin-top: 4px; font-weight: 500;">{{ current_dir_task.remark }}</div>
+                  <div style="font-size: 0.8em; color: #9ca3af; margin-top: 2px;">
+                    {{ current_dir_task.timestamp.strftime('%Y-%m-%d %H:%M') if current_dir_task.timestamp else '' }}
+                  </div>
+                </div>
+                {% elif document.remarks %}
+                {% set last_remark = document.remarks | last %}
+                <div style="font-size: 0.9em;">
+                  <div style="font-weight: 600; color: #111">
+                    {{ last_remark.appt or (last_remark.role.replace('_', ' ').title() if last_remark.get('role') else
+                    last_remark.user) }}
+                  </div>
+                  <div style="color: #4b5563; margin-top: 4px;">{{ last_remark.remark }}</div>
+                  <div style="font-size: 0.8em; color: #9ca3af; margin-top: 2px;">
+                    {{ last_remark.timestamp.strftime('%Y-%m-%d %H:%M') if last_remark.timestamp else '' }}
+                  </div>
+                </div>
+                {% else %}
+                <p style="font-size: 0.9em; color: #6b7280; margin: 0">
+                  No task assigned yet.
+                </p>
+                {% endif %}
+              </div>
+
+
+              <div
+                style="margin-bottom: 20px; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #e5e7eb;">
+                <h4 style="margin-top:0; margin-bottom:10px; font-size:0.9em; color:#4b5563;">
+                  Assignment History
+                  <span style="font-size:0.75em; color:#9ca3af; font-weight:400;">
+                    (Phase {{ phase_number }} — {{ phase_directorate }})
+                  </span>
+                </h4>
+
+                {% if phase_assignment_history %}
+                {% for item in phase_assignment_history %}
+                <div style="font-size: 0.86em; padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
+                  <!-- Assignee -->
+                  <div style="font-weight: 600; color: #111;">
+                    {{ item.assigned_to_appt or (item.assigned_to_role.replace('_', ' ').title() if
+                    item.get('assigned_to_role') else item.assigned_to_name or item.assigned_to) }}
+                  </div>
+
+                  <!-- Assigner -->
+                  <div style="color: #4b5563; margin-top: 2px;">
+                    {% if item.assigned_by_role in ['registry', 'central_registry'] %}
+                    Forwarded by
+                    {% elif item.assigned_by_role in ['director', 'cdsa', 'dcdsa', 'super_admin'] %}
+                    Stamped &amp; Assigned by
+                    {% else %}
+                    Assigned by
+                    {% endif %}
+                    {{ item.assigned_by_appt or (item.assigned_by_role.replace('_', ' ').title() if
+                    item.get('assigned_by_role') else (item.assigned_by_name or item.assigned_by or 'System')) }}
+                  </div>
+
+                  {% if item.remark %}
+                  <div style="color: #6b7280; margin-top: 2px;">{{ item.remark }}</div>
+                  {% endif %}
+
+                  <div style="font-size: 0.78em; color: #9ca3af; margin-top: 2px;">
+                    {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else '' }}
+                  </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p style="font-size: 0.9em; color: #6b7280; margin: 0;">
+                  No assignments recorded in this phase yet.
+                </p>
+                {% endif %}
+              </div>
+
+
+              <!-- ── Dispatch Tracking Section ── -->
+              {% if is_origin_directorate and dispatch_tracking %}
+              <div
+                style="margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h4
+                  style="margin-top:0; margin-bottom:12px; font-size:0.92rem; color:#0f172a; font-weight:700; display:flex; align-items:center; gap:6px;">
+                  📡 Dispatch Tracking
+                </h4>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  {% for tracking in dispatch_tracking %}
+                  <div
+                    style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; padding:8px 10px; background:#f8fafc; border-radius:6px; border:1px solid #f1f5f9;">
+                    <div>
+                      <strong style="color:#1e293b;">{{ tracking.directorate }}</strong>
+                      <span style="color:#64748b; font-size:0.78rem; display:block; margin-top:2px;">Dispatched to: {{
+                        tracking.appt }}</span>
+                    </div>
+                    <div>
+                      {% if tracking.viewed %}
+                      <span
+                        style="font-size:0.75rem; background:#dcfce7; color:#15803d; font-weight:600; padding:3px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">
+                        ✓ Viewed
+                      </span>
+                      {% else %}
+                      <span
+                        style="font-size:0.75rem; background:#fee2e2; color:#b91c1c; font-weight:600; padding:3px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">
+                        ⏳ Pending
+                      </span>
+                      {% endif %}
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
+
+
+              <div>
+                {% if not is_closed %}
+                <!-- ── Non-registry roles: inform them to use Seen Stamp ── -->
+                <div
+                  style=" background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 16px; margin-top: 12px; font-size: 0.85rem; color: #0369a1; ">
+                  ℹ️ To assign this document, use the <strong>Seen Stamp</strong> panel below.
+                </div><br>
+                {% endif %}
+
+                <!-- ══════════════════════════════════════════
+                    SEEN STAMP SECTION
+                ══════════════════════════════════════════ -->
+
+                {% if not is_closed and session.get('role') in ['director', 'dd', 'ad', 'so', 'cdsa', 'dcdsa',
+                'super_admin']
+                %}
+                <div class="form-section-seen" style="max-width:100%; width:100%;">
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                    <h3
+                      style="margin:0; font-size:1rem; color:#0d1b45; font-weight:700; text-transform:uppercase; letter-spacing:.05em;">
+                      📋 Seen Stamp
+                    </h3>
+                  </div>
+
+                  <p style="font-size:0.8rem; color:#6b7280; margin:0 0 14px 0;">
+                    Select appointments to assign this document to, and add a task for each.
+                  </p>
+
+                  <form action="{{ url_for('seen_stamp_routes.seen_stamp_send') }}" method="POST" id="seenStampForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <input type="hidden" name="doc_id" value="{{ document._id }}" />
+
+                    <!-- ── Unified Seen Stamp Table ── -->
+                    <div class="seen-stamp-table-wrapper" style="overflow-x:auto;">
+                      <table class="seen-stamp-table"
+                        style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
+                        <thead>
+                          <tr style="background:#0d1b45; color:white;">
+                            <th
+                              style="padding:8px 10px; text-align:center; font-weight:600; border:1px solid #1e3a6e; width:36px;">
+                              ✓</th>
+                            <th
+                              style="padding:8px 10px; text-align:left; font-weight:600; border:1px solid #1e3a6e; width:28%;">
+                              Appointment</th>
+                            <th style="padding:8px 10px; text-align:left; font-weight:600; border:1px solid #1e3a6e;">
+                              Task / Comment</th>
+                            <th
+                              style="padding:8px 10px; text-align:center; font-weight:600; border:1px solid #1e3a6e; width:26%;">
+                              Sign / Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% if seen_stamp_users %}
+                          {% for u in seen_stamp_users %}
+                          {% set safe_email = u.email.replace('@','_').replace('.','_') %}
+                          {% set is_me = (u.email == session.get('email')) %}
+                          {% set is_director = u.role in ['director', 'cdsa', 'dcdsa'] %}
+
+                          {# Find latest stamp / assignment / forwarding for this user #}
+                          {% set ns = namespace(stamped=None, assignment=None, forwarded=None) %}
+
+                          {# 1. Check Seen Stamp history in current phase / root #}
+                          {% set history_stamps = phase_seen_stamps if phase_seen_stamps else
+                          document.get('seen_stamp_history', []) %}
+                          {% if history_stamps %}
+                          {% for stamp in history_stamps | reverse %}
+                          {% if stamp.stamped_email == u.email and not ns.stamped %}
+                          {% set ns.stamped = stamp %}
+                          {% endif %}
+                          {% for assign in stamp.get('assignments', []) %}
+                          {% if assign.email == u.email and not ns.assignment %}
+                          {% set ns.assignment = assign %}
+                          {% endif %}
+                          {% endfor %}
+                          {% endfor %}
+                          {% endif %}
+
+                          {# Check across all phases if not found in current phase #}
+                          {% if not ns.assignment and document.get('phases') %}
+                          {% for ph in document.get('phases') | reverse %}
+                          {% for stamp in ph.get('seen_stamp_history', []) | reverse %}
+                          {% for assign in stamp.get('assignments', []) %}
+                          {% if assign.email == u.email and not ns.assignment %}
+                          {% set ns.assignment = assign %}
+                          {% endif %}
+                          {% endfor %}
+                          {% endfor %}
+                          {% endfor %}
+                          {% endif %}
+
+                          {# 2. Check Forwarding history (Forward Document block) #}
+                          {% set fwd_history = phase_assignment_history if phase_assignment_history else
+                          document.get('assignment_history', []) %}
+                          {% if fwd_history %}
+                          {% for fwd in fwd_history | reverse %}
+                          {% if fwd.get('assigned_by') == u.email and fwd.get('action_type') in ['forward',
+                          'target_forward', 'dispatch'] and not ns.forwarded %}
+                          {% set ns.forwarded = fwd %}
+                          {% endif %}
+                          {% endfor %}
+                          {% endif %}
+
+                          {# 3. Fallback: check assignment history for direct task remarks #}
+                          {% if not ns.assignment and fwd_history %}
+                          {% for ah in fwd_history | reverse %}
+                          {% if ah.get('assigned_to') == u.email and ah.get('remark') and ah.get('action_type') !=
+                          'delegation' and not ns.assignment %}
+                          {% set ns.assignment = {'task': ah.get('remark'), 'email': u.email, 'stamped_at':
+                          ah.get('timestamp'), 'acknowledged': ah.get('acknowledged', false)} %}
+                          {% endif %}
+                          {% endfor %}
+                          {% endif %}
+
+                          <tr class="seen-row" id="row_{{ safe_email }}"
+                            style="border-bottom:1px solid #f3f4f6; transition:background .15s; {{ 'background:#f8fafc;' if is_me else '' }}"
+                            onmouseover="this.style.background='#f8faff'"
+                            onmouseout="this.style.background=(window.checkedRows && window.checkedRows.has('{{ u.email }}')) ? '#eff6ff' : ('{{ '#f8fafc' if is_me else 'white' }}')">
+
+                            <!-- Checkbox -->
+                            <td style="padding:8px 10px; border:1px solid #e5e7eb; text-align:center;">
+                              {% if is_me %}
+                              <input type="checkbox" disabled
+                                style="width:16px; height:16px; opacity:0.3; cursor:not-allowed;"
+                                title="You cannot assign to yourself" />
+                              {% elif is_director and session.get('role') not in ['cdsa', 'dcdsa', 'super_admin'] %}
+                              {# Documents are forwarded to Director, not assigned via Seen Stamp #}
+                              <input type="checkbox" disabled
+                                style="width:16px; height:16px; opacity:0.3; cursor:not-allowed;"
+                                title="Documents are forwarded to the Director, not assigned via Seen Stamp" />
+                              {% elif is_director and session.get('role') == 'dcdsa' and u.role in ['cdsa', 'dcdsa'] %}
+                              {# DCDSA cannot assign to CDSA or self #}
+                              <input type="checkbox" disabled
+                                style="width:16px; height:16px; opacity:0.3; cursor:not-allowed;"
+                                title="Cannot assign to CDSA via Seen Stamp" />
+                              {% else %}
+                              <input type="checkbox" name="seen_recipients" value="{{ u.email }}"
+                                id="chk_{{ safe_email }}" onchange="toggleSeenRow(this, '{{ safe_email }}')"
+                                style="width:16px; height:16px; cursor:pointer; accent-color:#0d1b45;" />
+                              {% endif %}
+                            </td>
+
+                            <!-- Appointment / Role -->
+                            <td style="padding:8px 10px; border:1px solid #e5e7eb; color:#1f2937; font-weight:500;">
+                              {% if u.role == 'director' %}
+                              {{ u.directorate or 'Director' }}
+                              {% else %}
+                              {{ u.get('appt') or (u.role.replace('_', ' ').title() if u.role else '—') }}
+                              {% endif %}
+                              {% if is_me %}
+                              <span
+                                style="font-size:0.7rem; color:#2563eb; font-weight:600; margin-left:4px;">(You)</span>
+                              {% endif %}
+                            </td>
+
+                            <!-- Task / Comment Column -->
+                            <td style="padding:6px 8px; border:1px solid #e5e7eb; vertical-align:middle;">
+                              {% if ns.assignment and ns.assignment.get('task') %}
+                              {# If this user was assigned a task, always display it (even when logged in) #}
+                              <div
+                                style="font-size:0.82rem; color:#111827; font-weight:600; background:#f0fdf4; padding:6px 10px; border-radius:4px; border:1px solid #bbf7d0; margin-bottom:4px;">
+                                📌 {{ ns.assignment.task }}
+                              </div>
+                              {% if not is_me and (not is_director or session.get('role') in ['cdsa', 'dcdsa',
+                              'super_admin']) %}
+                              <input type="text" name="task_{{ safe_email }}" id="task_{{ safe_email }}"
+                                placeholder="Assign new task / directive..." disabled
+                                style="width:100%; padding:5px 8px; border:1px solid #d1d5db; border-radius:4px; font-size:0.8rem; background:#f3f4f6; color:#9ca3af; cursor:not-allowed; font-family:inherit;" />
+                              {% endif %}
+                              {% elif is_me %}
+                              {% if ns.stamped %}
+                              <span style="font-size:0.75rem; color:#6b7280; font-style:italic;">Assigner</span>
+                              {% elif ns.forwarded %}
+                              <span style="font-size:0.75rem; color:#1e40af; font-weight:500;">↗ Forwarded to {{
+                                ns.forwarded.get('assigned_to_appt') or ns.forwarded.get('assigned_to_name') or
+                                'Director' }}</span>
+                              {% else %}
+                              <span style="font-size:0.75rem; color:#9ca3af;">—</span>
+                              {% endif %}
+                              {% elif is_director and session.get('role') not in ['cdsa', 'dcdsa', 'super_admin'] %}
+                              {% if ns.stamped %}
+                              <span style="font-size:0.75rem; color:#6b7280; font-style:italic;">Assigner</span>
+                              {% else %}
+                              <span style="font-size:0.75rem; color:#9ca3af;">—</span>
+                              {% endif %}
+                              {% else %}
+                              {# Subordinate or Director row when CDSA/DCDSA is assigning #}
+                              {% if ns.forwarded %}
+                              <div style="font-size:0.75rem; color:#1e40af; margin-bottom:4px;">
+                                ↗ Forwarded to {{ ns.forwarded.get('assigned_to_appt') or
+                                ns.forwarded.get('assigned_to_name') or 'Director' }}
+                              </div>
+                              {% endif %}
+                              <input type="text" name="task_{{ safe_email }}" id="task_{{ safe_email }}"
+                                placeholder="Add task / directive..." disabled
+                                style="width:100%; padding:5px 8px; border:1px solid #d1d5db; border-radius:4px; font-size:0.8rem; background:#f3f4f6; color:#9ca3af; cursor:not-allowed; font-family:inherit;" />
+                              {% endif %}
+                            </td>
+
+                            <!-- Sign / Date Column -->
+                            <td id="sig_cell_{{ safe_email }}"
+                              style="padding:6px 8px; border:1px solid #e5e7eb; text-align:center; vertical-align:middle;">
+                              {% if ns.stamped %}
+                              {# Assigner signature via Seen Stamp #}
+                              <div style="display:inline-block; text-align:center;">
+                                {% if ns.stamped.signature %}
+                                <img src="{{ ns.stamped.signature }}"
+                                  style="max-width:80px; max-height:40px; display:block; margin:0 auto; border:1px solid #d1fae5; border-radius:4px; background:#fff;" />
+                                {% endif %}
+                                <div style="font-size:0.65rem; color:#6b7280; margin-top:2px;">
+                                  {{ ns.stamped.stamped_at.strftime('%d %b %Y %H:%M') if ns.stamped.stamped_at else ''
+                                  }}
+                                </div>
+                                <div style="font-size:0.6rem; color:#059669; font-weight:600;">✓ Signed & Assigned</div>
+                              </div>
+                              {% elif ns.forwarded %}
+                              {# Forwarded via Forward Document block #}
+                              <div style="display:inline-block; text-align:center;">
+                                {% set sig_img = u.get('signature_image') or (current_user_signature if is_me else '')
+                                %}
+                                {% if sig_img %}
+                                <img src="{{ sig_img }}"
+                                  style="max-width:80px; max-height:40px; display:block; margin:0 auto; border:1px solid #dbeafe; border-radius:4px; background:#fff;" />
+                                {% endif %}
+                                <div style="font-size:0.65rem; color:#6b7280; margin-top:2px;">
+                                  {{ ns.forwarded.timestamp.strftime('%d %b %Y %H:%M') if ns.forwarded.get('timestamp')
+                                  else '' }}
+                                </div>
+                                <div style="font-size:0.6rem; color:#1d4ed8; font-weight:600;">✓ Signed & Forwarded
+                                </div>
+                              </div>
+                              {% elif ns.assignment %}
+                              {# Assignee status via Seen Stamp #}
+                              {% if ns.assignment.get('acknowledged') %}
+                              <div style="display:inline-block; text-align:center;">
+                                {% if ns.assignment.get('signature') %}
+                                <img src="{{ ns.assignment.get('signature') }}"
+                                  style="max-width:80px; max-height:40px; display:block; margin:0 auto; border:1px solid #d1fae5; border-radius:4px; background:#fff;" />
+                                {% endif %}
+                                <div style="font-size:0.65rem; color:#6b7280; margin-top:2px;">
+                                  {{ ns.assignment.acknowledged_at.strftime('%d %b %Y %H:%M') if
+                                  ns.assignment.acknowledged_at else (ns.assignment.stamped_at.strftime('%d %b %Y
+                                  %H:%M') if ns.assignment.stamped_at else '') }}
+                                </div>
+                                <div style="font-size:0.6rem; color:#059669; font-weight:600;">✓ Acknowledged</div>
+                              </div>
+                              {% else %}
+                              <!-- <span
+                                style="font-size:0.72rem; color:#d97706; font-weight:600; background:#fef3c7; padding:2px 8px; border-radius:4px; display:inline-block;">
+                                ⏳ Pending
+                              </span> -->
+                              {% endif %}
+                              {% else %}
+                              <span style="font-size:0.75rem; color:#9ca3af;">—</span>
+                              {% endif %}
+                            </td>
+                          </tr>
+                          {% endfor %}
+                          {% else %}
+                          <tr>
+                            <td colspan="4" style="padding:16px; text-align:center; color:#9ca3af; font-style:italic;">
+                              No appointments found for this directorate.
+                            </td>
+                          </tr>
+                          {% endif %}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <!-- ── Submit ── -->
+                    <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
+                      <input type="hidden" name="dispatch_mode" id="dispatchModeInput" value="registry_dispatch" />
+                      {% if session.get('role') in ['cdsa', 'dcdsa', 'super_admin'] %}
+                      <button type="button" onclick="openSignatureModal('direct_confidential')" id="seenStampDirectBtn"
+                        disabled
+                        style="background:#9ca3af; color:white; border:none; padding:10px 18px; border-radius:6px; font-size:0.86rem; font-weight:600; cursor:not-allowed; transition:all .2s; display:inline-flex; align-items:center; gap:6px;">
+                        <span>🔒</span> Stamp &amp; Send Directly (Confidential)
+                      </button>
+                      <button type="button" onclick="openSignatureModal('registry_dispatch')" id="seenStampBtn" disabled
+                        style="background:#9ca3af; color:white; border:none; padding:10px 20px; border-radius:6px; font-size:0.86rem; font-weight:600; cursor:not-allowed; transition:all .2s; display:inline-flex; align-items:center; gap:6px;">
+                        <span>📋</span> Stamp &amp; Forward for Dispatch (Central Registry)
+                      </button>
+                      {% else %}
+                      <button type="button" onclick="openSignatureModal('normal')" id="seenStampBtn" disabled
+                        style="background:#9ca3af; color:white; border:none; padding:10px 24px; border-radius:6px; font-size:0.88rem; font-weight:600; cursor:not-allowed; transition:background .2s;">
+                        📋 Sign Seen Stamp and Assign
+                      </button>
+                      {% endif %}
+                    </div>
+                  </form>
+                </div>
+                {% endif %}
+                <!-- ══ END SEEN STAMP ══ -->
+
+
+              </div>
+
+
+            </div>
+
+            <!-- ══════════════════════════════════════════
+                      LINKED CORRESPONDENCES
+                  ══════════════════════════════════════════ -->
+            {% if linked_correspondences and linked_correspondences | length > 0 %}
+            <div class="linked-correspondences-section" style="
+                    margin-top: 20px;
+                    background: #fff;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 10px;
+                    padding: 16px 20px;
+                    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+                    width: 100%;
+                  ">
+              <h4 style="
+                      margin: 0 0 14px 0;
+                      font-size: 0.92rem;
+                      font-weight: 600;
+                      color: #374151;
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                    ">
+                🔗 Correspondences Raised From This Document
+                <span style="
+                        background: #dcfce7;
+                        color: #166534;
+                        font-size: 0.75rem;
+                        padding: 2px 8px;
+                        border-radius: 999px;
+                        font-weight: 600;
+                      ">{{ linked_correspondences | length }}</span>
+              </h4>
+
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% for linked in linked_correspondences %}
+                <div class="linked-item" style="
+                        background: #f9fafb;
+                        border: 1px solid #e5e7eb;
+                        border-left: 4px solid #0d1b45;
+                        border-radius: 8px;
+                        padding: 12px 16px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                      ">
+                  <div style="display:flex; flex-direction:column; gap:3px;">
+                    <div style="font-size:13px; font-weight:700; color:#111827;">
+                      {{ linked.get('memo_title', 'Untitled') }}
+                      {% if linked.get('target_directorate') %}
+                      <span
+                        style="font-size:0.72rem; background:#eff6ff; color:#1e40af; font-weight:600; padding:2px 6px; border-radius:4px; margin-left:6px; border:1px solid #bfdbfe;">
+                        {{ linked.get('target_directorate') }}
+                      </span>
+                      {% endif %}
+                    </div>
+                    <div style="font-size:12px; color:#6b7280;">
+                      {{ linked.get('reference_number', '') }} · {{ linked.get('subject', '') }}
+                    </div>
+                    <div style="font-size:11px; color:#9ca3af; margin-top:2px;">
+                      Created by {{ linked.get('created_by', '') }} ·
+                      {{ linked.get('created_at').strftime('%d %b %Y %H:%M') if linked.get('created_at') else '' }}
+                    </div>
+                    <!-- Status badge -->
+                    <div style="margin-top:4px;">
+                      {% set status = linked.get('status', 'saved') %}
+                      {% if status == 'forwarded' %}
+                      <span
+                        style="background:#dcfce7; color:#166534; font-size:11px; padding:2px 8px; border-radius:4px; font-weight:600;">✅
+                        Forwarded</span>
+                      {% elif status == 'signed' %}
+                      <span
+                        style="background:#dbeafe; color:#1d4ed8; font-size:11px; padding:2px 8px; border-radius:4px; font-weight:600;">✍️
+                        Signed</span>
+                      {% elif status == 'edited' %}
+                      <span
+                        style="background:#fef9c3; color:#854d0e; font-size:11px; padding:2px 8px; border-radius:4px; font-weight:600;">✏️
+                        Edited</span>
+                      {% else %}
+                      <span
+                        style="background:#f3f4f6; color:#6b7280; font-size:11px; padding:2px 8px; border-radius:4px; font-weight:600;">💾
+                        Saved</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="linked-actions" style="margin-left: 16px; flex-shrink: 0;">
+                    <a href="{{ url_for('open_document_routes.open_document', doc_id=linked._id) }}" style="
+                              background: #0d1b45;
+                              color: #fff;
+                              padding: 8px 16px;
+                              border-radius: 6px;
+                              font-size: 12px;
+                              font-weight: 500;
+                              text-decoration: none;
+                              white-space: nowrap;
+                              display: inline-block;
+                              text-align: center;
+                            ">
+                      Open →
+                    </a>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+            <!-- ══ END LINKED CORRESPONDENCES ══ -->
+
+
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════
+     SEEN STAMP SIGNATURE VERIFICATION MODAL
+═══════════════════════════════════════════════ -->
+  {% if session.get('role') in ['director', 'ad', 'so', 'cdsa', 'dcdsa', 'dd', 'super_admin'] %}
+  <div id="sigModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+
+    <div class="responsive-modal-box" style="
+    background:white;
+    border-radius:14px;
+    padding:28px;
+    width:520px;
+    max-width:95vw;
+    box-shadow:0 20px 60px rgba(0,0,0,0.3);
+    font-family:'Inter', sans-serif;
+  ">
+
+      <!-- Title -->
+      <h3 style="margin:0 0 10px 0; font-size:1rem; color:#111827;">
+        Verify Signing Password
+      </h3>
+
+      <p style="font-size:0.82rem; color:#6b7280; margin-bottom:18px;">
+        Please enter your signing password to authorize this Seen Stamp action.
+      </p>
+
+      <!-- Password -->
+      <label style="display:block; font-size:0.82rem; font-weight:600; color:#374151; margin-bottom:6px;">
+        Signing Password
+      </label>
+
+      <input type="password" id="sigPasswordInput" placeholder="Enter signing password" style="
+        width:100%;
+        padding:10px 12px;
+        border:1px solid #d1d5db;
+        border-radius:8px;
+        font-size:0.9rem;
+        box-sizing:border-box;
+        margin-bottom:10px;
+      " />
+
+      <!-- Error -->
+      <p id="sigModalError" style="display:none; color:#dc2626; font-size:0.8rem; margin-bottom:12px;">
+      </p>
+
+      <!-- Buttons -->
+      <div style="display:flex; gap:10px;">
+        <button type="button" onclick="verifyAndSubmitSeenStamp()" style="
+          background:#16a34a;
+          color:white;
+          border:none;
+          padding:10px 18px;
+          border-radius:8px;
+          font-size:0.9rem;
+          font-weight:600;
+          cursor:pointer;
+          flex:1;
+        ">
+          ✔ Verify & Submit
+        </button>
+
+        <button type="button" onclick="closeSignatureModal()" style="
+          background:#e5e7eb;
+          color:#374151;
+          border:none;
+          padding:10px 18px;
+          border-radius:8px;
+          font-size:0.9rem;
+          cursor:pointer;
+        ">
+          Cancel
+        </button>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+
+
+  <!-- ═══════════════════════════════════════════════
+     FINAL DOCUMENT SIGNATURE VERIFICATION MODAL
+═══════════════════════════════════════════════ -->
+  {% if session.get('role') in ['director', 'cdsa', 'dcdsa', 'ad', 'dd', 'super_admin'] %}
+  <div id="finalSignatureModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+
+    <div class="responsive-modal-box" style="
+    background:white;
+    border-radius:14px;
+    padding:28px;
+    width:520px;
+    max-width:95vw;
+    box-shadow:0 20px 60px rgba(0,0,0,0.3);
+    font-family:'Inter', sans-serif;
+  ">
+
+      <!-- Title -->
+      <h3 style="margin:0 0 10px 0; font-size:1rem; color:#111827;">
+        Verify Signing Password
+      </h3>
+
+      <p style="font-size:0.82rem; color:#6b7280; margin-bottom:18px;">
+        Please enter your signing password to authorize this signature.
+      </p>
+
+      <!-- Password -->
+      <label style="display:block; font-size:0.82rem; font-weight:600; color:#374151; margin-bottom:6px;">
+        Signing Password
+      </label>
+
+      <input type="password" id="finalSignaturePasswordInput" placeholder="Enter signing password" style="
+        width:100%;
+        padding:10px 12px;
+        border:1px solid #d1d5db;
+        border-radius:8px;
+        font-size:0.9rem;
+        box-sizing:border-box;
+        margin-bottom:10px;
+      " />
+
+      <!-- Error -->
+      <p id="finalSignatureModalError" style="display:none; color:#dc2626; font-size:0.8rem; margin-bottom:12px;">
+      </p>
+
+      <!-- Buttons -->
+      <div style="display:flex; gap:10px;">
+        <button type="button" id="modalSubmitBtn" onclick="submitModalSignature()" style="
+          background:#16a34a;
+          color:white;
+          border:none;
+          padding:10px 18px;
+          border-radius:8px;
+          font-size:0.9rem;
+          font-weight:600;
+          cursor:pointer;
+          flex:1;
+        ">
+          ✔ Sign and Append Signature
+        </button>
+
+        <button type="button" onclick="closeFinalSignatureModal()" style="
+          background:#e5e7eb;
+          color:#374151;
+          border:none;
+          padding:10px 18px;
+          border-radius:8px;
+          font-size:0.9rem;
+          cursor:pointer;
+        ">
+          Cancel
+        </button>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══════════════════════════════════════════
+      CONCLUDE & FILE MODAL
+  ══════════════════════════════════════════ -->
+  <div id="concludeModal"
+    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.55); align-items:center; justify-content:center; backdrop-filter:blur(2px);">
+    <div class="responsive-modal-box"
+      style="background:#ffffff; border-radius:12px; width:92%; max-width:480px; padding:24px; box-shadow:0 20px 35px rgba(0,0,0,0.25); border:1px solid #e5e7eb;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <span style="font-size:1.5rem;">📁</span>
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:#065f46;">
+            Conclude &amp; File Correspondence
+          </h3>
+          <p style="margin:2px 0 0 0; font-size:0.8rem; color:#6b7280;">
+            Close this correspondence thread and archive it in the registry.
+          </p>
+        </div>
+      </div>
+
+      <p
+        style="font-size:0.85rem; color:#374151; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 12px; margin-bottom:16px; line-height:1.4;">
+        ℹ️ Use this if the response received is satisfactory and no further follow-up or reply is needed. The document
+        will be marked <strong>Completed</strong> and moved to archives.
+      </p>
+
+      <form action="{{ url_for('complete_document_routes.complete_document', doc_id=document._id) }}" method="POST"
+        onsubmit="return preventDoubleSubmit(this)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#374151; margin-bottom:6px;">
+          Closing Minute / Remark (Optional)
+        </label>
+        <textarea name="closing_remark" rows="3" placeholder="e.g. Noted with thanks. Contents satisfactory. File away."
+          style="width:100%; border:1px solid #d1d5db; border-radius:8px; padding:10px 12px; font-size:0.88rem; box-sizing:border-box; resize:vertical; font-family:inherit; outline:none; margin-bottom:18px;"></textarea>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" onclick="closeConcludeModal()"
+            style="background:#f3f4f6; color:#374151; border:1px solid #d1d5db; padding:9px 18px; border-radius:8px; cursor:pointer; font-weight:500; font-size:0.88rem;">
+            Cancel
+          </button>
+          <button type="submit"
+            style="background:#059669; color:white; border:none; padding:9px 20px; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.88rem; display:inline-flex; align-items:center; gap:6px;">
+            ✓ Confirm &amp; Close File
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
+  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    function openConcludeModal() {
+      const modal = document.getElementById('concludeModal');
+      if (modal) {
+        modal.style.display = 'flex';
+      }
+    }
+    function closeConcludeModal() {
+      const modal = document.getElementById('concludeModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    // ── Seen Stamp interactivity ──
+    window.checkedRows = window.checkedRows || new Set();
+    const checkedRows = window.checkedRows;
+
+    function toggleSeenRow(checkbox, safeEmail) {
+      const taskInput = document.getElementById(`task_${safeEmail}`);
+      const row = checkbox.closest('tr');
+      const btn = document.getElementById('seenStampBtn');
+
+      if (checkbox.checked) {
+        checkedRows.add(checkbox.value);
+        if (taskInput) {
+          taskInput.disabled = false;
+          taskInput.style.background = '#fff';
+          taskInput.style.color = '#111827';
+          taskInput.style.cursor = 'text';
+          taskInput.style.borderColor = '#0d1b45';
+          taskInput.focus();
+        }
+        if (row) row.style.background = '#eff6ff';
+      } else {
+        checkedRows.delete(checkbox.value);
+        if (taskInput) {
+          taskInput.disabled = true;
+          taskInput.value = '';
+          taskInput.style.background = '#f3f4f6';
+          taskInput.style.color = '#9ca3af';
+          taskInput.style.cursor = 'not-allowed';
+          taskInput.style.borderColor = '#d1d5db';
+        }
+        if (row) row.style.background = 'white';
+      }
+
+      // Enable/disable submit buttons
+      const directBtn = document.getElementById('seenStampDirectBtn');
+      if (checkedRows.size > 0) {
+        if (btn) {
+          btn.disabled = false;
+          btn.style.background = '#0d1b45';
+          btn.style.cursor = 'pointer';
+        }
+        if (directBtn) {
+          directBtn.disabled = false;
+          directBtn.style.background = '#d97706';
+          directBtn.style.cursor = 'pointer';
+        }
+      } else {
+        if (btn) {
+          btn.disabled = true;
+          btn.style.background = '#9ca3af';
+          btn.style.cursor = 'not-allowed';
+        }
+        if (directBtn) {
+          directBtn.disabled = true;
+          directBtn.style.background = '#9ca3af';
+          directBtn.style.cursor = 'not-allowed';
+        }
+      }
+    }
+
+    // ── Modal open/close ──
+    function getSelectedRecipients() {
+      const recipientSelect = document.getElementById('mainRecipient');
+      return Array.from(recipientSelect.selectedOptions)
+        .map((option) => option.value)
+        .filter(Boolean);
+    }
+
+    function openSignatureModal(dispatchMode = 'registry_dispatch') {
+      const modeInput = document.getElementById('dispatchModeInput');
+      if (modeInput) {
+        modeInput.value = dispatchMode;
+      }
+      document.getElementById('sigModal').style.display = 'flex';
+      document.getElementById('sigPasswordInput').value = '';
+      document.getElementById('sigModalError').style.display = 'none';
+    }
+
+    async function verifyAndSubmitSeenStamp() {
+      const password = document.getElementById('sigPasswordInput').value.trim();
+      const errorBox = document.getElementById('sigModalError');
+      const submitBtn = document.querySelector('#sigModal button[onclick="verifyAndSubmitSeenStamp()"]');
+
+      errorBox.style.display = 'none';
+      errorBox.textContent = '';
+
+      if (!password) {
+        errorBox.textContent = "Please enter your signing password.";
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      // Disable button and show loading state
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Verifying...';
+      }
+
+      // Live UI update for assigner's row and checked assignees
+      const currentUserEmail = "{{ session.get('email') }}";
+      const currentUserSafe = "{{ session.get('email', '').replace('@', '_').replace('.', '_') }}";
+      const mySigCell = document.getElementById(`sig_cell_${currentUserSafe}`);
+      const userSig = "{{ current_user_signature }}";
+      const now = new Date();
+      const dateStr = now.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      if (mySigCell) {
+        if (userSig) {
+          mySigCell.innerHTML = `
+            <div style="text-align:center;">
+              <img src="${userSig}" style="max-width:80px; max-height:40px; display:block; margin:0 auto; border:1px solid #d1fae5; border-radius:4px; background:#fff;" />
+              <div style="font-size:0.65rem; color:#6b7280; margin-top:2px;">${dateStr}</div>
+              <div style="font-size:0.6rem; color:#059669; font-weight:600;">✓ Signed & Assigned</div>
+            </div>
+          `;
+        } else {
+          mySigCell.innerHTML = `
+            <div style="font-size:0.7rem; color:#059669; text-align:center; font-weight:600;">
+              ✓ Signed & Assigned<br>
+              <span style="font-size:0.65rem; color:#6b7280;">${dateStr}</span>
+            </div>
+          `;
+        }
+      }
+
+      // For all checked recipients, show pending badge
+      const checkedBoxes = document.querySelectorAll('input[name="seen_recipients"]:checked');
+      checkedBoxes.forEach(checkbox => {
+        const email = checkbox.value;
+        const safeEmail = email.replace(/[@.]/g, '_');
+        const cell = document.getElementById(`sig_cell_${safeEmail}`);
+        if (cell && email !== currentUserEmail) {
+          cell.innerHTML = `
+            <span style="font-size:0.72rem; color:#d97706; font-weight:600; background:#fef3c7; padding:2px 8px; border-radius:4px; display:inline-block;">
+              ⏳ Pending
+            </span>
+          `;
+        }
+      });
+
+      try {
+        // inject password into hidden form field
+        const form = document.getElementById('seenStampForm');
+        let hidden = document.getElementById('verifiedSigningPassword');
+        if (!hidden) {
+          hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = 'signing_password';
+          hidden.id = 'verifiedSigningPassword';
+          form.appendChild(hidden);
+        }
+
+        hidden.value = password;
+
+        // submit form
+        form.submit();
+      } catch (err) {
+        console.error('Error during verification:', err);
+        errorBox.textContent = 'An error occurred. Please try again.';
+        errorBox.style.display = 'block';
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '✔ Verify & Submit';
+        }
+      }
+    }
+
+    function closeSignatureModal() {
+      document.getElementById('sigModal').style.display = 'none';
+    }
+
+    // ── Canvas drawing in modal ──
+    const mc = document.getElementById('modalSigCanvas');
+    if (mc) {
+      const mctx = mc.getContext('2d');
+      let mDrawing = false, mLastX = 0, mLastY = 0;
+
+      function mGetPos(e) {
+        const rect = mc.getBoundingClientRect();
+        const scaleX = mc.width / rect.width;
+        const scaleY = mc.height / rect.height;
+        if (e.touches) {
+          return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+        }
+        return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+      }
+
+      mc.addEventListener('mousedown', e => { mDrawing = true; const p = mGetPos(e);[mLastX, mLastY] = [p.x, p.y]; });
+      mc.addEventListener('mouseup', () => mDrawing = false);
+      mc.addEventListener('mouseleave', () => mDrawing = false);
+      mc.addEventListener('mousemove', mDraw);
+      mc.addEventListener('touchstart', e => { e.preventDefault(); mDrawing = true; const p = mGetPos(e);[mLastX, mLastY] = [p.x, p.y]; });
+      mc.addEventListener('touchend', () => mDrawing = false);
+      mc.addEventListener('touchmove', e => { e.preventDefault(); mDraw(e); });
+
+      function mDraw(e) {
+        if (!mDrawing) return;
+        const p = mGetPos(e);
+        mctx.beginPath();
+        mctx.moveTo(mLastX, mLastY);
+        mctx.lineTo(p.x, p.y);
+        mctx.strokeStyle = '#1e293b';
+        mctx.lineWidth = 2.5;
+        mctx.lineCap = 'round';
+        mctx.lineJoin = 'round';
+        mctx.stroke();
+        [mLastX, mLastY] = [p.x, p.y];
+      }
+
+      window.clearModalCanvas = function () {
+        mctx.clearRect(0, 0, mc.width, mc.height);
+      }
+
+      window.prepareSignature = function () {
+        const dataURL = mc.toDataURL('image/png');
+        document.getElementById('sigDataInput').value = dataURL;
+        return true; // allow form submit
+      }
+    }
+  </script>
+
+  <script>
+
+    function toggleExternalDispatch(checkbox) {
+      const extGroup = document.getElementById('externalRecipientGroup');
+      const extInput = document.getElementById('externalRecipientInput');
+      const container = document.getElementById('internalDispatchContainer');
+      const selectAll = document.getElementById('selectAllRegistry');
+      const checks = document.querySelectorAll('.registry-check');
+
+      if (checkbox.checked) {
+        extGroup.style.display = 'block';
+        extInput.required = true;
+        if (selectAll) selectAll.checked = false;
+        checks.forEach(c => {
+          c.checked = false;
+          c.disabled = true;
+        });
+        container.style.opacity = '0.5';
+      } else {
+        extGroup.style.display = 'none';
+        extInput.required = false;
+        checks.forEach(c => {
+          c.disabled = false;
+        });
+        container.style.opacity = '1';
+      }
+    }
+
+    function toggleSelectAllRegistry(selectAll) {
+      const checks = document.querySelectorAll('.registry-check');
+      checks.forEach(c => {
+        if (!c.disabled) {
+          c.checked = selectAll.checked;
+        }
+      });
+    }
+
+    function updateSelectAllState() {
+      const selectAll = document.getElementById('selectAllRegistry');
+      const checks = document.querySelectorAll('.registry-check');
+      const allChecked = Array.from(checks).every(c => c.checked);
+      if (selectAll) {
+        selectAll.checked = allChecked;
+      }
+    }
+
+    function validateDispatchForm(form) {
+      const extCheck = document.getElementById('dispatchExternalCheck');
+      const checks = document.querySelectorAll('.registry-check');
+
+      if (extCheck && extCheck.checked) {
+        return preventDoubleSubmit(form);
+      }
+
+      const anyChecked = Array.from(checks).some(c => c.checked);
+      if (!anyChecked) {
+        alert("Please select at least one recipient directorate or check External Dispatch.");
+        return false;
+      }
+
+      return preventDoubleSubmit(form);
+    }
+
+    let isSubmitting = false;
+
+    function preventDoubleSubmit(form) {
+      const button = form.querySelector('button[type="submit"]') || document.getElementById('forwardButton');
+      const submittedFlag = form.querySelector('input[name="submitted"]') || document.getElementById('submittedFlag');
+
+      // Check if already submitting
+      if (isSubmitting || (submittedFlag && submittedFlag.value === 'true')) {
+        event.preventDefault();
+        return false;
+      }
+
+      // Set flags
+      isSubmitting = true;
+      if (submittedFlag) {
+        submittedFlag.value = 'true';
+      }
+
+      // Disable button and change text
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Processing...';
+        button.style.opacity = '0.6';
+        button.style.cursor = 'not-allowed';
+      }
+
+      return true;
+    }
+
+    // Optional: Reset form state if needed (e.g., on page navigation)
+    window.addEventListener('pageshow', function () {
+      const button = document.getElementById('forwardButton');
+      const submittedFlag = document.getElementById('submittedFlag');
+      if (button && submittedFlag) {
+        button.disabled = false;
+        button.textContent = 'Forward Document';
+        button.style.opacity = '1';
+        button.style.cursor = 'pointer';
+        submittedFlag.value = 'false';
+        isSubmitting = false;
+      }
+    });
+
+
+    // Final Signature Modal Functions
+    function finalSignatureModal() {
+      // Check if already signed before opening modal
+      const signBtn = document.getElementById('finalSignBtn');
+      if (signBtn.disabled) {
+        alert('Document has already been signed.');
+        return;
+      }
+
+      // Clear password field and error
+      document.getElementById('finalSignaturePasswordInput').value = '';
+      document.getElementById('finalSignatureModalError').style.display = 'none';
+
+      // Show modal
+      document.getElementById('finalSignatureModal').style.display = 'flex';
+    }
+
+    function closeFinalSignatureModal() {
+      document.getElementById('finalSignatureModal').style.display = 'none';
+    }
+
+    // Submit function that connects modal button to the form
+    function submitModalSignature() {
+      const password = document.getElementById('finalSignaturePasswordInput').value.trim();
+      const errorBox = document.getElementById('finalSignatureModalError');
+
+      // Clear previous error
+      errorBox.style.display = 'none';
+      errorBox.textContent = '';
+
+      // Validate password
+      if (!password) {
+        errorBox.textContent = "Please enter your signing password.";
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      // Get the main form
+      const form = document.getElementById('finalSignatureForm');
+
+      // Create or get hidden password field in the main form
+      let passwordField = document.getElementById('tempSigningPassword');
+      if (!passwordField) {
+        passwordField = document.createElement('input');
+        passwordField.type = 'hidden';
+        passwordField.id = 'tempSigningPassword';
+        passwordField.name = 'signing_password';
+        form.appendChild(passwordField);
+      }
+
+      // Set the password value
+      passwordField.value = password;
+
+      // Close the modal
+      closeFinalSignatureModal();
+
+      // Submit the form
+      form.submit();
+    }
+
+    // Close modal if user clicks outside
+    window.onclick = function (event) {
+      const modal = document.getElementById('finalSignatureModal');
+      if (event.target == modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    function toggleExternalRecipientField(selectEl) {
+      const group = document.getElementById('externalRecipientGroup');
+      const input = document.getElementById('externalRecipientInput');
+      if (selectEl.value === 'external') {
+        group.style.display = 'block';
+        input.required = true;
+      } else {
+        group.style.display = 'none';
+        input.required = false;
+      }
+    }
+
+    let reviewSubmitted = false;
+    function preventReviewSubmit(form) {
+      if (reviewSubmitted) {
+        return false;
+      }
+      reviewSubmitted = true;
+      const buttons = document.querySelectorAll('.review-action-btn');
+      buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+      });
+      return true;
+    }
+
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+      // ── Bubbles ───────────────────────────────────────────────────────────
+      document.querySelectorAll('.thread-bubble').forEach(function (el) {
+        var active = el.dataset.active === 'true';
+        var original = el.dataset.original === 'true';
+
+        el.style.width = '30px';
+        el.style.height = '30px';
+        el.style.borderRadius = '50%';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.fontSize = '0.75rem';
+        el.style.fontWeight = '700';
+        el.style.flexShrink = '0';
+        el.style.zIndex = '1';
+
+        // conditional
+        el.style.background = active ? '#0d1b45' : (original ? '#f59e0b' : '#e5e7eb');
+        el.style.color = (active || original) ? 'white' : '#374151';
+      });
+
+      // ── Titles ────────────────────────────────────────────────────────────
+      document.querySelectorAll('.thread-title').forEach(function (el) {
+        var active = el.dataset.active === 'true';
+
+        el.style.fontSize = '0.85rem';
+        el.style.fontWeight = active ? '700' : '600';
+        el.style.color = active ? '#0d1b45' : '#111827';
+      });
+
+      // ── Rows (padding-bottom) ─────────────────────────────────────────────
+      document.querySelectorAll('.thread-row').forEach(function (el) {
+        el.style.paddingBottom = el.dataset.last === 'true' ? '0' : '16px';
+      });
+
+    });
+
+
+
+    document.querySelectorAll('.chain-member').forEach(function (el) {
+      var isMe = el.dataset.me === 'true';
+      var isHolder = el.dataset.holder === 'true';
+
+      el.style.padding = '5px 12px';
+      el.style.borderRadius = '20px';
+      el.style.fontSize = '0.7rem';
+
+      // conditional
+      el.style.fontWeight = isMe ? '700' : '400';
+      el.style.background = isMe ? '#dbeafe' : (isHolder ? '#f0fdf4' : 'var(--color-background-primary)');
+      el.style.color = isMe ? '#1e40af' : (isHolder ? '#166534' : 'var(--color-text-secondary)');
+      el.style.border = isMe ? '1px solid #93c5fd' : (isHolder ? '1px solid #bbf7d0' : '1px dashed var(--color-border-tertiary)');
+    });
+  </script>
+
+  <script>
+    function addCorrespondence() {
+      // Pass parent_doc_id so the new correspondence links back to this document
+      window.location.href = `/add_document?template=memorandum&parent_doc_id={{ document._id }}`;
+    }
+
+    function addLooseMinute() {
+      // Pass parent_doc_id so the new Loose Minute links back to this document
+      window.location.href = `/add_document?template=loose_minute&parent_doc_id={{ document._id }}`;
+    }
+
+    function editDocument(sequence) {
+      var url = "{{ url_for('edit_document_routes.edit_document', doc_id=document._id) }}";
+      if (sequence !== undefined && sequence > 0) {
+        url += "?seq=" + sequence;
+      }
+      window.location.href = url;
+    }
+
+    function withdrawDocument() {
+      if (confirm('Are you sure you want to withdraw this document?')) {
+        window.location.href = `/withdraw_document/{{ document._id }}`;
+      }
+    }
+
+    function downloadPDF() {
+      {% if (active_correspondence and active_correspondence.get('content_html')) or(not active_correspondence and document.content_html) %}
+      window.location.href = "{{ url_for('download_document_routes.download_correspondence_pdf', doc_id=document._id, sequence=active_seq) }}";
+      {% else %}
+      window.location.href = "{{ url_for('download_document_routes.download_document', doc_id=document._id) }}";
+      {% endif %}
+    }
+
+    function printLetterhead() {
+      window.open("{{ url_for('print_correspondence_routes.print_correspondence', doc_id=document._id, sequence=active_seq) }}", '_blank');
+    }
+
+  </script>
+
+  <!-- Flashed Messages Modals -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  {% for category, message in messages %}
+  {% set msg_lower = message | lower %}
+  {% if (category == 'success' and 'forwarded' not in msg_lower and 'dispatch' not in msg_lower and 'saved' not in
+  msg_lower and 'acknowledged' not in msg_lower and 'stamp' not in msg_lower) or category == 'info' or 'viewing' in
+  msg_lower %}
+  {# Skip rendering modal for generic info and background messages #}
+  {% else %}
+  <div id="flashModal_{{ loop.index }}"
+    style="display:flex; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:99999; align-items:center; justify-content:center;">
+    <div
+      style="background:white; border-radius:14px; padding:28px; width:450px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); font-family:'Inter', 'Poppins', sans-serif; text-align:center;">
+      {% if category == 'success' %}
+      <div
+        style="width:60px; height:60px; background:#dcfce7; color:#15803d; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px; font-weight:bold;">
+        ✔
+      </div>
+      <h3 style="margin:0 0 10px 0; font-size:1.18rem; color:#111827; font-weight:700;">
+        {% if 'dispatch' in msg_lower %}
+        Document Dispatched Successfully
+        {% elif 'forwarded' in msg_lower %}
+        Document Forwarded Successfully
+        {% elif 'saved' in msg_lower %}
+        Document Saved Successfully
+        {% elif 'acknowledged' in msg_lower %}
+        Document Acknowledged
+        {% else %}
+        Success
+        {% endif %}
+      </h3>
+      {% else %}
+      <div
+        style="width:60px; height:60px; background:#fee2e2; color:#b91c1c; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px; font-weight:bold;">
+        ✖
+      </div>
+      <h3 style="margin:0 0 10px 0; font-size:1.18rem; color:#111827; font-weight:700;">
+        {% if 'dispatch' in msg_lower %}
+        Dispatch Unsuccessful
+        {% else %}
+        Alert
+        {% endif %}
+      </h3>
+      {% endif %}
+      <p style="font-size:0.92rem; color:#374151; margin-bottom:24px; line-height:1.5;">
+        {{ message }}
+      </p>
+      <button type="button" onclick="closeFlashModal({{ loop.index }})"
+        style="background:#0d1b45; color:white; border:none; padding:11px 24px; border-radius:8px; font-size:0.92rem; font-weight:600; cursor:pointer; width:100%; transition:background 0.2s;">
+        OK
+      </button>
+    </div>
+  </div>
+  <script>
+    function closeFlashModal(index) {
+      const m = document.getElementById('flashModal_' + index);
+      if (m) m.style.display = 'none';
+    }
+    (function () {
+      const idx = "{{ loop.index }}";
+      window.addEventListener('click', function (event) {
+        const modal = document.getElementById('flashModal_' + idx);
+        if (modal && event.target == modal) {
+          modal.style.display = 'none';
+        }
+      });
+    })();
+  </script>
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
+  <script>
+    // Responsive Mobile Tab Switcher Handler
+    function switchMobileTab(tab) {
+      if (window.innerWidth > 768) return;
+      const docTab = document.getElementById('tabBtnDoc');
+      const actTab = document.getElementById('tabBtnActions');
+      const docView = document.querySelector('.document-preview');
+      const actView = document.querySelector('.form-section');
+
+      if (tab === 'doc') {
+        if (docTab) docTab.classList.add('active');
+        if (actTab) actTab.classList.remove('active');
+        if (docView) docView.style.display = 'flex';
+        if (actView) actView.style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        if (actTab) actTab.classList.add('active');
+        if (docTab) docTab.classList.remove('active');
+        if (docView) docView.style.display = 'none';
+        if (actView) actView.style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    // Reset layout display styles when screen orientation or window size changes
+    window.addEventListener('resize', function () {
+      const docView = document.querySelector('.document-preview');
+      const actView = document.querySelector('.form-section');
+      if (window.innerWidth > 768) {
+        if (docView) docView.style.display = '';
+        if (actView) actView.style.display = '';
+      } else {
+        const docTab = document.getElementById('tabBtnDoc');
+        if (docTab && docTab.classList.contains('active')) {
+          if (docView) docView.style.display = 'flex';
+          if (actView) actView.style.display = 'none';
+        } else {
+          if (docView) docView.style.display = 'none';
+          if (actView) actView.style.display = 'block';
+        }
+      }
+    });
+
+    // Initialize layout state on page load
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.innerWidth <= 768) {
+        switchMobileTab('doc');
+      }
+    });
+  </script>
+  <!-- <script src="{{ url_for('static', filename='main.js') }}"></script> -->
+</body>
+
+</html>

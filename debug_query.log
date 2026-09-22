@@ -1,0 +1,4 @@
+Logged User: superadmin@dsa.mil.ng
+Role: super_admin
+Directorate: 
+Final Query: {'$and': [{}, {'$nor': [{'parent_doc_id': {'$ne': None, '$exists': True}, 'target_directorate': {'$ne': ''}}]}, {'$or': [{'status': {'$ne': 'Saved'}}, {'sender_email': 'superadmin@dsa.mil.ng'}, {'created_by': 'superadmin@dsa.mil.ng'}, {'created_by': 'Super Admin'}]}]}

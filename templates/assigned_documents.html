@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assigned Documents</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" /> -->
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" /> -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+
+    .search-box input {
+      width: 300px;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
+    }
+
+    .badge {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .badge.saved {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .badge.edited {
+      background: #fef9c3;
+      color: #854d0e;
+    }
+
+    .badge.forwarded {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge.not-forwarded,
+    .badge.not_forwarded {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge.dispatched {
+      background: #2d88ff;
+      color: #ffffff;
+    }
+
+    .badge.fwd_for_dispatched,
+    .badge.forwarded-for-dispatch {
+      background: #ffedd5;
+      color: #9a3412;
+    }
+
+    .badge.forwarded-to-director {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .badge.under-review,
+    .badge.under_review {
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    .badge.completed,
+    .badge.closed {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+
+    .badge.pending {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .badge.assigned {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .badge.treated {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge.in-progress,
+    .badge.in_progress {
+      background: #fef9c3;
+      color: #854d0e;
+    }
+
+    .badge.reviewed {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge.low {
+      background: #059669;
+      color: #ffffff;
+    }
+
+    .badge.medium {
+      background: #eab308;
+      color: #ffffff;
+    }
+
+    .badge.high {
+      background: #dc2626;
+      color: #ffffff;
+    }
+
+    .banner-document {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      gap: 1rem;
+    }
+
+    .header-text h2 {
+      color: #0d1b45;
+      font-size: 1.8rem;
+    }
+
+    .actions {
+      display: flex;
+      gap: 1rem;
+      background-color: #f9f9fa;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .search-bar {
+      position: relative;
+      flex: 1;
+      max-width: 400px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 0.6rem 2.2rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .search-bar .icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #888;
+    }
+
+    .filter-btn {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .filter-btn:hover {
+      background-color: #eaeaea;
+    }
+  </style>
+</head>
+
+<body data-active-page="assigned_documents">
+  <div class="dashboard">
+    {% include "sidebar.html" %}
+
+    <div class="main-content">
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 ODOGWU &gt; <span class="active-crumb"> Assigned Documents </span>
+        </div>
+        <div class="user-profile-badge">
+          <!-- Clean circle initials token frame -->
+          <div class="user-avatar-circle" id="navAvatarIcon">
+            {{ user.name[:2] | upper if user.name else 'DS' }}
+          </div>
+          <!-- Multi-line text metadata stacking engine -->
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="role-badge-pill">{{ user.role | replace('_', ' ') | title }}</span>
+              <span class="role-divider-dot">•</span>
+              <span class="directorate-text-code">{{ user.directorate | upper }}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {% macro status_badge(value) %}
+      {% set v = value | default('Saved') %}
+      {% set cls = v | lower | replace(' ', '-') | replace('_', '-') %}
+      <span class="badge {{ cls }}">{{ v }}</span>
+      {% endmacro %}
+
+      <div class="reg_doc_container">
+        <div class="reg_doc_header">
+          <h1>Assigned Documents</h1>
+        </div>
+
+        <!-- Search Input -->
+        <form class="reg_doc_search-section" action="{{ url_for('assigned_document_routes.assigned_documents') }}"
+          method="get">
+          <div class="reg_doc_search-container">
+            <input type="text" name="q" style="padding: 10px;" class="search-input" value="{{ search_query or '' }}"
+              placeholder="Search documents..." />
+          </div>
+          <button class="add-document-btn" type="submit">Search</button>
+          <a class="filter-btn" href="{{ url_for('assigned_document_routes.assigned_documents') }}"
+            style="text-decoration: none; color: inherit;">Clear</a>
+        </form>
+      </div>
+
+      <div class="dashboard-content">
+        <!-- <div class="documents-table-container"> -->
+        <div class="table-container">
+          <div class="table-header">
+            {% if search_query %}
+            Search Results for "{{ search_query }}"
+            {% else %}
+            Recently Assigned Documents
+            {% endif %}
+          </div>
+
+          <div class="table-responsive">
+            <table class="documents-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Reference No</th>
+                  <th>Subject</th>
+                  <th>Originating Directorate</th>
+                  <th>Sender</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody id="documents-table-body">
+                {% for doc in documents %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+
+                  <td>
+                    <a href="{{ url_for('open_document_routes.open_document', doc_id=doc._id, ref=active_page) }}"
+                      style="text-decoration:none; color:inherit; ">
+                      {{ doc.reference_number }}
+                    </a>
+                  </td>
+
+                  <td>
+                    <a href="{{ url_for('open_document_routes.open_document', doc_id=doc._id, ref=active_page) }}"
+                      style="text-decoration:none; color: #0b78cc; font-weight:bold;">
+                      {{ doc.memo_title }}
+                    </a>
+                  </td>
+                  <td>{{ doc.origin_directorate }}</td>
+
+                  <td>{{ doc.get('sender') or '-' }}</td>
+                  <!-- Action -->
+                  <td>
+                    {% if doc.get('status') == 'Completed' or doc.get('doc_lifecycle_stage') == 'closed' or doc.get('phase_info', {}).get('status') == 'Completed' or doc.get('forwarded_status') == 'Completed' %}
+                    <span class="badge completed">Completed</span>
+                    {% else %}
+                    {{ status_badge(doc.get('phase_info', {}).get('status', doc.get('status'))) }}
+                    {% if doc.get('has_been_dispatched') %}
+                    <span class="badge dispatched" style="margin-left:4px;">Dispatched</span>
+                    {% endif %}
+                    {% endif %}
+                  </td>
+
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="11" style="text-align:center; padding:20px; color:#9ca3af;">
+                    No documents found.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- Bootstrap JS (required for modals, popovers, etc.) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
+    </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.js"></script>
+  <!-- <script src="{{ url_for('static', filename='main.js') }}"></script> -->
+<script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
+</body>
+
+</html>

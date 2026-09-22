@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Document</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leave_pass.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personnel.css') }}" />
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" /> -->
+
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ── Quill alignment classes ── */
+    .ql-align-right {
+      text-align: right !important;
+    }
+
+    .ql-align-center {
+      text-align: center !important;
+    }
+
+    .ql-align-justify {
+      text-align: justify !important;
+    }
+
+    .ql-indent-1 {
+      padding-left: 3em !important;
+    }
+
+    .ql-indent-2 {
+      padding-left: 6em !important;
+    }
+
+    .ql-indent-3 {
+      padding-left: 9em !important;
+    }
+
+    /* ── Memo display styles (so the header renders correctly) ── */
+    .memo-a4-header {
+      font-family: 'Crimson Text', Georgia, serif;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .memo-restricted-band {
+      text-align: center;
+      font-size: 10pt;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #1a1a1a;
+      margin-bottom: 8mm;
+    }
+
+    .memo-org-name {
+      text-align: center;
+      font-weight: 600;
+      font-size: 13.5pt;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 4mm;
+      color: #111;
+    }
+
+    .memo-logo-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 5mm;
+    }
+
+    .memo-logo-wrap img {
+      width: 24mm;
+      height: 24mm;
+      object-fit: contain;
+    }
+
+    .memo-title-band {
+      text-align: center;
+      font-family: 'IM Fell English', serif;
+      font-size: 15pt;
+      letter-spacing: .04em;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+      color: #111;
+      margin-bottom: 6mm;
+    }
+
+    .memo-address-grid {
+      display: grid;
+      grid-template-columns: 1fr 2px 1fr;
+      border-top: 1px solid #444;
+      border-bottom: 1px solid #444;
+      margin-bottom: 6mm;
+    }
+
+    .memo-addr-cell {
+      padding: 3mm 4mm;
+    }
+
+    .memo-addr-divider {
+      background: #444;
+      align-self: stretch;
+    }
+
+    .memo-addr-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      line-height: 2.1;
+      font-size: 11pt;
+      color: #111;
+    }
+
+    .memo-addr-label {
+      font-weight: 600;
+      min-width: 38px;
+    }
+
+    .memo-live-field {
+      color: #1a3060;
+    }
+
+    .memo-document-body {
+      font-family: 'Crimson Text', Georgia, serif;
+      font-size: 12pt;
+      line-height: 1.8;
+      margin-top: 10mm;
+    }
+
+    .memo-document {
+      padding: 10mm;
+    }
+
+    /* ── Editor wrapper ── */
+    #quill-editor {
+      min-height: 500px;
+      background: #fff;
+      font-family: 'Crimson Text', Georgia, serif;
+      font-size: 12pt;
+    }
+
+    .ql-toolbar {
+      border-radius: 6px 6px 0 0;
+      border-color: #e5e7eb !important;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: white;
+    }
+
+    .ql-container {
+      border-color: #e5e7eb !important;
+      min-height: 500px;
+      font-family: 'Crimson Text', Georgia, serif;
+      font-size: 12pt;
+      border-radius: 0 0 6px 6px;
+    }
+
+    /* ── Document info banner ── */
+    .doc-info-banner {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-left: 4px solid #0284c7;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 0.88rem;
+    }
+
+    .doc-info-banner strong {
+      color: #0d1b45;
+    }
+
+    .doc-info-banner span {
+      color: #6b7280;
+    }
+
+    /* ── Attachments CSS ── */
+    .attachment-item {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      display: flex;
+      min-height: 80px;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      transition: all .18s ease;
+    }
+
+    .attachment-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .attachment-name {
+      font-weight: 800;
+      color: #1041aa;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .attachment-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .attachment-btn {
+      border: none;
+      background: #f3f4f6;
+      padding: 7px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .attachment-btn:hover {
+      background: #e5e7eb;
+    }
+
+    .attachment-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .attachment-code {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1d4ed8;
+      letter-spacing: .03em;
+    }
+
+    .attachment-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .attachment-file {
+      font-size: 12px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="dashboard">
+    {% include "sidebar.html" %}
+
+    <div class="main-content">
+      {% include "base.html" %}
+
+      <div class="dashboard-content">
+        <div class="background-welcome">
+          <div class="container-welcome">
+            <div class="welcome-card" style="max-width:1050px; padding:2rem; margin:0 auto;">
+
+              <!-- ── Header ── -->
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+                <div>
+                  <h2 class="welcome-tag" style="margin-bottom:4px;">Edit Document</h2>
+                  <p style="color:#6b7280; font-size:0.88rem; margin:0;">
+                    Only the document body can be edited. The header structure is preserved.
+                  </p>
+                </div>
+                <div style="display:flex; gap:10px;">
+                  <a href="{{ url_for('open_document_routes.open_document', doc_id=document._id) }}"
+                    style="padding:10px 20px; border:1px solid #e5e7eb; border-radius:6px; text-decoration:none; color:#374151; font-size:0.88rem; font-weight:500;">
+                    Cancel
+                  </a>
+                  <button onclick="saveDocument()" class="login-btn" style="width:auto; padding:10px 24px;">
+                    💾 Save Changes
+                  </button>
+                </div>
+              </div>
+
+
+
+              <!-- ── Document info banner ── -->
+              <div class="doc-info-banner">
+                <strong>{{ editable_doc.memo_title if editable_doc else document.memo_title }}</strong>
+                <span style="margin:0 8px;">·</span>
+                <span>{{ document.reference_number }}</span>
+                {% if is_correspondence %}
+                <span style="margin:0 8px;">·</span>
+                <span>Reply #{{ sequence }}</span>
+                {% endif %}
+              </div>
+
+              <!-- ── Warning if already forwarded ── -->
+              {% if document.get('forwarded_at') %}
+              <div
+                style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:0.85rem; color:#854d0e;">
+                ⚠️ This document was previously forwarded. Saving edits will reset its forwarding status.
+              </div>
+              {% endif %}
+
+              <!-- ── Editor area ── -->
+              <div style="margin-bottom:1.5rem;">
+
+                <!-- Memo header (read-only display above editor) -->
+                {% if document.get('source') == 'created_in_system' and document.get('content_html') %}
+                <div style="
+                  background:#f8f9fb;
+                  border:1px solid #e5e7eb;
+                  border-bottom:none;
+                  border-radius:6px 6px 0 0;
+                  padding:8px 14px;
+                  font-size:11px;
+                  font-family:'Inter',sans-serif;
+                  color:#9ca3af;
+                  letter-spacing:.04em;
+                  text-transform:uppercase;
+                ">
+                  ✏ Document Body — edit below (memo header is preserved automatically)
+                </div>
+                {% endif %}
+
+                <!-- Quill editor -->
+                <div id="quill-editor"></div>
+              </div>
+
+              <!-- ── Shared metadata / signing block ── -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:30px; margin-bottom:1.5rem;">
+                <!-- Left Column -->
+                <div>
+                  <div class="form-group" style="margin-bottom:15px">
+                    <label for="name" style="display:block;margin-bottom:5px;font-weight:600;color:#374151;">
+                      Name
+                    </label>
+                    <input type="text" id="name" name="name" required
+                      value="{{ editable_doc.name or document.name or '' }}"
+                      style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                  </div>
+
+                  <div class="form-group" style="margin-bottom:15px">
+                    <label for="appt" style="display:block;margin-bottom:5px;font-weight:600;color:#374151;">
+                      Appt
+                    </label>
+                    <input type="text" id="appt" name="appt" value="{{ editable_doc.appt or document.appt or '' }}"
+                      style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                  </div>
+                </div>
+
+                <!-- Right Column -->
+                <div>
+                  <div class="form-group" style="margin-bottom:15px">
+                    <label for="rank" style="display:block;margin-bottom:5px;font-weight:600;color:#374151;">
+                      Rank
+                    </label>
+                    <input type="text" id="rank" name="rank" value="{{ editable_doc.rank or document.rank or '' }}"
+                      style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                  </div>
+                  <div class="form-group" style="margin-bottom:15px">
+                    <label for="signature"
+                      style="display:block;margin-bottom:5px;font-weight:600;color:#374151;">Signature</label>
+                    <div style="display:flex; gap:8px;">
+                      <input type="text" id="signature" name="signature" readonly placeholder="Not Signed"
+                        style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:#f3f4f6;color:#6b7280;" />
+                      {% if session.get('role') in ['registry', 'central_registry'] %}
+                      <button type="button" id="verifySigBtn" disabled title="You cannot Sign added document"
+                        style="background:#9ca3af; color:white; border:none; padding:10px 16px; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:not-allowed; white-space:nowrap; opacity:0.6;">
+                        ✍️ Verify & Sign
+                      </button>
+                      {% else %}
+                      <button type="button" onclick="openVerifySignatureModal()" id="verifySigBtn"
+                        style="background:#0d1b45; color:white; border:none; padding:10px 16px; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                        ✍️ Verify & Sign
+                      </button>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {% if document.correspondence_type == 'outgoing' %}
+              <div class="form-group" style="margin-bottom:20px;">
+                <label for="folder_name" style="display:block;margin-bottom:5px;font-weight:600;color:#374151;">
+                  Filing Folder
+                </label>
+                <input type="text" id="folder_name" name="folder_name" list="folders-list"
+                  value="{{ document.folder_name or '' }}" placeholder="e.g. Partnerships 2026"
+                  style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px;" />
+                <datalist id="folders-list">
+                  {% for folder in existing_folders %}
+                  <option value="{{ folder }}"></option>
+                  {% endfor %}
+                </datalist>
+              </div>
+              {% endif %}
+
+
+              <!-- ENCLOSURES / ANNEXES -->
+              <div class="mode-enclosures" id="section-enclosures" style="margin-bottom: 2rem;">
+                <div
+                  style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.05);">
+                  <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">
+                    📎 Attach Enclosures / Annexes (New)
+                  </label>
+
+                  <!-- CONTROLS -->
+                  <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+                    <!-- TYPE -->
+                    <select id="attachment-type"
+                      style="padding:10px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; font-size:0.88rem; font-weight:500;">
+                      <option value="enclosure">Enclosure</option>
+                      <option value="annex">Annex</option>
+                    </select>
+
+                    <!-- TITLE -->
+                    <input type="text" id="attachment-title" placeholder="e.g. Reference Annex Document"
+                      style="flex:1; min-width:250px; padding:10px; border:1px solid #e5e7eb; border-radius:6px; font-size:0.88rem;" />
+
+                    <!-- FILE -->
+                    <input type="file" id="attachment-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" multiple
+                      style="display:none;" />
+
+                    <!-- BUTTON -->
+                    <button type="button" onclick="triggerAttachmentUpload()"
+                      style="background:#0d1b45; color:white; border:none; padding:10px 18px; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+                      <span>+</span> Add Attachment
+                    </button>
+                  </div>
+
+                  <!-- LIST -->
+                  <div id="attachment-list"></div>
+                </div>
+              </div>
+
+              <!-- Hidden save form -->
+              <form id="saveForm"
+                action="{{ url_for('save_document_routes.save_document', doc_id=document._id) }}?seq={{ sequence }}"
+                method="POST" style="display:none;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="content_html" id="content_html_hidden" />
+                <input type="hidden" name="attachments_metadata" id="attachments_metadata_hidden" />
+              </form>
+
+              <!-- Bottom save button -->
+              <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1rem;">
+                <a href="{{ url_for('open_document_routes.open_document', doc_id=document._id) }}"
+                  style="padding:10px 20px; border:1px solid #e5e7eb; border-radius:6px; text-decoration:none; color:#374151; font-size:0.88rem; font-weight:500;">
+                  Cancel
+                </a>
+                <button onclick="saveDocument()" class="login-btn" style="width:auto; padding:10px 24px;">
+                  💾 Save Changes
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verify Signature Modal -->
+  <div id="verifySigModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+    <div
+      style="background:white; border-radius:14px; padding:28px; width:450px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); font-family:'Inter', sans-serif;">
+      <h3 style="margin:0 0 10px 0; font-size:1rem; color:#111827; font-weight:600;">Verify Signature</h3>
+      <p style="font-size:0.82rem; color:#6b7280; margin-bottom:18px;">Please enter your signing password to verify and
+        apply your profile signature.</p>
+
+      <label style="display:block; font-size:0.82rem; font-weight:600; color:#374151; margin-bottom:6px;">Signing
+        Password</label>
+      <input type="password" id="verifySigPasswordInput" placeholder="Enter signing password"
+        style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; margin-bottom:10px; box-sizing:border-box;" />
+
+      <p id="verifySigModalError" style="display:none; color:#dc2626; font-size:0.8rem; margin-bottom:12px;"></p>
+
+      <div style="display:flex; gap:10px;">
+        <button type="button" onclick="submitVerifySignature()"
+          style="background:#16a34a; color:white; border:none; padding:10px 18px; border-radius:8px; font-size:0.9rem; font-weight:600; cursor:pointer; flex:1;">✔️
+          Verify & Apply</button>
+        <button type="button" onclick="closeVerifySignatureModal()"
+          style="background:#e5e7eb; color:#374151; border:none; padding:10px 18px; border-radius:8px; font-size:0.9rem; cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Alert Modal -->
+  <div id="customAlertModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:10000; align-items:center; justify-content:center;">
+    <div
+      style="background:white; border-radius:14px; padding:28px; width:400px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); font-family:'Inter', sans-serif; text-align:center;">
+      <div style="font-size: 2.5rem; margin-bottom: 12px;">⚠️</div>
+      <h3 style="margin:0 0 10px 0; font-size:1.1rem; color:#111827; font-weight:600;">Attention Required</h3>
+      <p id="customAlertMessage" style="font-size:0.875rem; color:#4b5563; margin-bottom:20px; line-height:1.5;">Enter
+        Attachment Title before proceeding to upload</p>
+      <button type="button" onclick="closeCustomAlert()"
+        style="background:#2563eb; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:0.9rem; font-weight:600; cursor:pointer; width:100%; transition: background 0.2s;">OK</button>
+    </div>
+  </div>
+
+  <!-- Status Modal (Success / Unsuccessful) -->
+  <div id="statusModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:99999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:14px; padding:28px; width:450px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); font-family:'Inter', 'Poppins', sans-serif; text-align:center; position:relative;">
+      
+      <!-- Success Icon -->
+      <div id="modalIconSuccess" style="display:none; width:60px; height:60px; background:#dcfce7; color:#15803d; border-radius:50%; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px; font-weight:bold;">
+        ✔
+      </div>
+      
+      <!-- Error/Unsuccessful Icon -->
+      <div id="modalIconError" style="display:none; width:60px; height:60px; background:#fee2e2; color:#b91c1c; border-radius:50%; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px; font-weight:bold;">
+        ✖
+      </div>
+
+      <!-- Title -->
+      <h3 id="modalStatusTitle" style="margin:0 0 10px 0; font-size:1.18rem; color:#111827; font-weight:700;">
+        Notification
+      </h3>
+
+      <!-- Message Body -->
+      <p id="modalStatusMessage" style="font-size:0.92rem; color:#374151; margin-bottom:24px; line-height:1.5;">
+        Message text here
+      </p>
+
+      <!-- OK Button -->
+      <button type="button" id="modalStatusOkBtn" onclick="closeStatusModal()" style="background:#0d1b45; color:white; border:none; padding:11px 24px; border-radius:8px; font-size:0.92rem; font-weight:600; cursor:pointer; width:100%; transition:background 0.2s;">
+        OK
+      </button>
+    </div>
+  </div>
+
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+
+  <script>
+    lucide.createIcons();
+
+    const toolbarOptions = [
+      ['bold', 'italic', 'underline', 'strike'],
+      ['blockquote'],
+      ['link'],
+      [{ 'header': 1 }, { 'header': 2 }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      [{ 'script': 'sub' }, { 'script': 'super' }],
+      [{ 'indent': '-1' }, { 'indent': '+1' }],
+      [{ 'size': ['small', false, 'large', 'huge'] }],
+      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      [{ 'color': [] }, { 'background': [] }],
+      [{ 'font': [] }],
+      [{ 'align': [] }],
+      ['clean']
+    ];
+
+    const quill = new Quill('#quill-editor', {
+      theme: 'snow',
+      placeholder: 'Edit document content here...',
+      modules: { toolbar: toolbarOptions }
+    });
+
+    // ── Load existing content ──
+    // Extract only the body part for editing if it's a memo document
+    const rawContent = `{{ content_html | safe }}`;
+
+    if (rawContent) {
+      // If it's a memo document, extract just the body portion for editing
+      // The full HTML (including header) will be reconstructed on save
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawContent, 'text/html');
+      const body = doc.querySelector('.memo-document-body');
+
+      if (body) {
+        // Memo document — load only the editable body into Quill
+        quill.clipboard.dangerouslyPasteHTML(0, body.innerHTML);
+      } else {
+        // Plain document (letter, circular etc.) — load all content
+        quill.clipboard.dangerouslyPasteHTML(0, rawContent);
+      }
+    }
+
+    // ── Attachments State ──
+    let attachments = [];
+    let enclosureCount = 0;
+    let annexCount = 0;
+
+    function triggerAttachmentUpload() {
+      document.getElementById('attachment-file').click();
+    }
+
+    document.getElementById('attachment-file').addEventListener('change', addAttachment);
+
+    function addAttachment(event) {
+      const files = Array.from(event.target.files);
+      if (!files.length) return;
+
+      const type = document.getElementById('attachment-type').value;
+      const titleInput = document.getElementById('attachment-title');
+      const title = titleInput.value.trim();
+
+      if (!title) {
+        showCustomAlert('Enter Attachment Title before proceeding to upload');
+        return;
+      }
+
+      files.forEach(file => {
+        let code = '';
+        if (type === 'enclosure') {
+          enclosureCount++;
+          code = `Encl ${enclosureCount}`;
+        } else {
+          annexCount++;
+          const letter = String.fromCharCode(64 + annexCount);
+          code = `Annex ${letter}`;
+        }
+
+        const attachment = {
+          id: Date.now() + Math.random(),
+          type,
+          code,
+          title,
+          fullLabel: `${code} - ${title}`,
+          file
+        };
+        attachments.push(attachment);
+      });
+
+      renderAttachments();
+      titleInput.value = '';
+      event.target.value = '';
+    }
+
+    function renderAttachments() {
+      const container = document.getElementById('attachment-list');
+      container.innerHTML = '';
+
+      attachments.forEach(att => {
+        const div = document.createElement('div');
+        div.className = 'attachment-item';
+        div.innerHTML = `
+          <div class="attachment-left">
+            <div class="attachment-code">${att.code}</div>
+            <div class="attachment-title">${att.title}</div>
+            <div class="attachment-file">📎 ${att.file.name}</div>
+          </div>
+          <div class="attachment-actions">
+            <button type="button" class="attachment-btn" onclick="viewAttachment(${att.id})">View</button>
+            <button type="button" class="attachment-btn" onclick="downloadAttachment(${att.id})">Download</button>
+            <button type="button" class="attachment-btn" onclick="deleteAttachment(${att.id})">Delete</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function viewAttachment(id) {
+      const att = attachments.find(a => a.id === id);
+      if (!att) return;
+      const url = URL.createObjectURL(att.file);
+      window.open(url, '_blank');
+    }
+
+    function downloadAttachment(id) {
+      const att = attachments.find(a => a.id === id);
+      if (!att) return;
+      const url = URL.createObjectURL(att.file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = att.fullLabel;
+      a.click();
+    }
+
+    function deleteAttachment(id) {
+      attachments = attachments.filter(a => a.id !== id);
+      renderAttachments();
+    }
+
+    // ── Save: reconstruct full HTML preserving memo header ──
+    async function saveDocument() {
+      const bodyHTML = quill.root.innerHTML;
+
+      // Check if original was a memo (has the header structure)
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawContent, 'text/html');
+      const memoDoc = doc.querySelector('.memo-document');
+      const memoBody = doc.querySelector('.memo-document-body');
+
+      let finalHTML = '';
+
+      if (memoDoc && memoBody) {
+        // Replace only the body content, keep the header intact
+        memoBody.innerHTML = bodyHTML;
+        finalHTML = memoDoc.outerHTML;
+      } else {
+        // Plain document — just save the Quill content
+        finalHTML = bodyHTML;
+      }
+
+      document.getElementById('content_html_hidden').value = finalHTML;
+
+      // Build attachments metadata
+      const metadata = attachments.map(att => ({
+        type: att.type,
+        code: att.code,
+        title: att.title,
+        fullLabel: att.fullLabel
+      }));
+      document.getElementById('attachments_metadata_hidden').value = JSON.stringify(metadata);
+
+      // Build FormData manually
+      const form = document.getElementById('saveForm');
+      const formData = new FormData(form);
+
+      // Append metadata fields to FormData
+      formData.append('name', document.getElementById('name').value.trim());
+      formData.append('rank', document.getElementById('rank').value.trim());
+      formData.append('appt', document.getElementById('appt').value.trim());
+
+      const folderNameElem = document.getElementById('folder_name');
+      if (folderNameElem) {
+        formData.append('folder_name', folderNameElem.value.trim());
+      }
+
+      // Append each attachment file
+      attachments.forEach(att => {
+        formData.append('attachments', att.file, att.file.name);
+      });
+
+      // Submit via fetch
+      const submitBtns = document.querySelectorAll('.login-btn');
+      submitBtns.forEach(btn => {
+        btn.disabled = true;
+        btn.textContent = '⏳ Saving...';
+      });
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          body: formData
+        });
+
+        const targetUrl = response.redirected
+          ? response.url
+          : "{{ url_for('open_document_routes.open_document', doc_id=document._id, view_seq=sequence) }}";
+
+        if (response.ok || response.redirected) {
+          showStatusModal(
+            'success',
+            'Document Edited Successfully',
+            'Your changes have been saved and updated successfully.',
+            () => {
+              window.location.href = targetUrl;
+            }
+          );
+        } else {
+          showStatusModal(
+            'error',
+            'Save Unsuccessful',
+            'Failed to save document changes. Please try again.'
+          );
+          submitBtns.forEach(btn => {
+            btn.disabled = false;
+            btn.textContent = '💾 Save Changes';
+          });
+        }
+      } catch (err) {
+        console.error('Save error:', err);
+        showStatusModal(
+          'error',
+          'Save Unsuccessful',
+          'A network error occurred while saving the document. Please try again.'
+        );
+        submitBtns.forEach(btn => {
+          btn.disabled = false;
+          btn.textContent = '💾 Save Changes';
+        });
+      }
+    }
+
+    // ── Generic Status Modal Controller ──
+    let statusModalCallback = null;
+
+    window.showStatusModal = function(type, title, message, callback = null) {
+      const modal = document.getElementById('statusModal');
+      const iconSuccess = document.getElementById('modalIconSuccess');
+      const iconError = document.getElementById('modalIconError');
+      const titleEl = document.getElementById('modalStatusTitle');
+      const msgEl = document.getElementById('modalStatusMessage');
+
+      if (!modal) return;
+
+      statusModalCallback = callback;
+
+      if (type === 'success') {
+        iconSuccess.style.display = 'flex';
+        iconError.style.display = 'none';
+        titleEl.textContent = title || 'Document Edited Successfully';
+      } else {
+        iconSuccess.style.display = 'none';
+        iconError.style.display = 'flex';
+        titleEl.textContent = title || 'Save Unsuccessful';
+      }
+
+      msgEl.textContent = message || '';
+      modal.style.display = 'flex';
+    };
+
+    window.closeStatusModal = function() {
+      const modal = document.getElementById('statusModal');
+      if (modal) modal.style.display = 'none';
+      if (typeof statusModalCallback === 'function') {
+        const cb = statusModalCallback;
+        statusModalCallback = null;
+        cb();
+      }
+    };
+
+    window.addEventListener('click', function (event) {
+      const statusModal = document.getElementById("statusModal");
+      if (statusModal && event.target === statusModal) {
+        closeStatusModal();
+      }
+    });
+
+    // ── Signature Verification Modal Functions ──
+    function openVerifySignatureModal() {
+      document.getElementById('verifySigPasswordInput').value = '';
+      document.getElementById('verifySigModalError').style.display = 'none';
+      document.getElementById('verifySigModalError').textContent = '';
+      document.getElementById('verifySigModal').style.display = 'flex';
+    }
+
+    function closeVerifySignatureModal() {
+      document.getElementById('verifySigModal').style.display = 'none';
+    }
+
+    function showCustomAlert(message) {
+      const modal = document.getElementById("customAlertModal");
+      const msgEl = document.getElementById("customAlertMessage");
+      if (modal && msgEl) {
+        msgEl.textContent = message;
+        modal.style.display = "flex";
+      }
+    }
+
+    function closeCustomAlert() {
+      const modal = document.getElementById("customAlertModal");
+      if (modal) {
+        modal.style.display = "none";
+      }
+    }
+
+    window.addEventListener('click', function (event) {
+      const modal = document.getElementById("customAlertModal");
+      if (event.target === modal) {
+        closeCustomAlert();
+      }
+    });
+
+    async function submitVerifySignature() {
+      const password = document.getElementById('verifySigPasswordInput').value.trim();
+      const errorBox = document.getElementById('verifySigModalError');
+      const submitBtn = document.querySelector('#verifySigModal button[onclick="submitVerifySignature()"]');
+
+      errorBox.style.display = 'none';
+      errorBox.textContent = '';
+
+      if (!password) {
+        errorBox.textContent = "Please enter your signing password.";
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Verifying...';
+      }
+
+      try {
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const resp = await fetch('/verify_and_get_signature', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ password })
+        });
+
+        let result;
+        try {
+          result = await resp.json();
+        } catch (jsonErr) {
+          result = { message: `Server returned an error (${resp.status}). Please try again.` };
+        }
+
+        if (resp.status === 200 && result.status === 'success') {
+          const nameInp = document.getElementById('name');
+          const rankInp = document.getElementById('rank');
+          const apptInp = document.getElementById('appt');
+
+          // Update form fields
+          if (result.name) nameInp.value = result.name;
+          if (result.rank) rankInp.value = result.rank;
+          if (result.appt) apptInp.value = result.appt;
+          document.getElementById('signature').value = "Digitally Signed";
+
+          // Live update text placeholder elements in Quill if they exist
+          const nameEl = quill.root.querySelector('#loose-minute-name');
+          const rankEl = quill.root.querySelector('#loose-minute-rank');
+          const apptEl = quill.root.querySelector('#loose-minute-appt');
+          if (nameEl) nameEl.textContent = result.name;
+          if (rankEl) rankEl.textContent = result.rank;
+          if (apptEl) apptEl.textContent = result.appt;
+
+          // Find if there is already an image in the editor
+          const existingImg = quill.root.querySelector('img[src^="data:image/"]');
+          if (existingImg) {
+            existingImg.src = result.signature;
+          } else {
+            const text = quill.getText();
+            const placeholder = '[SIGNATURE]';
+            const index = text.indexOf(placeholder);
+            if (index !== -1) {
+              quill.deleteText(index, placeholder.length);
+              quill.insertEmbed(index, 'image', result.signature);
+            } else {
+              // Insert at cursor position if no placeholder is found
+              const range = quill.getSelection();
+              if (range) {
+                quill.insertEmbed(range.index, 'image', result.signature);
+              } else {
+                // Fallback: append at the end
+                quill.insertEmbed(quill.getLength() - 1, 'image', result.signature);
+              }
+            }
+          }
+
+          closeVerifySignatureModal();
+        } else {
+          errorBox.textContent = result.message || 'Verification failed.';
+          errorBox.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Verify signature error:', err);
+        errorBox.textContent = err.message || 'Network error. Please try again.';
+        errorBox.style.display = 'block';
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '✔️ Verify & Apply';
+        }
+      }
+    }
+
+    // Live metadata synchronization into the Quill editor
+    const nameInp = document.getElementById('name');
+    const rankInp = document.getElementById('rank');
+    const apptInp = document.getElementById('appt');
+
+    if (nameInp && rankInp && apptInp) {
+      [nameInp, rankInp, apptInp].forEach(inp => {
+        inp.addEventListener('input', () => {
+          const nameEl = quill.root.querySelector('#loose-minute-name');
+          const rankEl = quill.root.querySelector('#loose-minute-rank');
+          const apptEl = quill.root.querySelector('#loose-minute-appt');
+          if (nameEl) nameEl.textContent = nameInp.value || 'Name';
+          if (rankEl) rankEl.textContent = rankInp.value || 'Rank';
+          if (apptEl) apptEl.textContent = apptInp.value || 'for Office';
+        });
+      });
+    }
+  </script>
+</body>
+
+</html>
