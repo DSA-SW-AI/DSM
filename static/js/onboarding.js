@@ -114,6 +114,9 @@ function populateFormsWithSavedData() {
             input.value = val;
             if (key === 'has_masters') toggleOptionalUpload(input, 'doc_masters');
             if (key === 'has_phd') toggleOptionalUpload(input, 'doc_phd');
+            if (key === 'has_first_degree') toggleOptionalUpload(input, 'doc_first_degree');
+            if (key === 'has_ssce') toggleOptionalUpload(input, 'doc_ssce');
+            if (key === 'has_nysc') toggleOptionalUpload(input, 'doc_nysc');
         } else if (input.type !== 'file') {
             // Populate value if input exists
             if (!input.value || input.value.trim() === '') {
@@ -188,43 +191,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (firstNameInput) firstNameInput.addEventListener('input', generateOfficialEmail);
 
     // Dynamic Junior Staff File Requirement Validation Setup
-    const fileNo = document.getElementById('userFileNo')?.value || '';
+    const fileNo = (document.getElementById('dsaFileNo')?.value || document.getElementById('userFileNo')?.value || '').toUpperCase();
     if (fileNo.includes('JNR')) {
         const optionalDocsForJnr = [
             'doc_first_degree',
-            'doc_nysc',
-            'doc_birth',
-            'doc_lga',
-            'doc_digital_id'
+            'doc_ssce',
+            'doc_nysc'
         ];
         optionalDocsForJnr.forEach(id => {
             const input = document.getElementById(id);
             if (input) {
-                input.removeAttribute('required');
-
                 const tr = input.closest('tr');
                 if (tr) {
                     const spanLabel = tr.querySelector('td:nth-child(2) span');
                     if (spanLabel) {
-                        spanLabel.textContent = "OPTIONAL";
+                        spanLabel.textContent = "NO";
                         spanLabel.style.color = "#718096";
                     }
                     const selectEl = tr.querySelector('td:nth-child(3) select');
                     if (selectEl) {
                         selectEl.innerHTML = '<option value="no">NO</option><option value="yes">YES</option>';
                         selectEl.removeAttribute('disabled');
+                        selectEl.style.cursor = 'pointer';
 
-                        selectEl.addEventListener('change', function () {
-                            if (this.value === 'yes') {
-                                input.setAttribute('required', 'true');
-                                input.style.opacity = '1';
-                            } else {
-                                input.removeAttribute('required');
-                                input.value = '';
-                                input.style.opacity = '0.4';
-                            }
-                        });
-                        selectEl.value = 'yes';
+                        const hasSavedFile = !!(savedOnboardingData?.step_1?.[id]);
+                        const savedSelectVal = savedOnboardingData?.step_1?.[selectEl.id] || (hasSavedFile ? 'yes' : 'no');
+
+                        selectEl.value = savedSelectVal;
+                        toggleOptionalUpload(selectEl, id);
                     }
                 }
             }
