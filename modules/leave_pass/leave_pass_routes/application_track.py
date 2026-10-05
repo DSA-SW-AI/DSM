@@ -8,230 +8,181 @@ application_track = Blueprint('application_track', __name__)
 
 
 def compute_application_timeline(app, reference_id):
-    # Determine applicant type from role_bucket
-    role_bucket = app.get("role_bucket", "officer")
-    
-    # Approval chain
-    approval_chain = app.get("approvalChain", [])
-    user_role = session.get("role", "civilian")
-    
-    # ==================== TIMELINE CALCULATION ====================
-    timeline = []
-    
-    # Step 1: Application Submitted
-    timeline.append({
+    """Build the applicant-facing tracking timeline from the application's real approvalChain.
+
+    Every step in the chain is shown, in chain order, for every applicant type
+    (civilian, personnel, officer, so, ad, dd, director): approvers (including the
+    final Director DOA), directorate / issuing registries and the central registry
+    receipt. Steps that have not been reached yet are listed as pending so the
+    applicant can see the full path ahead.
+    """
+    approval_chain = app.get("approvalChain", []) or []
+
+    APPROVED = ("approved", "Approved", "Recommended for Approval")
+    REJECTED = ("rejected", "Rejected")
+
+    def is_final_director(step):
+        return step.get("role") == "director" and (
+            step.get("is_final_approver") is True
+            or step.get("registry_type") == "director_doa"
+        )
+
+    def display_for(step):
+        role = step.get("role") or ""
+        if role == "director":
+            return "Director DOA" if is_final_director(step) else "Director"
+        if role in ("civilian_head_cao", "civilian_head"):
+            return "Head Civilian Affair"
+        if role in ("deputy_civilian_head_cao", "deputy_civilian_head"):
+            return "Deputy Head Civilian Affair"
+        if role == "registry":
+            return "Issuing Registry (DOA)" if step.get("registry_type") == "issuing_directorate" else "Directorate Registry"
+        if role == "central_registry":
+            return "Central Registry"
+        return {
+            "so": "Staff Officer",
+            "ad": "AD Officer",
+            "dd": "Deputy Director",
+            "cdsa": "CDSA",
+        }.get(role, role.replace("_", " ").upper())
+
+    timeline = [{
         "title": "Step 1: Application Submitted",
         "date": app.get("createdAt"),
         "description": f"Reference ID: {reference_id}",
         "status": "completed",
         "icon": "ri-send-plane-line",
-        "step_number": 1
-    })
-    
-    # Build approval steps dynamically from the actual approvalChain
-    approval_steps = []
-    for step in approval_chain:
-        role = step.get("role")
-        # Registry steps and final Director DOA receipt steps are handled separately below
-        if role in ("registry", "central_registry"):
-            continue
-        if role == "director" and (step.get("is_final_approver") or step.get("registry_type") == "director_doa"):
-            continue
-            
-        # Standard approver step
-        display_name = role.upper()
-        if role == "civilian_head_cao":
-            display_name = "Head Civilian Affair"
-        elif role == "so":
-            display_name = "Staff Officer"
-        elif role == "ad":
-            display_name = "AD Officer"
-        elif role == "dd":
-            display_name = "Deputy Director"
-        elif role == "director":
-            display_name = "Director"
-        elif role == "cdsa":
-            display_name = "CDSA"
-            
-        approval_steps.append({"role": role, "display": display_name})
+        "step_number": 1,
+    }]
 
-    # Identify final receipt step and display label
-    if role_bucket == 'civilian':
-        receipt_step = next((s for s in approval_chain if s.get("role") == "director" and (s.get("is_final_approver") or s.get("registry_type") == "director_doa")), None)
-        receipt_display = "Director DOA"
-    else:
-        receipt_step = next((s for s in approval_chain if s.get("role") == "central_registry"), None)
-        receipt_display = "Central Registry"
+    state = {"step_no": 1, "found_current": False}  # first not-completed step is the "current" one
 
-    registry_step_number_offset = 2
-    receipt_step_number_offset = 3
-    
-    found_current = False
-    
-    for idx, step_info in enumerate(approval_steps, start=2):
-        role = step_info["role"]
-        display_name = step_info["display"]
-        step = next((s for s in approval_chain if s.get("role") == role), None)
-        
-        if step:
-            status = step.get("status", "pending")
-            step_date = step.get("timestamp")
-            approver_name = step.get("approverName") or step.get("name") or display_name
-            comments = step.get("comments", "")
-            approver_rank = step.get("approverRank", "")
-            
-            if status in ("approved", "Recommended for Approval"):
-                action_text = "Recommended" if status == "Recommended for Approval" else "Approved"
-                desc = f"{action_text} by {approver_name}"
-                if approver_rank:
-                    desc += f" ({approver_rank})"
-                if comments and comments not in ["Approved", "Approved by CDSA", "Recommended for Approval"]:
-                    desc += f" - {comments}"
-                
-                timeline.append({
-                    "title": f"Step {idx}: {display_name} {action_text}",
-                    "date": step_date,
-                    "description": desc,
-                    "status": "completed",
-                    "icon": "ri-check-line",
-                    "step_number": idx
-                })
-            elif status in ("rejected", "Rejected"):
-                desc = f"Rejected by {approver_name}"
-                if comments:
-                    desc += f" - {comments}"
-                timeline.append({
-                    "title": f"Step {idx}: {display_name} Rejected",
-                    "date": step_date,
-                    "description": desc,
-                    "status": "rejected",
-                    "icon": "ri-close-line",
-                    "step_number": idx,
-                    "current": True
-                })
-                found_current = True
-                break
-            else:  # pending
-                if not found_current:
-                    # Check if previous steps are completed
-                    all_prev_completed = True
-                    for prev_step_info in approval_steps[:idx-1]:
-                        prev_step = next((s for s in approval_chain if s.get("role") == prev_step_info["role"]), None)
-                        if not prev_step or prev_step.get("status") not in ("approved", "Recommended for Approval"):
-                            all_prev_completed = False
-                            break
-                    
-                    if all_prev_completed:
-                        timeline.append({
-                            "title": f"Step {idx}: Awaiting {display_name} Approval",
-                            "date": datetime.utcnow(),
-                            "description": f"Waiting for {display_name} to review the application",
-                            "status": "pending",
-                            "icon": "ri-time-line",
-                            "step_number": idx,
-                            "current": True
-                        })
-                        found_current = True
-                    else:
-                        # Not yet reached this step
-                        timeline.append({
-                            "title": f"Step {idx}: {display_name} (Pending)",
-                            "date": None,
-                            "description": "Awaiting previous approvals",
-                            "status": "pending",
-                            "icon": "ri-time-line",
-                            "step_number": idx
-                        })
-        else:
-            # Role missing in chain
-            if not found_current:
-                timeline.append({
-                    "title": f"Step {idx}: {display_name} Not Assigned",
-                    "date": datetime.utcnow(),
-                    "description": "Approver not configured in approval chain",
-                    "status": "pending",
-                    "icon": "ri-alert-line",
-                    "step_number": idx,
-                    "current": True
-                })
-                found_current = True
-    
-    # Registry acknowledgement step (directorate registry)
-    registry_step = next((s for s in approval_chain if s.get("role") == "registry" and s.get("registry_type") == "directorate"), None)
-    if registry_step:
-        ack_step_number = len(approval_steps) + registry_step_number_offset
-        if registry_step.get("acknowledged"):
+    def add_entry(*, done, rejected=False, title_done, title_waiting, title_future,
+                  date_done=None, desc_done="", desc_waiting="", desc_rejected="",
+                  icon_done="ri-check-line", rejected_date=None):
+        """Append one timeline entry (always prefixed with its step number)."""
+        state["step_no"] += 1
+        n = state["step_no"]
+        if rejected:
             timeline.append({
-                "title": f"Step {ack_step_number}: Registry File Acknowledged",
-                "date": registry_step.get("acknowledgedAt"),
-                "description": f"File acknowledged by {registry_step.get('approverName', 'Registry')}",
-                "status": "completed",
-                "icon": "ri-folder-check-line",
-                "step_number": ack_step_number
+                "title": f"Step {n}: {title_done} Rejected",
+                "date": rejected_date,
+                "description": desc_rejected,
+                "status": "rejected",
+                "icon": "ri-close-line",
+                "step_number": n,
+                "current": True,
             })
-        elif registry_step.get("status") == "approved" and not registry_step.get("acknowledged") and not found_current:
+            state["found_current"] = True
+        elif done:
             timeline.append({
-                "title": f"Step {ack_step_number}: Awaiting Registry Acknowledgment",
+                "title": f"Step {n}: {title_done}",
+                "date": date_done,
+                "description": desc_done,
+                "status": "completed",
+                "icon": icon_done,
+                "step_number": n,
+            })
+        elif not state["found_current"]:
+            timeline.append({
+                "title": f"Step {n}: {title_waiting}",
                 "date": datetime.utcnow(),
-                "description": "Waiting for registry to acknowledge file receipt",
+                "description": desc_waiting,
                 "status": "pending",
                 "icon": "ri-time-line",
-                "step_number": ack_step_number,
-                "current": True
+                "step_number": n,
+                "current": True,
             })
-            found_current = True
-    
-    # Receipt issuance step (SO1-DOA for civilian, Central Registry for others)
-    receipt_step_number = len(approval_steps) + receipt_step_number_offset
-    receipt_added = False  # Flag to track if receipt step has been added
-
-    if receipt_step and receipt_step.get("receipt"):
-        receipt_info = receipt_step.get("receipt", {})
-        timeline.append({
-            "title": f"Step {receipt_step_number}: Receipt Issued by {receipt_display}",
-            "date": receipt_info.get("issuedDate"),
-            "description": f"Receipt Number: {receipt_info.get('receiptNumber', 'N/A')}<br>Issued by: {receipt_info.get('issuedByName', receipt_display)}",
-            "status": "completed",
-            "icon": "ri-receipt-line",
-            "step_number": receipt_step_number
-        })
-        receipt_added = True
-
-    elif receipt_step and receipt_step.get("status") == "approved" and not receipt_step.get("receipt") and not found_current:
-        timeline.append({
-            "title": f"Step {receipt_step_number}: Awaiting Receipt Issuance from {receipt_display}",
-            "date": datetime.utcnow(),
-            "description": f"Application approved, waiting for {receipt_display} to issue receipt",
-            "status": "pending",
-            "icon": "ri-time-line",
-            "step_number": receipt_step_number,
-            "current": True
-        })
-        receipt_added = True
-        found_current = True
-    
-    # For director applications, check central_registry ONLY if not already added
-    if role_bucket == 'director' and not receipt_added:
-        central_registry_step = next((s for s in approval_chain if s.get("role") == "central_registry"), None)
-        if central_registry_step and central_registry_step.get("receipt"):
-            receipt_info = central_registry_step.get("receipt", {})
+            state["found_current"] = True
+        else:
             timeline.append({
-                "title": f"Step {receipt_step_number}: Receipt Issued by Central Registry",
-                "date": receipt_info.get("issuedDate"),
-                "description": f"Receipt Number: {receipt_info.get('receiptNumber', 'N/A')}<br>Issued by: {receipt_info.get('issuedByName', 'Central Registry')}",
-                "status": "completed",
-                "icon": "ri-receipt-line",
-                "step_number": receipt_step_number
+                "title": f"Step {n}: {title_future}",
+                "date": None,
+                "description": "Awaiting previous approvals",
+                "status": "pending",
+                "icon": "ri-time-line",
+                "step_number": n,
             })
-            
+
+    for step in approval_chain:
+        role = step.get("role") or ""
+        name = display_for(step)
+        status = step.get("status", "pending")
+        approver_name = step.get("approverName") or step.get("name") or name
+        approver_rank = step.get("approverRank", "")
+        comments = step.get("comments", "")
+
+        # ── Directorate / issuing registry: physical file acknowledgement ──
+        if role == "registry":
+            add_entry(
+                done=bool(step.get("acknowledged")),
+                title_done=f"{name} File Acknowledged",
+                title_waiting=f"Awaiting {name} Acknowledgment",
+                title_future=f"{name} Acknowledgment (Pending)",
+                date_done=step.get("acknowledgedAt"),
+                desc_done=f"File acknowledged by {step.get('approverName', 'Registry')}",
+                desc_waiting=f"Waiting for {name} to acknowledge file receipt",
+                icon_done="ri-folder-check-line",
+            )
+            continue
+
+        # ── Central registry: receipt issuance ──
+        if role == "central_registry":
+            receipt = step.get("receipt") or {}
+            add_entry(
+                done=bool(receipt),
+                title_done="Receipt Issued by Central Registry",
+                title_waiting="Awaiting Receipt Issuance from Central Registry",
+                title_future="Receipt Issuance by Central Registry (Pending)",
+                date_done=receipt.get("issuedDate"),
+                desc_done=f"Receipt Number: {receipt.get('receiptNumber', 'N/A')}<br>Issued by: {receipt.get('issuedByName', 'Central Registry')}",
+                desc_waiting="Application approved, waiting for Central Registry to issue receipt",
+                icon_done="ri-receipt-line",
+            )
+            continue
+
+        # ── Approver steps: civilian head, so, ad, dd, director, final Director DOA, cdsa ──
+        if status in APPROVED:
+            action_text = "Recommended" if status == "Recommended for Approval" else "Approved"
+            desc = f"{action_text} by {approver_name}"
+            if approver_rank:
+                desc += f" ({approver_rank})"
+            if comments and comments not in ["Approved", "Approved by CDSA", "Recommended for Approval"]:
+                desc += f" - {comments}"
+            receipt = step.get("receipt") or {}
+            if receipt.get("receiptNumber"):
+                desc += f"<br>Receipt Number: {receipt.get('receiptNumber')}"
+            add_entry(
+                done=True,
+                title_done=f"{name} {action_text}", title_waiting="", title_future="",
+                date_done=step.get("timestamp"), desc_done=desc,
+            )
+        elif status in REJECTED:
+            desc = f"Rejected by {approver_name}"
+            if comments:
+                desc += f" - {comments}"
+            add_entry(
+                done=False, rejected=True,
+                title_done=name, title_waiting="", title_future="",
+                desc_rejected=desc, rejected_date=step.get("timestamp"),
+            )
+            break  # nothing after a rejection will happen
+        else:
+            add_entry(
+                done=False,
+                title_done="", title_waiting=f"Awaiting {name} Approval",
+                title_future=f"{name} (Pending)",
+                desc_waiting=f"Waiting for {name} to review the application",
+            )
+
     # Progress calculation
     completed_steps_count = sum(1 for step in timeline if step['status'] in ['completed'] and step.get('date') is not None)
     total_steps_count = len(timeline)
     current_step = next((s for s in timeline if s.get("current")), None)
-    
+
     # Sort timeline by step_number, None goes last
     timeline.sort(key=lambda x: x.get("step_number") or float('inf'))
-    
+
     return timeline, completed_steps_count, total_steps_count, current_step
 
 

@@ -8,6 +8,8 @@ from flask import (
     redirect,
     url_for,
     send_file,
+    send_from_directory,
+    make_response,
 )
 from pymongo import MongoClient
 from werkzeug.security import check_password_hash
@@ -17,6 +19,10 @@ import re
 
 from modules.extensions import socketio
 from flask_wtf.csrf import CSRFProtect
+from utils.approval import (
+    resolve_is_approval_role,
+    is_personal_dual_account,
+)
 
 from permissions import ROLE_PERMISSIONS
 from gridfs import GridFS
@@ -189,122 +195,39 @@ def inject_user_and_permissions():
             user_role = user_data.get("role", "civilian")
             permissions = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS["civilian"])
 
-            # Compute unread notifications count
-            unread_count = 0
-            try:
-                service_number = user_data.get("service_number")
-                role = user_data.get("role")
-                directorate = user_data.get("directorate")
-
-                query = {
-                    "$and": [
-                        {"$or": [{"isActive": True}, {"is_active": True}]},
-                        {"readBy": {"$ne": service_number}},
-                        {
-                            "$or": [
-                                {"target.type": "role", "target.role": "broadcast"},
-                                {"target.userId": service_number},
-                                {"target.email": session["user_email"]},
-                                {"target.userId": session["user_email"]},
-                                {
-                                    "target.type": "role",
-                                    "target.role": role,
-                                    "$or": [
-                                        {"target.directorate": directorate},
-                                        {"target.directorate": {"$exists": False}},
-                                        {"target.directorate": None},
-                                    ],
-                                },
-                            ]
-                        },
-                    ]
-                }
-                if user_role == "civilian" and not user_data.get("is_approval_role"):
-                    query["$and"].append({
-                        "type": {
-                            "$nin": [
-                                "action_required",
-                                "approval_required",
-                                "final_approval_required",
-                                "registry_action_required",
-                                "parade_approval_required",
-                                "leave_approval",
-                            ]
-                        }
-                    })
-                unread_count = db.notifications.count_documents(query)
-            except Exception as e:
-                print(f"Error counting unread notifications: {e}")
-                unread_count = 0
-
-            # Compute unread support tickets count
-            unread_support_count = 0
-            try:
-                if user_role == "super_admin":
-                    query_support = {
-                        "$and": [
-                            {"$or": [{"isActive": True}, {"is_active": True}]},
-                            {"type": "new_support_ticket"},
-                            {"readBy": {"$ne": service_number}},
-                        ]
-                    }
-                else:
-                    query_support = {
-                        "$and": [
-                            {"$or": [{"isActive": True}, {"is_active": True}]},
-                            {"type": "support_response"},
-                            {"readBy": {"$ne": service_number}},
-                            {"target.email": session["user_email"]},
-                        ]
-                    }
-                unread_support_count = db.notifications.count_documents(query_support)
-            except Exception as e:
-                print(f"Error counting unread support notifications: {e}")
-                unread_support_count = 0
-
-            # Compute pending leave and pass actions count (approvals + reliever requests)
-            pending_leave_pass_count = 0
-            try:
-                pending_leave_pass_count = calculate_user_pending_leave_count(user_data, db)
-            except Exception as e:
-                print(f"Error counting pending leave applications: {e}")
-                pending_leave_pass_count = 0
-
-            # Compute pending onboarding staff count
-            pending_onboarding_count = 0
-            try:
-                if user_role in ["super_admin", "registry"]:
-                    pending_onboarding_count = db.users.count_documents(
-                        {"is_onboarded": False, "role": {"$ne": "super_admin"}}
-                    )
-            except Exception as e:
-                print(f"Error counting pending onboarding users: {e}")
-                pending_onboarding_count = 0
-
-            # Compute document counts for sidebar badges
-            unread_docs_count = 0
-            assigned_docs_count = 0
-            try:
-                from modules.documents.functions_helper import calculate_user_document_counts
-                doc_counts = calculate_user_document_counts(
-                    session.get("user_email") or session.get("email"),
-                    user_role,
-                    user_data.get("directorate"),
+            # Calculate passport photo URL
+            passport_val = (
+                session.get("uploadPassport")
+                or user_data.get("passport_image")
+                or user_data.get("profile_image")
+                or user_data.get("passport_photo")
+                or (
+                    user_data.get("onboarding_data", {}).get("step_1", {}).get("uploadPassport")
+                    if isinstance(user_data.get("onboarding_data"), dict)
+                    else None
                 )
-                unread_docs_count = doc_counts.get("unread_docs_count", 0)
-                assigned_docs_count = doc_counts.get("assigned_docs_count", 0)
-            except Exception as e:
-                print(f"Error counting documents for sidebar: {e}")
+            )
+            if passport_val and str(passport_val).strip():
+                passport_val = str(passport_val).strip()
+            else:
+                passport_val = None
+
+            session["uploadPassport"] = passport_val
+            serializable_user["uploadPassport"] = passport_val
+            serializable_user["passport_url"] = passport_val
+            serializable_user["passport_image"] = passport_val
+
+            counts = get_user_sidebar_counts(user_data, session["user_email"], db)
 
             return dict(
                 user=serializable_user,
                 permissions=permissions,
-                unread_notifications_count=unread_count,
-                unread_support_count=unread_support_count,
-                pending_leave_pass_count=pending_leave_pass_count,
-                pending_onboarding_count=pending_onboarding_count,
-                unread_docs_count=unread_docs_count,
-                assigned_docs_count=assigned_docs_count,
+                unread_notifications_count=counts["unread_notifications_count"],
+                unread_support_count=counts["unread_support_count"],
+                pending_leave_pass_count=counts["pending_leave_pass_count"],
+                pending_onboarding_count=counts["pending_onboarding_count"],
+                unread_docs_count=counts["unread_docs_count"],
+                assigned_docs_count=counts["assigned_docs_count"],
             )
     return dict(
         user=None,
@@ -316,6 +239,184 @@ def inject_user_and_permissions():
         unread_docs_count=0,
         assigned_docs_count=0,
     )
+
+
+def get_user_sidebar_counts(user_data, user_email, db):
+    """Calculates all dynamic sidebar badges and counts for a user."""
+    default_counts = {
+        "unread_notifications_count": 0,
+        "unread_support_count": 0,
+        "pending_leave_pass_count": 0,
+        "pending_onboarding_count": 0,
+        "unread_docs_count": 0,
+        "assigned_docs_count": 0,
+    }
+    if not user_data or not user_email:
+        return default_counts
+
+    user_role = user_data.get("role", "civilian")
+    service_number = user_data.get("service_number")
+    directorate = user_data.get("directorate")
+
+    # 1. Unread notifications count
+    unread_count = 0
+    try:
+        query = {
+            "$and": [
+                {"$or": [{"isActive": True}, {"is_active": True}]},
+                {"readBy": {"$ne": service_number}},
+                {
+                    "$or": [
+                        {"target.type": "role", "target.role": "broadcast"},
+                        {"target.userId": service_number},
+                        {"target.email": user_email},
+                        {"target.userId": user_email},
+                        {
+                            "target.type": "role",
+                            "target.role": user_role,
+                            "$or": [
+                                {"target.directorate": directorate},
+                                {"target.directorate": {"$exists": False}},
+                                {"target.directorate": None},
+                            ],
+                        },
+                    ]
+                },
+            ]
+        }
+        if user_role == "civilian" and not user_data.get("is_approval_role"):
+            query["$and"].append({
+                "type": {
+                    "$nin": [
+                        "action_required",
+                        "approval_required",
+                        "final_approval_required",
+                        "registry_action_required",
+                        "parade_approval_required",
+                        "leave_approval",
+                    ]
+                }
+            })
+        unread_count = db.notifications.count_documents(query)
+    except Exception as e:
+        print(f"Error counting unread notifications: {e}")
+        unread_count = 0
+
+    # 2. Unread support tickets count
+    unread_support_count = 0
+    try:
+        if user_role == "super_admin":
+            query_support = {
+                "$and": [
+                    {"$or": [{"isActive": True}, {"is_active": True}]},
+                    {"type": "new_support_ticket"},
+                    {"readBy": {"$ne": service_number}},
+                ]
+            }
+        else:
+            query_support = {
+                "$and": [
+                    {"$or": [{"isActive": True}, {"is_active": True}]},
+                    {"type": "support_response"},
+                    {"readBy": {"$ne": service_number}},
+                    {"target.email": user_email},
+                ]
+            }
+        unread_support_count = db.notifications.count_documents(query_support)
+    except Exception as e:
+        print(f"Error counting unread support notifications: {e}")
+        unread_support_count = 0
+
+    # 3. Pending leave and pass actions count
+    pending_leave_pass_count = 0
+    try:
+        pending_leave_pass_count = calculate_user_pending_leave_count(user_data, db)
+    except Exception as e:
+        print(f"Error counting pending leave applications: {e}")
+        pending_leave_pass_count = 0
+
+    # 4. Pending onboarding staff count
+    pending_onboarding_count = 0
+    try:
+        if user_role in ["super_admin", "registry"]:
+            pending_onboarding_count = db.users.count_documents(
+                {"is_onboarded": False, "role": {"$ne": "super_admin"}}
+            )
+    except Exception as e:
+        print(f"Error counting pending onboarding users: {e}")
+        pending_onboarding_count = 0
+
+    # 5. Document counts for sidebar badges
+    unread_docs_count = 0
+    assigned_docs_count = 0
+    try:
+        from modules.documents.functions_helper import calculate_user_document_counts
+        doc_counts = calculate_user_document_counts(
+            user_email,
+            user_role,
+            directorate,
+        )
+        unread_docs_count = doc_counts.get("unread_docs_count", 0)
+        assigned_docs_count = doc_counts.get("assigned_docs_count", 0)
+    except Exception as e:
+        print(f"Error counting documents for sidebar: {e}")
+
+    return {
+        "unread_notifications_count": unread_count,
+        "unread_support_count": unread_support_count,
+        "pending_leave_pass_count": pending_leave_pass_count,
+        "pending_onboarding_count": pending_onboarding_count,
+        "unread_docs_count": unread_docs_count,
+        "assigned_docs_count": assigned_docs_count,
+    }
+
+
+@app.route("/api/sidebar-counts", methods=["GET"])
+def api_sidebar_counts():
+    """Returns updated real-time sidebar count badges as JSON for live polling and socket events."""
+    user_email = session.get("user_email")
+    if not user_email:
+        return jsonify({
+            "status": "unauthorized",
+            "counts": {
+                "unread_notifications_count": 0,
+                "unread_support_count": 0,
+                "pending_leave_pass_count": 0,
+                "pending_onboarding_count": 0,
+                "unread_docs_count": 0,
+                "assigned_docs_count": 0,
+            }
+        }), 200
+
+    user_data = db.users.find_one({"email": user_email})
+    counts = get_user_sidebar_counts(user_data, user_email, db)
+    return jsonify({"status": "success", "counts": counts}), 200
+
+
+
+# ================= PWA ROUTES =================
+@app.route("/manifest.json")
+def pwa_manifest():
+    response = make_response(send_from_directory(app.static_folder, "manifest.json"))
+    response.headers["Content-Type"] = "application/manifest+json"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.route("/sw.js")
+@app.route("/service-worker.js")
+def pwa_service_worker():
+    response = make_response(send_from_directory(app.static_folder, "sw.js"))
+    response.headers["Content-Type"] = "application/javascript"
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.route("/offline")
+def pwa_offline():
+    return render_template("offline.html")
+# ===============================================
 
 
 @app.route("/")
@@ -378,6 +479,17 @@ def login():
             session["appt"] = user.get("appt") or user.get("onboarding_data", {}).get(
                 "step_1", {}
             ).get("appt")
+            passport_src = (
+                user.get("passport_image")
+                or user.get("profile_image")
+                or user.get("passport_photo")
+                or (
+                    user.get("onboarding_data", {}).get("step_1", {}).get("uploadPassport")
+                    if isinstance(user.get("onboarding_data"), dict)
+                    else None
+                )
+            )
+            session["uploadPassport"] = str(passport_src).strip() if passport_src else None
             session["gender"] = (
                 user.get("onboarding_data", {}).get("step_5", {}).get("gender")
             )
@@ -391,20 +503,22 @@ def login():
             session["rank"] = user_rank_val
             session["rankOrGrade"] = user_rank_val
             session["directorate"] = user.get("directorate")
-            session["is_so_approver"] = (user.get("is_so_approver") in (True, "true", "True")) or user.get("role") == "so"
-            session["is_ad_approver"] = (user.get("is_ad_approver") in (True, "true", "True")) or user.get("role") == "ad"
-            session["is_dd_approver"] = (user.get("is_dd_approver") in (True, "true", "True")) or user.get("role") == "dd"
-            session["is_final_approver"] = (
-                user.get("is_final_approver") in (True, "true", "True")
-                or user.get("is_final_approval") in (True, "true", "True")
+            # Personal (is_approval_role == false) accounts of so/ad/dd/director must
+            # never be promoted to approval accounts by role name or approver flags.
+            is_personal_account = is_personal_dual_account(user)
+            session["is_approval_role"] = resolve_is_approval_role(user)
+            session["is_so_approver"] = (not is_personal_account) and (
+                (user.get("is_so_approver") is True) or user.get("role") == "so"
             )
-            session["is_approval_role"] = (
-                user.get("is_approval_role") in (True, "true", "True")
-                or user.get("role") in ("director", "registry", "central_registry", "cdsa", "so1_doa", "civilian_head_cao", "civilian_head", "so", "ad", "dd")
-                or session["is_final_approver"]
-                or session["is_so_approver"]
-                or session["is_ad_approver"]
-                or session["is_dd_approver"]
+            session["is_ad_approver"] = (not is_personal_account) and (
+                (user.get("is_ad_approver") is True) or user.get("role") == "ad"
+            )
+            session["is_dd_approver"] = (not is_personal_account) and (
+                (user.get("is_dd_approver") is True) or user.get("role") == "dd"
+            )
+            session["is_final_approver"] = (not is_personal_account) and (
+                (user.get("is_final_approver") is True)
+                or (user.get("is_final_approval") is True)
             )
             return (
                 jsonify(
@@ -508,8 +622,10 @@ def dashboard():
     # Determine global visibility scope: CDSA, DCDSA, Director with DOA, Registry with DOA
     user_role_clean = user_role.replace("_", "").replace(" ", "").lower()
     user_dir_clean = user_dir.strip().upper()
-    is_global_scope = (user_role_clean in ["cdsa", "dcdsa"]) or (
-        user_role_clean in ["director", "registry"] and user_dir_clean == "DOA"
+    is_personal_account = is_personal_dual_account(user_data)
+    is_global_scope = (not is_personal_account) and (
+        (user_role_clean in ["cdsa", "dcdsa"])
+        or (user_role_clean in ["director", "registry"] and user_dir_clean == "DOA")
     )
 
     target_stat_roles = [
@@ -530,7 +646,7 @@ def dashboard():
     directorate_stats = None
     personnel_stats = None
 
-    if user_role_clean in target_stat_roles:
+    if user_role_clean in target_stat_roles and not is_personal_account:
         if is_global_scope:
             base_query = {"status": "Approved"}
         else:
@@ -586,6 +702,18 @@ def dashboard():
         )
     current_time = datetime.datetime.now().strftime("%A, %d %B %Y - %H:%M:%S")
 
+    passport_pic = (
+        session.get("uploadPassport")
+        or user_data.get("passport_image")
+        or user_data.get("profile_image")
+        or user_data.get("passport_photo")
+        or (
+            user_data.get("onboarding_data", {}).get("step_1", {}).get("uploadPassport")
+            if isinstance(user_data.get("onboarding_data"), dict)
+            else None
+        )
+    )
+
     ui_user_profile = {
         "email": user_data.get("email"),
         "name": user_data.get("name", "Officer"),
@@ -597,6 +725,11 @@ def dashboard():
         "training_request_active": user_data.get("training_request_active", False),
         "service_number": user_data.get("service_number")
         or session.get("service_number"),
+        "uploadPassport": passport_pic,
+        "passport_url": passport_pic,
+        "passport_image": passport_pic,
+        "is_onboarded": user_data.get("is_onboarded", False),
+        "status": user_data.get("status", "In Progress"),
     }
 
     # ================= 4 METRICS STATUS CARDS FOR DASHBOARD =================
@@ -876,6 +1009,18 @@ def undeveloped_views():
             user_role, ROLE_PERMISSIONS["civilian"]
         )
 
+    passport_pic = (
+        session.get("uploadPassport")
+        or user_data.get("passport_image")
+        or user_data.get("profile_image")
+        or user_data.get("passport_photo")
+        or (
+            user_data.get("onboarding_data", {}).get("step_1", {}).get("uploadPassport")
+            if isinstance(user_data.get("onboarding_data"), dict)
+            else None
+        )
+    )
+
     ui_user_profile = {
         "email": user_data.get("email"),
         "name": user_data.get("name", "Officer"),
@@ -886,6 +1031,11 @@ def undeveloped_views():
         "is_approval_role": session.get("is_approval_role", False),
         "service_number": user_data.get("service_number")
         or session.get("service_number"),
+        "uploadPassport": passport_pic,
+        "passport_url": passport_pic,
+        "passport_image": passport_pic,
+        "is_onboarded": user_data.get("is_onboarded", False),
+        "status": user_data.get("status", "In Progress"),
     }
 
     return render_template(

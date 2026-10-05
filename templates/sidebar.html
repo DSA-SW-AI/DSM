@@ -91,12 +91,12 @@
   <nav class="sidebar-menu">
     {% set is_user_onboarded = (
         user and (
-            user.is_onboarded in [True, 'True', 'true', 1] or 
+            user.is_onboarded == true or 
             user.status == 'Approved' or 
             user.role == 'super_admin'
         )
     ) or (
-        session.get('is_onboarded') in [True, 'True', 'true', 1] or 
+        session.get('is_onboarded') == true or 
         session.get('status') == 'Approved' or 
         session.get('user_role') == 'super_admin' or 
         session.get('role') == 'super_admin'
@@ -175,13 +175,12 @@
         style="display: {{ 'block' if is_onboarding_active else 'none' }}; padding-left: 15px; margin-top: 5px; margin-bottom: 5px;">
         <a href="/personnel-view?filter=pending"
           class="menu-item {% if active_page == 'personnel_pending' %}active{% endif %}"
-          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px;">📋 Pending Approvals
-          {% if pending_onboarding_count and pending_onboarding_count > 0 %}
-          <span class="badge bg-info text-white"
-            style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important;">{{
-            pending_onboarding_count }}</span>
-          {% endif %}
-
+          style="font-size: 13px; padding: 8px 12px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center;">
+          <span>📋 Pending Approvals</span>
+          <span id="sidebar-pending-onboarding-badge" class="badge bg-info text-white"
+            style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #17a2b8 !important; display: {{ 'inline-block' if pending_onboarding_count and pending_onboarding_count > 0 else 'none' }};">
+            {{ pending_onboarding_count or '' }}
+          </span>
         </a>
         <a href="/personnel-view?filter=approved"
           class="menu-item {% if active_page == 'personnel_approved' %}active{% endif %}"
@@ -197,13 +196,12 @@
     <a href="/transfers-view" class="menu-item {% if active_page == 'transfers' %}active{% endif %}">🔄 Recruitment &
       Transfers</a>
     {% endif %} {% if permissions and "leave_pass" in permissions.sidebar %}
-    <a href="/dashboard_leave_pass" class="menu-item {% if active_page == 'leave_pass' %}active{% endif %}">
-      📅 Leave & Pass
-      {% if pending_leave_pass_count and pending_leave_pass_count > 0 %}
-      <span class="badge bg-danger text-white ms-2"
-        style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{
-        pending_leave_pass_count }}</span>
-      {% endif %}
+    <a href="/dashboard_leave_pass" class="menu-item {% if active_page == 'leave_pass' %}active{% endif %}" style="display: flex; justify-content: space-between; align-items: center;">
+      <span>📅 Leave & Pass</span>
+      <span id="sidebar-leave-pass-badge" class="badge bg-danger text-white"
+        style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important; display: {{ 'inline-block' if pending_leave_pass_count and pending_leave_pass_count > 0 else 'none' }};">
+        {{ pending_leave_pass_count or '' }}
+      </span>
     </a>
     {% endif %}
 
@@ -211,27 +209,28 @@
     <div class="sidebar-footer">
       <div class="menu-section-label">GENERAL</div>
       {% if not permissions or "support" in permissions.sidebar %}
-      <a href="/support" class="menu-item {% if active_page == 'support' %}active{% endif %}">
-        👥 Supports
-        {% if unread_support_count and unread_support_count > 0 %}
-        <span class="badge bg-warning text-dark ms-2"
-          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{
-          unread_support_count }}</span>
-        {% endif %}
+      <a href="/support" class="menu-item {% if active_page == 'support' %}active{% endif %}" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>👥 Supports</span>
+        <span id="sidebar-support-badge" class="badge bg-warning text-dark sidebar-support-badge"
+          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important; display: {{ 'inline-block' if unread_support_count and unread_support_count > 0 else 'none' }};">
+          {{ unread_support_count or '' }}
+        </span>
       </a>
       {% endif %} {% if permissions and "notification" in permissions.sidebar %}
-      <a href="/notifications" class="menu-item {% if active_page == 'notifications' %}active{% endif %}">
-        🔄 Notifications
-        {% if unread_notifications_count and unread_notifications_count > 0 %}
-        <span class="badge bg-danger text-white ms-2"
-          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important;">{{
-          unread_notifications_count }}</span>
-        {% endif %}
+      <a href="/notifications" class="menu-item {% if active_page == 'notifications' %}active{% endif %}" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>🔄 Notifications</span>
+        <span id="sidebar-notifications-badge" class="badge bg-danger text-white"
+          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #dc3545 !important; display: {{ 'inline-block' if unread_notifications_count and unread_notifications_count > 0 else 'none' }};">
+          {{ unread_notifications_count or '' }}
+        </span>
       </a>
       {% endif %} {% if permissions and "setting" in permissions.sidebar %}
       <a href="/setting" class="menu-item {% if active_page in ['setting', 'settings'] %}active{% endif %}">📅
         Setting</a>
       {% endif %}
+      <button id="pwaInstallBtn" onclick="window.installPWA()" class="pwa-install-menu-btn" style="display: none; width: 100%; margin-top: 10px; margin-bottom: 8px; padding: 9px 12px; background: linear-gradient(135deg, #0b2d6b, #1565d8); color: #ffffff; border: none; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(11, 45, 107, 0.15); transition: all 0.2s;">
+        📲 Install DSA App
+      </button>
         <br><br>
       <a href="{{ url_for('logout') }}" class="logout-btn">
         🚪 Sign out
@@ -242,14 +241,16 @@
     <!-- Non-onboarded users: Only Dashboard, Supports, and Sign out -->
     <div class="sidebar-footer">
       <div class="menu-section-label">GENERAL</div>
-      <a href="/support" class="menu-item {% if active_page == 'support' %}active{% endif %}">
-        👥 Supports
-        {% if unread_support_count and unread_support_count > 0 %}
-        <span class="badge bg-warning text-dark ms-2"
-          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important;">{{
-          unread_support_count }}</span>
-        {% endif %}
-      </a><br><br>
+      <a href="/support" class="menu-item {% if active_page == 'support' %}active{% endif %}" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>👥 Supports</span>
+        <span id="sidebar-support-badge-non-onboarded" class="badge bg-warning text-dark sidebar-support-badge"
+          style="border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: bold; background-color: #ffc107 !important; display: {{ 'inline-block' if unread_support_count and unread_support_count > 0 else 'none' }};">
+          {{ unread_support_count or '' }}
+        </span>
+      </a>
+      <button id="pwaInstallBtnNonOnboarded" onclick="window.installPWA()" class="pwa-install-menu-btn" style="display: none; width: 100%; margin-top: 10px; margin-bottom: 8px; padding: 9px 12px; background: linear-gradient(135deg, #0b2d6b, #1565d8); color: #ffffff; border: none; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(11, 45, 107, 0.15); transition: all 0.2s;">
+        📲 Install DSA App
+      </button><br><br>
 
       <a href="{{ url_for('logout') }}" class="logout-btn">
         🚪 Sign out
@@ -461,3 +462,4 @@
   })();
 </script>
 <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pwa.js') }}"></script>

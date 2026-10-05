@@ -3,6 +3,7 @@
 <html lang="en">
 
 <head>
+  {% include 'pwa_head.html' %}
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ODOGWU - Super Admin Dashboard</title>
@@ -407,9 +408,13 @@
       </div>
 
       <!-- USER MANAGEMENT SECTION -->
-      <div style="margin: 25px 25px 0 25px; display: flex; gap: 10px; border-bottom: 2px solid #edf2f7; padding-bottom: 8px;">
+      <div style="margin: 25px 25px 0 25px; display: flex; gap: 10px; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; flex-wrap: wrap;">
         <button type="button" class="tab-btn active" id="tabPersonalAccounts" onclick="switchAccountRegistryTab('personal')" style="font-weight: 600;">👥 Personal Accounts</button>
         <button type="button" class="tab-btn" id="tabApprovalAccounts" onclick="switchAccountRegistryTab('approval')" style="font-weight: 600;">🛡️ Approval Accounts</button>
+        <button type="button" class="tab-btn" id="tabPendingBalanceAccounts" onclick="switchAccountRegistryTab('pending_balance')" style="font-weight: 600; color: #c53030; background: #fff5f5; border: 1px solid #feb2b2; display: inline-flex; align-items: center; gap: 6px;">
+          ⚡ Onboarded (Pending Leave Balance) 
+          <span class="badge" id="pendingBalanceBadge" style="background: #e53e3e; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700;">{{ onboarded_uninitialized_count }}</span>
+        </button>
         <button type="button" class="tab-btn" id="tabMealTicketUsers" onclick="switchAccountRegistryTab('meal_ticket')" style="font-weight: 600;">🍱 Meal Ticket Users</button>
       </div>
 
@@ -435,7 +440,7 @@
       <div class="table-controls-bar" style="margin: 25px; display: flex; gap: 15px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
         <h3 style="font-weight: 600; color: #2d3748; margin: 0;" id="registryTitleText">User Accounts Registry</h3>
         
-        <div style="display: flex; gap: 10px; flex-grow: 1; justify-content: flex-end; max-width: 800px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px; flex-grow: 1; justify-content: flex-end; max-width: 850px; flex-wrap: wrap;">
           <!-- Universal Live Search Bar -->
           <div style="position: relative; width: 100%; max-width: 250px;">
             <input type="text" id="userSearchInput" placeholder="Search by name, SN, email..."
@@ -443,6 +448,10 @@
               oninput="filterUserTable()" />
             <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #a0aec0; font-size: 14px; pointer-events: none;">🔍</span>
           </div>
+
+          <button id="btnInitAllPendingBalance" class="add-staff-btn" style="background-color: #c53030; display: none; align-items: center; gap: 6px; font-weight: 700;" onclick="initializeAllPendingOnboardedBalances()">
+            ⚡ Initialize All Pending Balances ({{ onboarded_uninitialized_count }})
+          </button>
 
           <button id="btnSystemBulkImport" class="add-staff-btn" style="background-color: #2b6cb0; display: inline-flex; align-items: center; gap: 6px;" onclick="openBulkUploadModal()">
             📥 Bulk Import (Excel)
@@ -475,6 +484,7 @@
               <th>Role</th>
               <th>Category</th>
               <th>Onboarded</th>
+              <th>Leave Balance</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -483,10 +493,13 @@
             {% if users %}
             {% for u in users %}
             {% set search_data = (u.service_number or '') ~ ' ' ~ (u.name or '') ~ ' ' ~ (u.email or '') ~ ' ' ~ (u.directorate or '') ~ ' ' ~ (u.role or '') ~ ' ' ~ (u.category or '') %}
-            {% set is_approval = (u.is_approval_role == true or u.is_approval_role == 'true' or u.is_approval_role == 'True') %}
+            {% set is_approval = (u.is_approval_role == true) %}
             <tr class="user-row" 
                 data-search="{{ search_data | lower }}"
                 data-is-approval="{{ 'true' if is_approval else 'false' }}"
+                data-is-onboarded="{{ 'true' if u.is_onboarded else 'false' }}"
+                data-has-balance="{{ 'true' if u.has_leave_balance else 'false' }}"
+                data-pending-balance="{{ 'true' if u.is_onboarded_pending_balance else 'false' }}"
                 data-directorate="{{ (u.directorate or '') | upper | trim }}">
               <td class="text-bold">{{ u.service_number or '-' }}</td>
               <td class="text">{{ u.name or '-' }}</td>
@@ -502,6 +515,21 @@
                 {% endif %}
               </td>
               <td>
+                {% if is_approval %}
+                <span style="color: #718096; font-size: 11px;">— Approval Role</span>
+                {% elif u.has_leave_balance %}
+                <span style="color: #276749; background-color: #f0fff4; border: 1px solid #c6f6d5; padding: 2px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                  ✓ Initialized
+                </span>
+                {% elif u.is_onboarded %}
+                <span style="color: #9b2c2c; background-color: #fff5f5; border: 1px solid #feb2b2; padding: 2px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                  ⚡ Pending Balance
+                </span>
+                {% else %}
+                <span style="color: #a0aec0; font-size: 11.5px;">Pending Onboarding</span>
+                {% endif %}
+              </td>
+              <td>
                 <span class="status-tag tag-{{ (u.status or 'pending-onboarding') | lower | replace(' ', '-') }}">
                   {{ u.status or 'Pending' }}
                 </span>
@@ -509,7 +537,11 @@
               <td>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                   <button class="action-btn-pill edit" onclick="openEditUserModal('{{ u.email }}')">✏️ Edit</button>
+                  {% if u.is_onboarded_pending_balance %}
+                  <button class="action-btn-pill init" style="background-color: #e53e3e; color: #ffffff; font-weight: 700; border-color: #c53030;" onclick="triggerQuickSingleInit('{{ u.email }}')">⚡ Init Bal</button>
+                  {% else %}
                   <button class="action-btn-pill init" onclick="triggerQuickSingleInit('{{ u.email }}')">🔄 Bal</button>
+                  {% endif %}
                   <button class="action-btn-pill onboard" onclick="toggleOnboardingStatus('{{ u.email }}', {{ 'true' if u.is_onboarded else 'false' }})">🚀 Step</button>
                 </div>
               </td>
@@ -517,7 +549,7 @@
             {% endfor %}
             {% else %}
             <tr>
-              <td colspan="9" style="text-align: center; color: #a0aec0; padding: 30px;">
+              <td colspan="10" style="text-align: center; color: #a0aec0; padding: 30px;">
                 No user profiles found in system database.
               </td>
             </tr>
@@ -637,6 +669,61 @@
           <div class="modal-form-group">
             <label>Rank or Grade Level (rankOrGrade)</label>
             <input type="text" id="editRankOrGrade" placeholder="e.g. Maj Gen or Grade Level 10" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- Passport & Signature Upload Section -->
+        <div class="form-row-2" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+          <!-- Passport / Profile Photo -->
+          <div class="modal-form-group" style="margin-bottom: 0;">
+            <label style="font-weight: 600; color: #2d3748; display: flex; align-items: center; justify-content: space-between;">
+              <span>📷 Passport / Photo</span>
+              <span id="editPassportStatus" style="font-size: 11px; font-weight: normal; color: #718096;"></span>
+            </label>
+            <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+              <div id="editPassportPreviewContainer" style="width: 60px; height: 60px; border-radius: 8px; border: 1px dashed #cbd5e0; background: #edf2f7; display: grid; place-items: center; overflow: hidden; flex-shrink: 0;">
+                <img id="editPassportPreview" src="" alt="Passport" style="width: 100%; height: 100%; object-fit: cover; display: none;" />
+                <span id="editPassportPlaceholder" style="font-size: 24px; color: #a0aec0;">👤</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                <input type="file" id="editPassportFile" accept="image/png,image/jpeg,image/jpg" style="display: none;" onchange="handlePassportFileSelected(this)" />
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" class="tab-btn" onclick="document.getElementById('editPassportFile').click()" style="padding: 5px 10px; font-size: 12px; border: 1px solid #cbd5e0; background: #fff; cursor: pointer; border-radius: 4px;">
+                    Upload Photo
+                  </button>
+                  <button type="button" id="editPassportClearBtn" onclick="clearPassportPhoto()" style="padding: 5px 8px; font-size: 12px; border: 1px solid #e2e8f0; background: #fff; color: #e53e3e; cursor: pointer; border-radius: 4px; display: none;">
+                    Remove
+                  </button>
+                </div>
+                <span style="font-size: 11px; color: #718096;">PNG, JPG or JPEG</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Signature Upload -->
+          <div class="modal-form-group" style="margin-bottom: 0;">
+            <label style="font-weight: 600; color: #2d3748; display: flex; align-items: center; justify-content: space-between;">
+              <span>✍️ Signature Specimen</span>
+              <span id="editSignatureStatus" style="font-size: 11px; font-weight: normal; color: #718096;"></span>
+            </label>
+            <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+              <div id="editSignaturePreviewContainer" style="width: 110px; height: 60px; border-radius: 8px; border: 1px dashed #cbd5e0; background: #edf2f7; display: grid; place-items: center; overflow: hidden; flex-shrink: 0; padding: 2px;">
+                <img id="editSignaturePreview" src="" alt="Signature" style="width: 100%; height: 100%; object-fit: contain; display: none;" />
+                <span id="editSignaturePlaceholder" style="font-size: 20px; color: #a0aec0;">✍️</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                <input type="file" id="editSignatureFile" accept="image/png,image/jpeg,image/jpg" style="display: none;" onchange="handleSignatureFileSelected(this)" />
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" class="tab-btn" onclick="document.getElementById('editSignatureFile').click()" style="padding: 5px 10px; font-size: 12px; border: 1px solid #cbd5e0; background: #fff; cursor: pointer; border-radius: 4px;">
+                    Upload Signature
+                  </button>
+                  <button type="button" id="editSignatureClearBtn" onclick="clearSignatureImage()" style="padding: 5px 8px; font-size: 12px; border: 1px solid #e2e8f0; background: #fff; color: #e53e3e; cursor: pointer; border-radius: 4px; display: none;">
+                    Remove
+                  </button>
+                </div>
+                <span style="font-size: 11px; color: #718096;">PNG, JPG or transparent scan</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1245,6 +1332,7 @@
       
       const tabPersonal = document.getElementById('tabPersonalAccounts');
       const tabApproval = document.getElementById('tabApprovalAccounts');
+      const tabPendingBalance = document.getElementById('tabPendingBalanceAccounts');
       const tabMealTicket = document.getElementById('tabMealTicketUsers');
       const dirLabel = document.getElementById('dirPillsLabel');
       const titleText = document.getElementById('registryTitleText');
@@ -1254,6 +1342,7 @@
       
       const btnSystemBulkImport = document.getElementById('btnSystemBulkImport');
       const btnSystemAddUser = document.getElementById('btnSystemAddUser');
+      const btnInitAllPendingBalance = document.getElementById('btnInitAllPendingBalance');
       const btnMealReport = document.getElementById('btnMealReport');
       const btnMealBulkImport = document.getElementById('btnMealBulkImport');
       const btnMealAddUser = document.getElementById('btnMealAddUser');
@@ -1261,6 +1350,7 @@
       // Reset active tab states
       tabPersonal.classList.remove('active');
       tabApproval.classList.remove('active');
+      if (tabPendingBalance) tabPendingBalance.classList.remove('active');
       if (tabMealTicket) tabMealTicket.classList.remove('active');
       
       // Hide both table containers
@@ -1270,6 +1360,7 @@
       // Hide all buttons
       btnSystemBulkImport.style.display = 'none';
       btnSystemAddUser.style.display = 'none';
+      if (btnInitAllPendingBalance) btnInitAllPendingBalance.style.display = 'none';
       btnMealReport.style.display = 'none';
       btnMealBulkImport.style.display = 'none';
       btnMealAddUser.style.display = 'none';
@@ -1288,6 +1379,13 @@
         systemUsersTableContainer.style.display = '';
         btnSystemBulkImport.style.display = 'inline-flex';
         btnSystemAddUser.style.display = 'inline-block';
+      } else if (tab === 'pending_balance') {
+        if (tabPendingBalance) tabPendingBalance.classList.add('active');
+        dirLabel.textContent = "Filter Onboarded Staff (Pending Balance) by Directorate:";
+        titleText.textContent = "Onboarded Staff Awaiting Leave Balance Initialization";
+        systemUsersTableContainer.style.display = '';
+        if (btnInitAllPendingBalance) btnInitAllPendingBalance.style.display = 'inline-flex';
+        btnSystemBulkImport.style.display = 'inline-flex';
       } else if (tab === 'meal_ticket') {
         if (tabMealTicket) tabMealTicket.classList.add('active');
         dirLabel.textContent = "Filter Meal Ticket Users by Directorate:";
@@ -1344,6 +1442,7 @@
         rows.forEach(row => {
           const searchData = row.getAttribute('data-search') || '';
           const isApprovalRow = row.getAttribute('data-is-approval') === 'true';
+          const isPendingBalanceRow = row.getAttribute('data-pending-balance') === 'true';
           const rowDir = row.getAttribute('data-directorate') || '';
           
           let matchesSearch = searchData.includes(query);
@@ -1354,6 +1453,8 @@
             matchesTab = isApprovalRow;
           } else if (currentRegistryTab === 'personal') {
             matchesTab = !isApprovalRow;
+          } else if (currentRegistryTab === 'pending_balance') {
+            matchesTab = isPendingBalanceRow;
           }
           
           if (currentDirectoratePill !== 'ALL') {
@@ -1390,6 +1491,94 @@
       document.getElementById('bulkUploadLoadingOverlay').style.display = 'flex';
     }
 
+    // Global tracking for user edit passport & signature
+    let editPassportData = '';
+    let editSignatureData = '';
+    let editPassportModified = false;
+    let editSignatureModified = false;
+
+    function handlePassportFileSelected(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+          showAdminAlert('Passport image size should be less than 5MB.', 'File Too Large', 'error');
+          input.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          editPassportData = e.target.result;
+          editPassportModified = true;
+          const preview = document.getElementById('editPassportPreview');
+          const placeholder = document.getElementById('editPassportPlaceholder');
+          const clearBtn = document.getElementById('editPassportClearBtn');
+          const status = document.getElementById('editPassportStatus');
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+          clearBtn.style.display = 'inline-block';
+          if (status) status.textContent = '(New selected)';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function clearPassportPhoto() {
+      editPassportData = '';
+      editPassportModified = true;
+      document.getElementById('editPassportFile').value = '';
+      const preview = document.getElementById('editPassportPreview');
+      const placeholder = document.getElementById('editPassportPlaceholder');
+      const clearBtn = document.getElementById('editPassportClearBtn');
+      const status = document.getElementById('editPassportStatus');
+      preview.src = '';
+      preview.style.display = 'none';
+      placeholder.style.display = 'block';
+      clearBtn.style.display = 'none';
+      if (status) status.textContent = '(Removed)';
+    }
+
+    function handleSignatureFileSelected(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+          showAdminAlert('Signature image size should be less than 5MB.', 'File Too Large', 'error');
+          input.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          editSignatureData = e.target.result;
+          editSignatureModified = true;
+          const preview = document.getElementById('editSignaturePreview');
+          const placeholder = document.getElementById('editSignaturePlaceholder');
+          const clearBtn = document.getElementById('editSignatureClearBtn');
+          const status = document.getElementById('editSignatureStatus');
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+          clearBtn.style.display = 'inline-block';
+          if (status) status.textContent = '(New selected)';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function clearSignatureImage() {
+      editSignatureData = '';
+      editSignatureModified = true;
+      document.getElementById('editSignatureFile').value = '';
+      const preview = document.getElementById('editSignaturePreview');
+      const placeholder = document.getElementById('editSignaturePlaceholder');
+      const clearBtn = document.getElementById('editSignatureClearBtn');
+      const status = document.getElementById('editSignatureStatus');
+      preview.src = '';
+      preview.style.display = 'none';
+      placeholder.style.display = 'block';
+      clearBtn.style.display = 'none';
+      if (status) status.textContent = '(Removed)';
+    }
+
     // Modal Control: Edit User
     function openEditUserModal(email) {
       fetch(`/get-personnel-profile?email=${encodeURIComponent(email)}`)
@@ -1416,12 +1605,63 @@
           
           document.getElementById('editIsActive').checked = data.is_active !== false;
           document.getElementById('editIsOnboarded').checked = data.is_onboarded === true;
-          document.getElementById('editIsApprovalRole').checked = data.is_approval_role === true || data.is_approval_role === 'true';
+          document.getElementById('editIsApprovalRole').checked = data.is_approval_role === true;
           document.getElementById('editIsSoApprover').checked = data.is_so_approver === true;
           document.getElementById('editIsAdApprover').checked = data.is_ad_approver === true;
           document.getElementById('editIsDdApprover').checked = data.is_dd_approver === true;
-          document.getElementById('editIsFinalApprover').checked = data.is_final_approver === true || data.is_final_approver === 'true';
+          document.getElementById('editIsFinalApprover').checked = data.is_final_approver === true;
           
+          // Passport & Signature Reset & Populate
+          editPassportData = '';
+          editSignatureData = '';
+          editPassportModified = false;
+          editSignatureModified = false;
+          document.getElementById('editPassportFile').value = '';
+          document.getElementById('editSignatureFile').value = '';
+          
+          const passportSrc = data.passport_image || data.profile_image || data.passport_photo || (data.onboarding_data && data.onboarding_data.step_1 && data.onboarding_data.step_1.uploadPassport) || '';
+          const signatureSrc = data.signature_image || (data.onboarding_data && data.onboarding_data.step_1 && data.onboarding_data.step_1.uploadSignature) || '';
+          
+          const passportPreview = document.getElementById('editPassportPreview');
+          const passportPlaceholder = document.getElementById('editPassportPlaceholder');
+          const passportClearBtn = document.getElementById('editPassportClearBtn');
+          const passportStatus = document.getElementById('editPassportStatus');
+          
+          if (passportSrc) {
+            editPassportData = passportSrc;
+            passportPreview.src = passportSrc;
+            passportPreview.style.display = 'block';
+            passportPlaceholder.style.display = 'none';
+            passportClearBtn.style.display = 'inline-block';
+            if (passportStatus) passportStatus.textContent = '';
+          } else {
+            passportPreview.src = '';
+            passportPreview.style.display = 'none';
+            passportPlaceholder.style.display = 'block';
+            passportClearBtn.style.display = 'none';
+            if (passportStatus) passportStatus.textContent = '';
+          }
+
+          const sigPreview = document.getElementById('editSignaturePreview');
+          const sigPlaceholder = document.getElementById('editSignaturePlaceholder');
+          const sigClearBtn = document.getElementById('editSignatureClearBtn');
+          const sigStatus = document.getElementById('editSignatureStatus');
+
+          if (signatureSrc) {
+            editSignatureData = signatureSrc;
+            sigPreview.src = signatureSrc;
+            sigPreview.style.display = 'block';
+            sigPlaceholder.style.display = 'none';
+            sigClearBtn.style.display = 'inline-block';
+            if (sigStatus) sigStatus.textContent = '';
+          } else {
+            sigPreview.src = '';
+            sigPreview.style.display = 'none';
+            sigPlaceholder.style.display = 'block';
+            sigClearBtn.style.display = 'none';
+            if (sigStatus) sigStatus.textContent = '';
+          }
+
           document.getElementById('editUserModal').style.display = 'flex';
         })
         .catch(err => {
@@ -1537,7 +1777,11 @@
         is_dd_approver: document.getElementById('editIsDdApprover').checked,
         is_final_approver: document.getElementById('editIsFinalApprover').checked,
         appt: document.getElementById('editAppt').value,
-        rankOrGrade: document.getElementById('editRankOrGrade').value
+        rankOrGrade: document.getElementById('editRankOrGrade').value,
+        passport_image: editPassportData,
+        signature_image: editSignatureData,
+        passport_modified: editPassportModified,
+        signature_modified: editSignatureModified
       };
 
       // Check conflicts if they enabled any approver flags
@@ -1674,6 +1918,37 @@
       });
     }
 
+    // Bulk initialization for all onboarded staff who have not yet had their balance initialized
+    function initializeAllPendingOnboardedBalances() {
+      showAdminConfirm(
+        `Are you sure you want to initialize leave balances for all onboarded staff who do not have a balance initialized yet for the year <strong>2026</strong>?`,
+        "Initialize Pending Onboarded Staff Balances",
+        () => {
+          const csrfToken = document.getElementById('csrf_token').value;
+          
+          fetch('/super-admin/initialize-pending-onboarded-balances', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+              year: 2026
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            showAdminAlert(data.message, 'Initialization Complete', data.status === 'success' ? 'success' : 'info', () => {
+              location.reload();
+            });
+          })
+          .catch(err => {
+            showAdminAlert('Request failed: ' + err.message, 'Error', 'error');
+          });
+        }
+      );
+    }
+
     // Quick single initialization via table action button
     function triggerQuickSingleInit(email) {
       showAdminConfirm(
@@ -1732,11 +2007,11 @@
                 status: newStatus ? 'Approved' : 'In Progress',
                 is_active: user.is_active !== false,
                 is_onboarded: newStatus,
-                is_approval_role: user.is_approval_role === true || user.is_approval_role === 'true',
+                is_approval_role: user.is_approval_role === true,
                 is_so_approver: user.is_so_approver === true,
                 is_ad_approver: user.is_ad_approver === true,
                 is_dd_approver: user.is_dd_approver === true,
-                is_final_approver: user.is_final_approver === true || user.is_final_approver === 'true',
+                is_final_approver: user.is_final_approver === true,
                 appt: user.appt || '',
                 rankOrGrade: user.rankOrGrade || ''
               };

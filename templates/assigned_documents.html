@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+  {% include 'pwa_head.html' %}
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Assigned Documents</title>
@@ -229,9 +230,15 @@
         </div>
         <div class="user-profile-badge">
           <!-- Clean circle initials token frame -->
-          <div class="user-avatar-circle" id="navAvatarIcon">
-            {{ user.name[:2] | upper if user.name else 'DS' }}
-          </div>
+          <div class="user-avatar-circle" id="navAvatarIcon" style="width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; max-width: 38px !important; max-height: 38px !important; border-radius: 50% !important; overflow: hidden !important; display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; padding: 0 !important; background: linear-gradient(135deg, #1E3A8A 0%, #0F172A 100%); position: relative !important;">
+      {% set passport = user.uploadPassport or user.passport_url or user.passport_image or user.profile_image or user.passport_photo or session.get('uploadPassport') %}
+      {% if passport %}
+        <img src="{{ passport }}" alt="{{ user.name if user else 'User' }}" class="user-avatar-img" style="width: 100% !important; height: 100% !important; min-width: 100% !important; min-height: 100% !important; max-width: 100% !important; max-height: 100% !important; object-fit: cover !important; object-position: center top !important; border-radius: 50% !important; display: block !important; margin: 0 !important;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+        <span style="display:none; color:#FFFFFF; font-size:13px; font-weight:700;">{{ user.name[:2] | upper if user and user.name else 'DS' }}</span>
+      {% else %}
+        <span style="color:#FFFFFF; font-size:13px; font-weight:700;">{{ user.name[:2] | upper if user and user.name else 'DS' }}</span>
+      {% endif %}
+    </div>
           <!-- Multi-line text metadata stacking engine -->
           <div class="user-meta-stack">
             <h4 class="user-fullname-text">{{ user.name }}</h4>

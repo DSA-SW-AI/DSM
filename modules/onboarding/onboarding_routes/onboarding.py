@@ -152,7 +152,7 @@ def add_staff():
         "password_hash": secure_flask_hash,
         "is_active": True,
         "is_onboarded": False,
-        "is_approval_role": "false",
+        "is_approval_role": False,
         "created_at": datetime.datetime.now()
     }
     

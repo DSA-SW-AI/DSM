@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+  {% include 'pwa_head.html' %}
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ODOGWU - Leave & Pass </title>
@@ -84,9 +85,15 @@
         </div>
         <div class="user-profile-badge">
           <!-- Clean circle initials token frame -->
-          <div class="user-avatar-circle" id="navAvatarIcon">
-            {{ user.name[:2] | upper if user.name else 'DS' }}
-          </div>
+          <div class="user-avatar-circle" id="navAvatarIcon" style="width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; max-width: 38px !important; max-height: 38px !important; border-radius: 50% !important; overflow: hidden !important; display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; padding: 0 !important; background: linear-gradient(135deg, #1E3A8A 0%, #0F172A 100%); position: relative !important;">
+      {% set passport = user.uploadPassport or user.passport_url or user.passport_image or user.profile_image or user.passport_photo or session.get('uploadPassport') %}
+      {% if passport %}
+        <img src="{{ passport }}" alt="{{ user.name if user else 'User' }}" class="user-avatar-img" style="width: 100% !important; height: 100% !important; min-width: 100% !important; min-height: 100% !important; max-width: 100% !important; max-height: 100% !important; object-fit: cover !important; object-position: center top !important; border-radius: 50% !important; display: block !important; margin: 0 !important;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+        <span style="display:none; color:#FFFFFF; font-size:13px; font-weight:700;">{{ user.name[:2] | upper if user and user.name else 'DS' }}</span>
+      {% else %}
+        <span style="color:#FFFFFF; font-size:13px; font-weight:700;">{{ user.name[:2] | upper if user and user.name else 'DS' }}</span>
+      {% endif %}
+    </div>
           <!-- Multi-line text metadata stacking engine -->
           <div class="user-meta-stack">
             <h4 class="user-fullname-text">{{ user.name }}</h4>
@@ -98,6 +105,14 @@
           </div>
         </div>
       </header>
+
+      <!-- {% set passport = user.passport_url or user.passport_image or user.profile_image or user.passport_photo or (user.onboarding_data.step_1.uploadPassport if user.onboarding_data and user.onboarding_data.step_1 else None) %}
+      {% if (user.is_onboarded or user.status == 'Approved' or user.role == 'super_admin') and passport %}
+        <img src="{{ passport }}" alt="{{ user.name }}" class="user-avatar-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+        <span style="display:none;">{{ user.name[:2] | upper if user.name else 'DS' }}</span>
+      {% else %}
+        {{ user.name[:2] | upper if user.name else 'DS' }}
+      {% endif %} -->
 
 
       <!-- Grid Modules Layout Wrapper Block -->
@@ -233,7 +248,9 @@
                         {% endif %}
                       </div>
                     </td>
-                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and app.endDate.strftime else (app.endDate or 'N/A') }}</td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else
+                      (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and
+                      app.endDate.strftime else (app.endDate or 'N/A') }}</td>
                     <td>{{ app.numberOfDays }}</td>
                     <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
                     <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago
@@ -335,7 +352,9 @@
                         {% endif %}
                       </div>
                     </td>
-                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and app.endDate.strftime else (app.endDate or 'N/A') }}</td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else
+                      (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and
+                      app.endDate.strftime else (app.endDate or 'N/A') }}</td>
                     <td>{{ app.numberOfDays }}</td>
                     <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
                     <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago
@@ -429,7 +448,9 @@
                         </div>
                       </div>
                     </td>
-                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and app.endDate.strftime else (app.endDate or 'N/A') }}</td>
+                    <td>{{ app.startDate.strftime('%d %b %Y') if app.startDate and app.startDate.strftime else
+                      (app.startDate or 'N/A') }} – {{ app.endDate.strftime('%d %b %Y') if app.endDate and
+                      app.endDate.strftime else (app.endDate or 'N/A') }}</td>
                     <td>{{ app.numberOfDays }}</td>
                     <td title="{{ app.reason }}">{{ app.reason|truncate(50, True, '...') }}</td>
                     <td>{% set days_ago = (current_time - app.createdAt).days %}{{ days_ago }} day{{ 's' if days_ago
@@ -468,21 +489,23 @@
             <div class="table-header">
               <i class="ri-arrow-go-back-line"></i> Returns Awaiting Approval
             </div>
-            
+
             <div class="table-responsive">
               {% set return_apps = [] %}
               {% if applications %}
-                {% for app in applications %}
-                  {% if app.leave_pass_returned and app.leave_pass_returned.returned_status == 'pending' %}
-                    {% set _ = return_apps.append(app) %}
-                  {% endif %}
-                {% endfor %}
+              {% for app in applications %}
+              {% if app.leave_pass_returned and app.leave_pass_returned.returned_status == 'pending' %}
+              {% set _ = return_apps.append(app) %}
               {% endif %}
-              
+              {% endfor %}
+              {% endif %}
+
               {% if return_apps %}
-              <table class="documents-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+              <table class="documents-table"
+                style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
                 <thead>
-                  <tr style="border-bottom: 2px solid #edf2f7; color: #718096; font-weight: 700; text-transform: uppercase; font-size: 11px;">
+                  <tr
+                    style="border-bottom: 2px solid #edf2f7; color: #718096; font-weight: 700; text-transform: uppercase; font-size: 11px;">
                     <th style="padding: 12px 16px;">Ref</th>
                     <th style="padding: 12px 16px;">Applicant Name</th>
                     <th style="padding: 12px 16px;">Leave Type</th>
@@ -495,23 +518,34 @@
                 <tbody>
                   {% for app in return_apps %}
                   <tr style="border-bottom: 1px solid #edf2f7; transition: background-color 0.2s;">
-                    <td style="padding: 16px; font-family: monospace; font-weight: 600; color: #2d3748;">{{ app.referenceId }}</td>
+                    <td style="padding: 16px; font-family: monospace; font-weight: 600; color: #2d3748;">{{
+                      app.referenceId }}</td>
                     <td style="padding: 16px; color: #4a5568;">{{ app.applicantName }}</td>
                     <td style="padding: 16px; color: #4a5568;">{{ app.leave_type | title }}</td>
-                    <td style="padding: 16px; color: #4a5568;">{{ app.leave_pass_returned.expected_returned_date.strftime('%d %b %Y') if app.leave_pass_returned.expected_returned_date else 'N/A' }}</td>
-                    <td style="padding: 16px; font-weight: bold; color: #2d3748;">{{ app.leave_pass_returned.actual_returned_date.strftime('%d %b %Y') if app.leave_pass_returned.actual_returned_date else 'N/A' }}</td>
+                    <td style="padding: 16px; color: #4a5568;">{{
+                      app.leave_pass_returned.expected_returned_date.strftime('%d %b %Y') if
+                      app.leave_pass_returned.expected_returned_date else 'N/A' }}</td>
+                    <td style="padding: 16px; font-weight: bold; color: #2d3748;">{{
+                      app.leave_pass_returned.actual_returned_date.strftime('%d %b %Y') if
+                      app.leave_pass_returned.actual_returned_date else 'N/A' }}</td>
                     <td style="padding: 16px;">
                       {% set res = app.leave_pass_returned.returnedresult %}
                       {% if res == 'returned early' %}
-                        <span style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #d1fae5; color: #065f46; border-radius: 4px; font-weight: bold;">Returned Early</span>
+                      <span
+                        style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #d1fae5; color: #065f46; border-radius: 4px; font-weight: bold;">Returned
+                        Early</span>
                       {% elif res == 'returned on time' %}
-                        <span style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #e0f2fe; color: #0369a1; border-radius: 4px; font-weight: bold;">On Time</span>
+                      <span
+                        style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #e0f2fe; color: #0369a1; border-radius: 4px; font-weight: bold;">On
+                        Time</span>
                       {% else %}
-                        <span style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #fee2e2; color: #991b1b; border-radius: 4px; font-weight: bold;">Overstayed</span>
+                      <span
+                        style="display: inline-block; padding: 4px 8px; font-size: 11px; background: #fee2e2; color: #991b1b; border-radius: 4px; font-weight: bold;">Overstayed</span>
                       {% endif %}
                     </td>
                     <td style="padding: 16px; text-align: right;">
-                      <button type="button" class="add-document-btn" onclick="approveLeaveReturn(event, '{{ app._id|string }}')"
+                      <button type="button" class="add-document-btn"
+                        onclick="approveLeaveReturn(event, '{{ app._id|string }}')"
                         style="padding: 6px 12px; font-size: 13px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                         ✓ Approve Return
                       </button>
@@ -599,7 +633,8 @@
                   </div>
                 </td>
                 <td style="padding: 16px; text-align: right;">
-                  <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center;">
+                  <div
+                    style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center;">
                     <a href="/dashboard?track_id={{ app.referenceId }}" class="add-document-btn"
                       style="padding: 6px 12px; font-size: 13px; text-decoration: none;">
                       🔍 Track
@@ -611,24 +646,29 @@
                       📄 View Receipt
                     </a>
                     {% endif %}
-                    
+
                     {% if app.status in ('approved', 'Approved', 'issued') %}
-                      {% set return_status = app.leave_pass_returned.returned_status if app.leave_pass_returned else 'not_submitted' %}
-                      {% set returned_result = app.leave_pass_returned.returnedresult if app.leave_pass_returned else '' %}
-                      {% if return_status == 'not_submitted' %}
-                      <button type="button" class="add-document-btn" onclick="openReturnModal(event, '{{ app._id|string }}', '{{ app.referenceId }}', '{{ app.startDate.strftime('%Y-%m-%d') if app.startDate else '' }}')"
-                        style="padding: 6px 12px; font-size: 13px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        ↩ Report Return
-                      </button>
-                      {% elif return_status == 'pending' %}
-                      <span style="padding: 4px 8px; font-size: 11px; background: #fef3c7; color: #d97706; border-radius: 4px; font-weight: bold; text-align: center; white-space: nowrap;">
-                        Awaiting Return Approval
-                      </span>
-                      {% elif return_status == 'approved' %}
-                      <span style="padding: 4px 8px; font-size: 11px; background: #d1fae5; color: #065f46; border-radius: 4px; font-weight: bold; text-align: center; white-space: nowrap;">
-                        Returned ({{ returned_result }})
-                      </span>
-                      {% endif %}
+                    {% set return_status = app.leave_pass_returned.returned_status if app.leave_pass_returned else
+                    'not_submitted' %}
+                    {% set returned_result = app.leave_pass_returned.returnedresult if app.leave_pass_returned else ''
+                    %}
+                    {% if return_status == 'not_submitted' %}
+                    <button type="button" class="add-document-btn"
+                      onclick="openReturnModal(event, '{{ app._id|string }}', '{{ app.referenceId }}', '{{ app.startDate.strftime('%Y-%m-%d') if app.startDate else '' }}')"
+                      style="padding: 6px 12px; font-size: 13px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                      ↩ Report Return
+                    </button>
+                    {% elif return_status == 'pending' %}
+                    <span
+                      style="padding: 4px 8px; font-size: 11px; background: #fef3c7; color: #d97706; border-radius: 4px; font-weight: bold; text-align: center; white-space: nowrap;">
+                      Awaiting Return Approval
+                    </span>
+                    {% elif return_status == 'approved' %}
+                    <span
+                      style="padding: 4px 8px; font-size: 11px; background: #d1fae5; color: #065f46; border-radius: 4px; font-weight: bold; text-align: center; white-space: nowrap;">
+                      Returned ({{ returned_result }})
+                    </span>
+                    {% endif %}
                     {% endif %}
                   </div>
                 </td>
@@ -652,21 +692,29 @@
 
 
   <!-- Report Return Modal -->
-  <div id="returnModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-    <div class="modal-box" style="background: white; padding: 25px; border-radius: 8px; max-width: 450px; width: 90%; position: relative;">
+  <div id="returnModal" class="modal-overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div class="modal-box"
+      style="background: white; padding: 25px; border-radius: 8px; max-width: 450px; width: 90%; position: relative;">
       <h3 style="margin-top:0;">Report Return from Leave</h3>
-      <button class="close-modal" onclick="closeReturnModal()" style="position: absolute; top: 10px; right: 15px; border: none; background: none; font-size: 24px; cursor: pointer;">×</button>
-      
+      <button class="close-modal" onclick="closeReturnModal()"
+        style="position: absolute; top: 10px; right: 15px; border: none; background: none; font-size: 24px; cursor: pointer;">×</button>
+
       <form id="returnForm" onsubmit="submitReturnForm(event)" style="margin-top: 15px;">
         <input type="hidden" id="return_app_id">
         <div style="margin-bottom: 20px; text-align: left;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Actual Return Date <span style="color: #e53e3e;">*</span></label>
-          <input type="date" id="actual_return_date_input" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Actual Return Date <span
+              style="color: #e53e3e;">*</span></label>
+          <input type="date" id="actual_return_date_input" required
+            style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box;">
         </div>
-        
+
         <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button type="button" class="cancel-btn" onclick="closeReturnModal()" style="padding: 10px 20px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
-          <button type="submit" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Submit Return</button>
+          <button type="button" class="cancel-btn" onclick="closeReturnModal()"
+            style="padding: 10px 20px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+          <button type="submit"
+            style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Submit
+            Return</button>
         </div>
       </form>
     </div>
@@ -1236,18 +1284,18 @@
     function openReturnModal(event, appId, refId, startDateStr) {
       if (event) event.stopPropagation();
       document.getElementById('return_app_id').value = appId;
-      
+
       const today = new Date().toISOString().split('T')[0];
       const dateInput = document.getElementById('actual_return_date_input');
       dateInput.value = today;
       dateInput.max = today; // Future dates cannot be clicked
-      
+
       if (startDateStr) {
         dateInput.min = startDateStr; // Dates before leave starts cannot be clicked
       } else {
         dateInput.removeAttribute('min');
       }
-      
+
       document.getElementById('returnModal').style.display = 'flex';
     }
 
@@ -1259,7 +1307,7 @@
       event.preventDefault();
       const appId = document.getElementById('return_app_id').value;
       const actualReturnDate = document.getElementById('actual_return_date_input').value;
-      
+
       const submitBtn = event.target.querySelector('button[type="submit"]');
       const originalText = submitBtn.textContent;
       submitBtn.disabled = true;
@@ -1275,7 +1323,7 @@
           },
           body: JSON.stringify({ actual_return_date: actualReturnDate })
         });
-        
+
         const result = await response.json();
         if (response.ok) {
           showAppToast(result.message || "Return report submitted successfully!", 'success');
@@ -1296,13 +1344,13 @@
 
     async function approveLeaveReturn(event, appId) {
       if (event) event.stopPropagation();
-      
+
       const confirmed = await showAppConfirm(
         "Are you sure you want to approve this leave return? This will credit any unused days back to the staff's balance.",
         "Approve Return"
       );
       if (!confirmed) return;
-      
+
       const btn = event.target;
       const originalText = btn.textContent;
       btn.disabled = true;
@@ -1317,7 +1365,7 @@
             'X-CSRFToken': csrfToken
           }
         });
-        
+
         const result = await response.json();
         if (response.ok) {
           showAppToast(result.message || "Leave return approved and balance updated successfully!", 'success');

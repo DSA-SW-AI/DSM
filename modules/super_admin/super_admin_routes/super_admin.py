@@ -41,11 +41,43 @@ def super_admin_dashboard():
     # Get all users
     all_users = list(users_coll.find())
     
+    # Check leave balances initialization for current year
+    current_year = datetime.now().year
+    leave_balances_coll = getattr(current_app, 'leave_balances', None)
+    if leave_balances_coll is None:
+        leave_balances_coll = db.leave_balances
+
+    initialized_identifiers = set()
+    try:
+        for lb in leave_balances_coll.find({"year": current_year}, {"serviceNumber": 1, "service_number": 1, "email": 1}):
+            if lb.get("serviceNumber"):
+                initialized_identifiers.add(str(lb.get("serviceNumber")).strip().lower())
+            if lb.get("service_number"):
+                initialized_identifiers.add(str(lb.get("service_number")).strip().lower())
+            if lb.get("email"):
+                initialized_identifiers.add(str(lb.get("email")).strip().lower())
+    except Exception as e:
+        print(f"Error fetching leave balances for superadmin stats: {e}")
+
     # Calculate stats
     directorate_counts = {}
     category_counts = {"civilian": 0, "military": 0, "it": 0, "nysc": 0}
+    onboarded_uninitialized_count = 0
     
     for u in all_users:
+        sn = str(u.get("service_number") or u.get("serviceNumber") or "").strip().lower()
+        email = str(u.get("email") or "").strip().lower()
+        is_approval = u.get("is_approval_role") is True
+        is_onboarded = u.get("is_onboarded") is True
+        has_balance = bool((sn and sn in initialized_identifiers) or (email and email in initialized_identifiers))
+        u["has_leave_balance"] = has_balance
+
+        if is_onboarded and not has_balance and not is_approval and u.get('role') != 'super_admin':
+            u["is_onboarded_pending_balance"] = True
+            onboarded_uninitialized_count += 1
+        else:
+            u["is_onboarded_pending_balance"] = False
+
         if u.get('role') == 'super_admin':
             continue
         # Directorate breakdown
@@ -67,6 +99,18 @@ def super_admin_dashboard():
     from permissions import ROLE_PERMISSIONS
     user_allowed_features = ROLE_PERMISSIONS.get('super_admin', ROLE_PERMISSIONS['civilian'])
     
+    passport_pic = (
+        session.get("uploadPassport")
+        or user_data.get("passport_image")
+        or user_data.get("profile_image")
+        or user_data.get("passport_photo")
+        or (
+            user_data.get("onboarding_data", {}).get("step_1", {}).get("uploadPassport")
+            if isinstance(user_data.get("onboarding_data"), dict)
+            else None
+        )
+    )
+    
     ui_user_profile = {
         "email": user_data.get("email"),
         "name": user_data.get("name", "Super Admin"),
@@ -74,7 +118,12 @@ def super_admin_dashboard():
         "category": user_data.get("category", "civilian"),
         "appt": user_data.get("appt", "Super Administrator"),
         "directorate": str(user_data.get("directorate", "DOA")).upper(),
-        "is_approval_role": session.get("is_approval_role", False)
+        "is_approval_role": session.get("is_approval_role", False),
+        "uploadPassport": passport_pic,
+        "passport_url": passport_pic,
+        "passport_image": passport_pic,
+        "is_onboarded": True,
+        "status": "Approved",
     }
     
     from permissions import ROLE_PERMISSIONS
@@ -106,6 +155,7 @@ def super_admin_dashboard():
         meal_ticket_users=meal_ticket_users,
         directorate_stats=directorate_counts,
         category_stats=category_counts,
+        onboarded_uninitialized_count=onboarded_uninitialized_count,
         active_page='super_admin_dashboard',
         available_roles=all_available_roles,
         system_settings=system_settings,
@@ -196,9 +246,9 @@ def super_admin_check_approver_conflict():
     data = request.get_json() or {}
     email = data.get('email', '').strip().lower()
     directorate = data.get('directorate', '').strip().upper()
-    is_so = data.get('is_so_approver') in (True, 'true', 'True')
-    is_ad = data.get('is_ad_approver') in (True, 'true', 'True')
-    is_dd = data.get('is_dd_approver') in (True, 'true', 'True')
+    is_so = data.get('is_so_approver') is True
+    is_ad = data.get('is_ad_approver') is True
+    is_dd = data.get('is_dd_approver') is True
     
     if not directorate:
         return jsonify({"status": "error", "message": "Directorate is required"}), 400
@@ -278,19 +328,19 @@ def super_admin_edit_user():
         "directorate": data.get('directorate', 'DOA').strip().upper(),
         "category": data.get('category', 'civilian').strip().lower(),
         "status": data.get('status', 'Approved').strip(),
-        "is_onboarded": data.get('is_onboarded') in (True, 'true', 'True'),
-        "is_active": data.get('is_active') in (True, 'true', 'True'),
-        "is_approval_role": data.get('is_approval_role') in (True, 'true', 'True'),
-        "is_dd_approver": data.get('is_dd_approver') in (True, 'true', 'True'),
-        "is_ad_approver": data.get('is_ad_approver') in (True, 'true', 'True'),
-        "is_so_approver": data.get('is_so_approver') in (True, 'true', 'True'),
-        "is_final_approver": data.get('is_final_approver') in (True, 'true', 'True'),
+        "is_onboarded": data.get('is_onboarded') is True,
+        "is_active": data.get('is_active') is True,
+        "is_approval_role": data.get('is_approval_role') is True,
+        "is_dd_approver": data.get('is_dd_approver') is True,
+        "is_ad_approver": data.get('is_ad_approver') is True,
+        "is_so_approver": data.get('is_so_approver') is True,
+        "is_final_approver": data.get('is_final_approver') is True,
         "appt": data.get('appt', '').strip(),
         "rankOrGrade": data.get('rankOrGrade', '').strip(),
     }
 
     # Handle force replacement for conflicts
-    force_replace = data.get('force_replace') in (True, 'true', 'True')
+    force_replace = data.get('force_replace') is True
     target_directorate = update_payload["directorate"]
 
     if update_payload.get("is_so_approver"):
@@ -338,6 +388,18 @@ def super_admin_edit_user():
     if new_password:
         update_payload["password_hash"] = generate_password_hash(new_password)
         
+    if 'passport_image' in data or data.get('passport_modified'):
+        passport_val = data.get('passport_image') or ''
+        update_payload["passport_image"] = passport_val
+        update_payload["passport_photo"] = passport_val
+        update_payload["profile_image"] = passport_val
+        update_payload["onboarding_data.step_1.uploadPassport"] = passport_val
+
+    if 'signature_image' in data or data.get('signature_modified'):
+        sig_val = data.get('signature_image') or ''
+        update_payload["signature_image"] = sig_val
+        update_payload["onboarding_data.step_1.uploadSignature"] = sig_val
+
     db.users.update_one({"email": target_email}, {"$set": update_payload})
     return jsonify({"status": "success", "message": "User updated successfully"}), 200
 
@@ -348,7 +410,7 @@ def super_admin_initialize_all_balances():
         return jsonify({"status": "error", "message": "Unauthorized"}), 403
         
     data = request.get_json() or {}
-    delete_existing = data.get('delete_existing') in (True, 'true', 'True')
+    delete_existing = data.get('delete_existing') is True
     year = data.get('year')
     try:
         year = int(year) if year else datetime.datetime.now().year
@@ -372,7 +434,7 @@ def super_admin_initialize_single_balance():
         
     data = request.get_json() or {}
     target_identifier = data.get('identifier', '').strip()
-    delete_existing = data.get('delete_existing') in (True, 'true', 'True')
+    delete_existing = data.get('delete_existing') is True
     year = data.get('year')
     try:
         year = int(year) if year else datetime.datetime.now().year
@@ -396,6 +458,87 @@ def super_admin_initialize_single_balance():
         return jsonify({"status": "error", "message": f"Error: {str(e)}"}), 500
 
 
+@super_admin_routes.route('/super-admin/initialize-pending-onboarded-balances', methods=['POST'])
+def super_admin_initialize_pending_onboarded():
+    if 'user_email' not in session or session.get('user_role') != 'super_admin':
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+
+    data = request.get_json() or {}
+    year = data.get('year')
+    try:
+        year = int(year) if year else datetime.now().year
+    except ValueError:
+        year = datetime.now().year
+
+    users_coll = getattr(current_app, 'users_collection', None)
+    if users_coll is None:
+        users_coll = db.users
+
+    leave_balances_coll = getattr(current_app, 'leave_balances', None)
+    if leave_balances_coll is None:
+        leave_balances_coll = db.leave_balances
+
+    # Find initialized service numbers and emails
+    initialized_identifiers = set()
+    try:
+        for lb in leave_balances_coll.find({"year": year}, {"serviceNumber": 1, "service_number": 1, "email": 1}):
+            if lb.get("serviceNumber"):
+                initialized_identifiers.add(str(lb.get("serviceNumber")).strip().lower())
+            if lb.get("service_number"):
+                initialized_identifiers.add(str(lb.get("service_number")).strip().lower())
+            if lb.get("email"):
+                initialized_identifiers.add(str(lb.get("email")).strip().lower())
+    except Exception as e:
+        print(f"Error checking leave balances: {e}")
+
+    # Candidates: onboarded active users who are not approval accounts or super_admin
+    candidates = list(users_coll.find({
+        "is_active": {"$ne": False},
+        "is_onboarded": True,
+        "$or": [
+            {"is_approval_role": {"$ne": True}},
+            {"is_approval_role": {"$exists": False}}
+        ],
+        "role": {"$ne": "super_admin"}
+    }))
+
+    target_users = []
+    for u in candidates:
+        sn = str(u.get("service_number") or u.get("serviceNumber") or "").strip().lower()
+        email = str(u.get("email") or "").strip().lower()
+        if not ((sn and sn in initialized_identifiers) or (email and email in initialized_identifiers)):
+            target_users.append(u)
+
+    if not target_users:
+        return jsonify({
+            "status": "info",
+            "message": f"All onboarded staff already have initialized leave balances for {year}."
+        }), 200
+
+    initialized_count = 0
+    errors = []
+    for u in target_users:
+        ident = u.get("service_number") or u.get("serviceNumber") or u.get("email")
+        if ident:
+            success, msg = initialize_single_staff_balance(
+                service_number_or_email=ident,
+                delete_existing=False,
+                year=year
+            )
+            if success:
+                initialized_count += 1
+            else:
+                errors.append(f"{ident}: {msg}")
+
+    return jsonify({
+        "status": "success",
+        "message": f"Successfully initialized leave balances for {initialized_count} onboarded staff member(s) for year {year}.",
+        "count": initialized_count,
+        "errors": errors
+    }), 200
+
+
+
 # @app.route('/switch-view')
 # def switch_view():
 #     if 'user_email' not in session:
@@ -406,7 +549,7 @@ def super_admin_initialize_single_balance():
 #         return redirect(url_for('index'))
         
 #     role = user_data.get('role', 'civilian')
-#     db_is_approval = user_data.get("is_approval_role") in (True, "true", "True") or role in ['cdsa', 'dcdsa', 'director', 'dd', 'ad', 'so', 'registry', 'super_admin']
+#     db_is_approval = user_data.get("is_approval_role") is True or role in ['cdsa', 'dcdsa', 'director', 'dd', 'ad', 'so', 'registry', 'super_admin']
     
 #     if db_is_approval:
 #         current_mode = session.get('is_approval_role', False)
@@ -419,7 +562,7 @@ def super_admin_initialize_single_balance():
 #         session['is_so_approver'] = user_data.get('is_so_approver', False) if session['is_approval_role'] else False
 #         session['is_ad_approver'] = user_data.get('is_ad_approver', False) if session['is_approval_role'] else False
 #         session['is_dd_approver'] = user_data.get('is_dd_approver', False) if session['is_approval_role'] else False
-#         session['is_final_approver'] = user_data.get('is_final_approver') in (True, "true", "True") if session['is_approval_role'] else False
+#         session['is_final_approver'] = user_data.get('is_final_approver') is True if session['is_approval_role'] else False
         
 #     return redirect(url_for('dashboard'))
 
@@ -547,7 +690,7 @@ def super_admin_bulk_upload():
             "password_hash": password_hash,
             "is_active": True,
             "is_onboarded": False,
-            "is_approval_role": "false",
+            "is_approval_role": False,
             "created_at": datetime.now()
         }
 

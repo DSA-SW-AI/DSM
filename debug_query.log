@@ -1,4 +1,4 @@
-Logged User: superadmin@dsa.mil.ng
-Role: super_admin
-Directorate: 
-Final Query: {'$and': [{}, {'$nor': [{'parent_doc_id': {'$ne': None, '$exists': True}, 'target_directorate': {'$ne': ''}}]}, {'$or': [{'status': {'$ne': 'Saved'}}, {'sender_email': 'superadmin@dsa.mil.ng'}, {'created_by': 'superadmin@dsa.mil.ng'}, {'created_by': 'Super Admin'}]}]}
+Logged User: yusuf.ardo@dsa.mil.ng
+Role: civilian
+Directorate: DOA
+Final Query: {'$and': [{'$or': [{'sender_email': 'yusuf.ardo@dsa.mil.ng'}, {'assigned_to': 'yusuf.ardo@dsa.mil.ng'}, {'current_holder': 'yusuf.ardo@dsa.mil.ng'}, {'cc': 'yusuf.ardo@dsa.mil.ng'}, {'assignment_history.assigned_to': 'yusuf.ardo@dsa.mil.ng'}, {'assignment_history.assigned_by': 'yusuf.ardo@dsa.mil.ng'}, {'phases.current_holder': 'yusuf.ardo@dsa.mil.ng'}, {'phases.review_chain.email': 'yusuf.ardo@dsa.mil.ng'}, {'phases.assignment_history.assigned_to': 'yusuf.ardo@dsa.mil.ng'}, {'phases.assignment_history.assigned_by': 'yusuf.ardo@dsa.mil.ng'}]}, {'$nor': [{'parent_doc_id': {'$ne': None, '$exists': True}, 'target_directorate': {'$ne': 'DOA'}}]}, {'$or': [{'status': {'$ne': 'Saved'}}, {'sender_email': 'yusuf.ardo@dsa.mil.ng'}, {'created_by': 'yusuf.ardo@dsa.mil.ng'}, {'created_by': 'YUSUF GORI ARDO'}]}, {'$nor': [{'doc_lifecycle_stage': 'awaiting_dispatch_to_target', 'origin_directorate': {'$ne': 'DOA'}, 'sender_email': {'$ne': 'yusuf.ardo@dsa.mil.ng'}}, {'doc_lifecycle_stage': 'awaiting_dispatch_to_origin', 'target_directorate': {'$ne': 'DOA'}}, {'doc_lifecycle_stage': 'at_target', 'target_directorate': {'$in': ['DOA', 'DOA']}, '$or': [{'target_forwarded_at': {'$exists': False}}, {'target_forwarded_at': None}], 'current_holder': {'$ne': 'yusuf.ardo@dsa.mil.ng'}, 'assigned_to': {'$ne': 'yusuf.ardo@dsa.mil.ng'}}]}]}

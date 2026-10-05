@@ -6,7 +6,8 @@
     <title>Defence Space Administration - Login</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {% include 'pwa_head.html' %}
   </head>
   <body>
     <div class="login-container">
@@ -59,5 +60,6 @@
       </form>
     </div>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pwa.js') }}"></script>
   </body>
 </html>
