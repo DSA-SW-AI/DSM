@@ -66,10 +66,68 @@ body {
     font-weight: 700;
 }
 
+@media (max-width: 767px) {
+
+    /* Targets devices from 0px up to 767px */
+
+
+    /* White Login Card Component Container */
+    .login-container {
+        background: #f7f7f7;
+        width: 80%;
+        max-width: 100%;
+        padding: 50px 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Flexbox setup for logo and text alignment */
+    .branding-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 35px;
+        gap: 15px;
+    }
+
+    .logo {
+        height: 50px;
+        width: auto;
+        object-fit: contain;
+    }
+
+    /* Exact vertical separator layout divider rule */
+    .divider-line {
+        width: 2px;
+        height: 45px;
+        background-color: #111111;
+    }
+
+    .branding-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+    }
+
+    .brand-title-red {
+        color: #D30B0B;
+        font-size: 19px;
+        font-weight: 700;
+    }
+
+    .brand-title-blue {
+        color: #1B365D;
+        font-size: 19px;
+        font-weight: 700;
+    }
+
+}
+
 /* Page context heading configuration */
 .welcome-heading {
     text-align: center;
-    color: #E26D5C; /* Faded orange-red welcoming text tint */
+    color: #E26D5C;
+    /* Faded orange-red welcoming text tint */
     font-size: 20px;
     font-weight: 400;
     margin-bottom: 30px;
@@ -136,7 +194,8 @@ body {
 #signinBtn {
     width: 100%;
     padding: 13px;
-    background-color: #E50000; /* Rich solid red branding color */
+    background-color: #E50000;
+    /* Rich solid red branding color */
     color: #FFFFFF;
     border: none;
     border-radius: 6px;
@@ -152,4 +211,55 @@ body {
 
 #signinBtn:active {
     background-color: #B30000;
+}
+
+
+
+@media (max-width: 767px) {
+    .id-card-preview-layout {
+        max-width: 350px;
+        width: 80%;
+        padding: 20px;
+    }
+}
+
+
+.odogwn-notice-box {
+    margin-top: 24px;
+    padding: 14px 16px;
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-left: 3px solid #94A3B8;
+    border-radius: 8px;
+    text-align: left;
+}
+
+.notice-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #475569;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.notice-icon {
+    flex-shrink: 0;
+    color: #64748B;
+}
+
+.odogwn-notice-box p {
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: #64748B;
+    margin-bottom: 8px;
+    font-weight: 400;
+    ;
+}
+
+.odogwn-notice-box p:last-child {
+    margin-bottom: 0;
 }

@@ -1,4 +1,4 @@
 Logged User: superadmin@dsa.mil.ng
 Role: super_admin
-Directorate: 
-Final Query: {'$and': [{}, {'$nor': [{'parent_doc_id': {'$ne': None, '$exists': True}, 'target_directorate': {'$ne': ''}}]}, {'$or': [{'status': {'$ne': 'Saved'}}, {'sender_email': 'superadmin@dsa.mil.ng'}, {'created_by': 'superadmin@dsa.mil.ng'}, {'created_by': 'Super Admin'}]}]}
+Directorate: DOA
+Final Query: {'$and': [{}, {'$nor': [{'parent_doc_id': {'$ne': None, '$exists': True}, 'target_directorate': {'$ne': 'DOA'}}]}, {'$or': [{'status': {'$ne': 'Saved'}}, {'sender_email': 'superadmin@dsa.mil.ng'}, {'created_by': 'superadmin@dsa.mil.ng'}, {'created_by': 'SAVL Super Admin'}]}, {'$nor': [{'doc_lifecycle_stage': 'awaiting_dispatch_to_target', 'origin_directorate': {'$ne': 'DOA'}, 'sender_email': {'$ne': 'superadmin@dsa.mil.ng'}}, {'doc_lifecycle_stage': 'awaiting_dispatch_to_origin', 'target_directorate': {'$ne': 'DOA'}}, {'doc_lifecycle_stage': 'at_target', 'target_directorate': {'$in': ['DOA', 'DOA']}, '$or': [{'target_forwarded_at': {'$exists': False}}, {'target_forwarded_at': None}], 'current_holder': {'$ne': 'superadmin@dsa.mil.ng'}, 'assigned_to': {'$ne': 'superadmin@dsa.mil.ng'}}]}]}

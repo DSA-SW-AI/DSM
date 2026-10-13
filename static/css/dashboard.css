@@ -515,3 +515,34 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* Extra Small Mobile Breakpoint (< 480px) */
+@media (max-width: 480px) {
+    .main-content {
+        padding: 8px;
+    }
+
+    .top-navbar {
+        padding: 6px 10px;
+    }
+
+    .breadcrumb {
+        max-width: 130px;
+        font-size: 12px;
+    }
+
+    .template-modal-content {
+        width: 95%;
+        padding: 15px;
+        max-height: 92vh;
+    }
+
+    .template-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .template-card {
+        padding: 15px 10px;
+    }
+}

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meal Ticketing Statistics & Logs</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+
+  <style>
+    .stats-container {
+      padding: 25px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .stats-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .stats-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #111827;
+      margin: 0;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stat-val {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+      margin-top: 6px;
+    }
+
+    .stat-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    /* Tabs Styling */
+    .tab-nav {
+      display: flex;
+      gap: 10px;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #0284c7;
+    }
+
+    .tab-btn.active {
+      color: #0284c7;
+      border-bottom-color: #0284c7;
+    }
+
+    .tab-panel {
+      display: none;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      background: #f8fafc;
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      border-bottom: 2px solid #e2e8f0;
+      text-align: left;
+    }
+
+    .data-table td {
+      padding: 14px;
+      font-size: 0.88rem;
+      color: #1e293b;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .data-table tr:hover {
+      background: #f8fafc;
+    }
+  </style>
+</head>
+
+<body data-active-page="meal_statistics">
+  <div class="dashboard-wrapper">
+    {% include "sidebar.html" %}
+
+    <div class="main-content">
+      {% include "base.html" %}
+
+      <div class="stats-container">
+        <div class="stats-header">
+          <div>
+            <h1 class="stats-title">🍱 Kitchen Meal Statistics & Audit Records</h1>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.88rem;">Comprehensive breakdown of staff meal ticket claims (Daily, Weekly, Monthly).</p>
+          </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+          <div class="stat-card">
+            <div>
+              <span style="font-size: 0.82rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Daily Claims</span>
+              <div class="stat-val" style="color: #0284c7;">{{ today_count }}</div>
+            </div>
+            <div class="stat-icon" style="background: #e0f2fe; color: #0284c7;">
+              <i class="ri-calendar-event-line"></i>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div>
+              <span style="font-size: 0.82rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Weekly Claims</span>
+              <div class="stat-val" style="color: #16a34a;">{{ week_count }}</div>
+            </div>
+            <div class="stat-icon" style="background: #dcfce7; color: #16a34a;">
+              <i class="ri-calendar-todo-line"></i>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div>
+              <span style="font-size: 0.82rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Monthly Claims</span>
+              <div class="stat-val" style="color: #9333ea;">{{ month_count }}</div>
+            </div>
+            <div class="stat-icon" style="background: #f3e8ff; color: #9333ea;">
+              <i class="ri-calendar-2-line"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tab-nav">
+          <button type="button" class="tab-btn active" id="tab-daily" onclick="switchStatsTab('daily')">
+            📅 Daily Log ({{ today_count }})
+          </button>
+          <button type="button" class="tab-btn" id="tab-weekly" onclick="switchStatsTab('weekly')">
+            📆 Weekly Log ({{ week_count }})
+          </button>
+          <button type="button" class="tab-btn" id="tab-monthly" onclick="switchStatsTab('monthly')">
+            🗓️ Monthly Log ({{ month_count }})
+          </button>
+        </div>
+
+        <!-- Tab Panel 1: Daily -->
+        <div class="tab-panel active" id="panel-daily">
+          <div style="background: #f8fafc; padding: 14px 18px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span style="font-weight: 700; font-size: 0.88rem; color: #334155;"><i class="ri-calendar-event-line"></i> Select Date:</span>
+              <input type="date" id="dailyDatePicker" value="{{ filter_date_str }}" class="form-control" style="width: auto; font-size: 0.88rem; padding: 6px 12px;">
+              <button type="button" class="btn btn-sm btn-primary" onclick="applyHistoricalFilter('daily')" style="font-weight: 600;">
+                Filter Date
+              </button>
+              <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetDaily(0)">Today</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetDaily(-1)">Yesterday</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetDaily(-2)">2 Days Ago</button>
+              </div>
+            </div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #0284c7;">
+              Date Filter: <span>{{ filter_date_str }}</span>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0;">Served Staff Log ({{ filter_date_str }})</h3>
+            <input type="text" onkeyup="filterTable('dailyTable', this.value)" placeholder="Search name or service number..." class="form-control" style="width: 300px; font-size: 0.85rem;">
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="data-table" id="dailyTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Staff Name</th>
+                  <th>Service Number</th>
+                  <th>Directorate</th>
+                  <th>Category</th>
+                  <th>Rank</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if today_scans %}
+                  {% for s in today_scans %}
+                  <tr>
+                    <td><strong>{{ s.date_str or s.scanned_at }}</strong></td>
+                    <td style="font-weight: 600;">{{ s.name }}</td>
+                    <td><code style="color: #0284c7;">{{ s.service_number }}</code></td>
+                    <td><span style="text-transform: uppercase;">{{ s.directorate }}</span></td>
+                    <td><span style="text-transform: capitalize;">{{ s.category }}</span></td>
+                    <td>{{ s.rank or 'Staff' }}</td>
+                    <td>
+                      {% if s.is_temp_override %}
+                        <span class="badge bg-warning text-dark">24h Pass Override</span>
+                      {% else %}
+                        <span class="badge bg-success text-white">Regular Ticket</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="7" style="text-align: center; color: #94a3b8; padding: 40px 0;">
+                      No meal claims recorded for {{ filter_date_str }}.
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab Panel 2: Weekly -->
+        <div class="tab-panel" id="panel-weekly">
+          <div style="background: #f8fafc; padding: 14px 18px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span style="font-weight: 700; font-size: 0.88rem; color: #334155;"><i class="ri-calendar-todo-line"></i> Select Week Date:</span>
+              <input type="date" id="weeklyDatePicker" value="{{ filter_week_date_str }}" class="form-control" style="width: auto; font-size: 0.88rem; padding: 6px 12px;">
+              <button type="button" class="btn btn-sm btn-success" onclick="applyHistoricalFilter('weekly')" style="font-weight: 600;">
+                Filter Week
+              </button>
+              <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetWeekly(0)">Current Week</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetWeekly(-7)">Previous Week</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetWeekly(-14)">2 Weeks Ago</button>
+              </div>
+            </div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #16a34a;">
+              <span>{{ filter_week_label }}</span>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0;">Weekly Served Staff Log ({{ filter_week_label }})</h3>
+            <input type="text" onkeyup="filterTable('weeklyTable', this.value)" placeholder="Search name or service number..." class="form-control" style="width: 300px; font-size: 0.85rem;">
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="data-table" id="weeklyTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Staff Name</th>
+                  <th>Service Number</th>
+                  <th>Directorate</th>
+                  <th>Category</th>
+                  <th>Rank</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if week_scans %}
+                  {% for s in week_scans %}
+                  <tr>
+                    <td><strong>{{ s.date_str or s.scanned_at }}</strong></td>
+                    <td style="font-weight: 600;">{{ s.name }}</td>
+                    <td><code style="color: #0284c7;">{{ s.service_number }}</code></td>
+                    <td><span style="text-transform: uppercase;">{{ s.directorate }}</span></td>
+                    <td><span style="text-transform: capitalize;">{{ s.category }}</span></td>
+                    <td>{{ s.rank or 'Staff' }}</td>
+                    <td>
+                      {% if s.is_temp_override %}
+                        <span class="badge bg-warning text-dark">24h Pass Override</span>
+                      {% else %}
+                        <span class="badge bg-success text-white">Regular Ticket</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="7" style="text-align: center; color: #94a3b8; padding: 40px 0;">
+                      No meal claims recorded for selected week.
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab Panel 3: Monthly -->
+        <div class="tab-panel" id="panel-monthly">
+          <div style="background: #f8fafc; padding: 14px 18px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span style="font-weight: 700; font-size: 0.88rem; color: #334155;"><i class="ri-calendar-2-line"></i> Select Month:</span>
+              <input type="month" id="monthlyPicker" value="{{ filter_month_str }}" class="form-control" style="width: auto; font-size: 0.88rem; padding: 6px 12px;">
+              <button type="button" class="btn btn-sm btn-primary" style="background: #9333ea; border: none; font-weight: 600;" onclick="applyHistoricalFilter('monthly')">
+                Filter Month
+              </button>
+              <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetMonthly(0)">Current Month</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetMonthly(-1)">Previous Month</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="quickSetMonthly(-2)">2 Months Ago</button>
+              </div>
+            </div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #9333ea;">
+              <span>{{ filter_month_label }}</span>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0;">Monthly Served Staff Log ({{ filter_month_label }})</h3>
+            <input type="text" onkeyup="filterTable('monthlyTable', this.value)" placeholder="Search name or service number..." class="form-control" style="width: 300px; font-size: 0.85rem;">
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="data-table" id="monthlyTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Staff Name</th>
+                  <th>Service Number</th>
+                  <th>Directorate</th>
+                  <th>Category</th>
+                  <th>Rank</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if month_scans %}
+                  {% for s in month_scans %}
+                  <tr>
+                    <td><strong>{{ s.date_str or s.scanned_at }}</strong></td>
+                    <td style="font-weight: 600;">{{ s.name }}</td>
+                    <td><code style="color: #0284c7;">{{ s.service_number }}</code></td>
+                    <td><span style="text-transform: uppercase;">{{ s.directorate }}</span></td>
+                    <td><span style="text-transform: capitalize;">{{ s.category }}</span></td>
+                    <td>{{ s.rank or 'Staff' }}</td>
+                    <td>
+                      {% if s.is_temp_override %}
+                        <span class="badge bg-warning text-dark">24h Pass Override</span>
+                      {% else %}
+                        <span class="badge bg-success text-white">Regular Ticket</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="7" style="text-align: center; color: #94a3b8; padding: 40px 0;">
+                      No meal claims recorded for {{ filter_month_label }}.
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script>
+    function switchStatsTab(tabKey) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+
+      const targetBtn = document.getElementById(`tab-${tabKey}`);
+      const targetPanel = document.getElementById(`panel-${tabKey}`);
+
+      if (targetBtn) targetBtn.classList.add('active');
+      if (targetPanel) targetPanel.classList.add('active');
+    }
+
+    function filterTable(tableId, query) {
+      const q = (query || "").toLowerCase();
+      const table = document.getElementById(tableId);
+      if (!table) return;
+      const rows = table.querySelectorAll("tbody tr");
+
+      rows.forEach(tr => {
+        const text = tr.innerText.toLowerCase();
+        if (text.includes(q)) {
+          tr.style.display = "";
+        } else {
+          tr.style.display = "none";
+        }
+      });
+    }
+
+    function applyHistoricalFilter(type) {
+      const daily = document.getElementById("dailyDatePicker")?.value || "";
+      const weekly = document.getElementById("weeklyDatePicker")?.value || "";
+      const monthly = document.getElementById("monthlyPicker")?.value || "";
+      
+      let url = `/meal_statistics?date=${encodeURIComponent(daily)}&week_date=${encodeURIComponent(weekly)}&month=${encodeURIComponent(monthly)}&active_tab=${type}`;
+      window.location.href = url;
+    }
+
+    function quickSetDaily(daysOffset) {
+      const d = new Date();
+      d.setDate(d.getDate() + daysOffset);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      document.getElementById("dailyDatePicker").value = `${yyyy}-${mm}-${dd}`;
+      applyHistoricalFilter('daily');
+    }
+
+    function quickSetWeekly(daysOffset) {
+      const d = new Date();
+      d.setDate(d.getDate() + daysOffset);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      document.getElementById("weeklyDatePicker").value = `${yyyy}-${mm}-${dd}`;
+      applyHistoricalFilter('weekly');
+    }
+
+    function quickSetMonthly(monthsOffset) {
+      const d = new Date();
+      d.setMonth(d.getMonth() + monthsOffset);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      document.getElementById("monthlyPicker").value = `${yyyy}-${mm}`;
+      applyHistoricalFilter('monthly');
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const params = new URLSearchParams(window.location.search);
+      const activeTab = params.get('active_tab');
+      if (activeTab && ['daily', 'weekly', 'monthly'].includes(activeTab)) {
+        switchStatsTab(activeTab);
+      }
+    });
+  </script>
+</body>
+
+</html>

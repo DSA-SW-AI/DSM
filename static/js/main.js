@@ -91,3 +91,137 @@ if (avatarTarget && nameString && nameString !== "NEW USER" && nameString !== "O
         avatarTarget.textContent = initials;
     }
 }
+
+/**
+ * Utility function to download a QR Code as a PNG image file
+ * Handles <canvas>, <img>, or <svg> elements inside containerId
+ */
+function downloadQrCode(containerId, filename) {
+  try {
+    const container = document.getElementById(containerId);
+    if (!container) {
+      alert("QR code element not found.");
+      return;
+    }
+
+    const fn = filename || "qrcode.png";
+
+    // 1. Try finding <canvas> tag inside container
+    const canvasElem = container.querySelector('canvas');
+    if (canvasElem) {
+      try {
+        const dataUrl = canvasElem.toDataURL('image/png');
+        if (dataUrl && dataUrl.length > 100) {
+          triggerDownload(dataUrl, fn);
+          return;
+        }
+      } catch (e) {
+        console.warn("Canvas toDataURL error:", e);
+      }
+    }
+
+    // 2. Try finding <img> tag inside container
+    const imgElem = container.querySelector('img');
+    if (imgElem && imgElem.src && imgElem.src.length > 50) {
+      if (imgElem.src.startsWith('data:image')) {
+        triggerDownload(imgElem.src, fn);
+        return;
+      } else {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = imgElem.naturalWidth || imgElem.width || 200;
+        tempCanvas.height = imgElem.naturalHeight || imgElem.height || 200;
+        const ctx = tempCanvas.getContext('2d');
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        ctx.drawImage(imgElem, 0, 0);
+        triggerDownload(tempCanvas.toDataURL('image/png'), fn);
+        return;
+      }
+    }
+
+    // 3. Try finding <svg> tag inside container
+    const svgElem = container.querySelector('svg');
+    if (svgElem) {
+      const svgData = new XMLSerializer().serializeToString(svgElem);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      img.onload = function() {
+        canvas.width = img.width || 300;
+        canvas.height = img.height || 300;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        triggerDownload(canvas.toDataURL('image/png'), fn);
+      };
+      img.src = url;
+      return;
+    }
+
+    alert("Could not extract QR code image for download.");
+  } catch (err) {
+    console.error("downloadQrCode error:", err);
+    alert("Download failed: " + err.message);
+  }
+}
+
+function triggerDownload(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    if (a.parentNode) {
+      a.parentNode.removeChild(a);
+    }
+  }, 200);
+}
+
+/**
+ * Renders and downloads a full HTML card container (including images, SVG barcodes, QR codes, and text)
+ * as a high-definition PNG image file.
+ */
+async function downloadFullCardAsImage(targetSelector, filename) {
+  try {
+    let cardElem = null;
+    if (typeof targetSelector === 'string') {
+      if (targetSelector.startsWith('.') || targetSelector.startsWith('#')) {
+        cardElem = document.querySelector(targetSelector);
+      } else {
+        cardElem = document.getElementById(targetSelector) || document.querySelector(targetSelector);
+      }
+    } else {
+      cardElem = targetSelector;
+    }
+
+    if (!cardElem) {
+      alert("Card element not found for download.");
+      return;
+    }
+
+    const fn = filename || "digital_pass_card.png";
+
+    if (typeof html2canvas !== 'undefined') {
+      const canvas = await html2canvas(cardElem, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      triggerDownload(dataUrl, fn);
+    } else {
+      alert("Image rendering library is loading. Please try clicking again in a moment.");
+    }
+  } catch (err) {
+    console.error("downloadFullCardAsImage error:", err);
+    alert("Could not generate card image download: " + err.message);
+  }
+}
+

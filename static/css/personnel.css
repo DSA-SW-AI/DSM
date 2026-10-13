@@ -325,3 +325,44 @@
     border: 1px solid #CBD5E1;
 }
 .download-chip-link:hover { background-color: #E2E8F0; }
+
+@media (max-width: 768px) {
+    .table-controls-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .category-tabs {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .tab-btn {
+        padding: 6px 12px;
+        font-size: 13px;
+        flex: 1 1 auto;
+        text-align: center;
+    }
+
+    .add-staff-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .table-container {
+        padding: 10px;
+    }
+
+    .modal-container {
+        padding: 20px 15px;
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .table-pagination-footer {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+}

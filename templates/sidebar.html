@@ -80,7 +80,8 @@
 
 
 <!-- ================= SIDEBAR COMPONENT ================= -->
-<aside class="sidebar">
+<aside class="sidebar" id="appSidebar">
+  <button type="button" class="sidebar-close-btn" id="sidebarCloseBtn" onclick="closeMobileSidebar()" aria-label="Close navigation">&times;</button>
   <div class="sidebar-brand">
     <img src="{{ url_for('static', filename='images/dsa2.png') }}" class="sidebar-logo" />
     <div>
@@ -207,6 +208,19 @@
     </a>
     {% endif %}
 
+    {% if permissions and "meal_statistics" in permissions.sidebar %}
+    <div class="menu-section-label">CATERING & MEALS</div>
+    <a href="/meal_statistics" class="menu-item {% if active_page == 'meal_statistics' %}active{% endif %}">
+      🍱 Meal Statistics
+    </a>
+    {% endif %}
+
+    {% if permissions and "meal_qr_generator" in permissions.sidebar %}
+    <a href="/generate_24h_qr" class="menu-item {% if active_page == 'meal_qr_generator' %}active{% endif %}">
+      🎫 24h Pass Generator
+    </a>
+    {% endif %}
+
     <!-- Permanently Locked Footer Segment -->
     <div class="sidebar-footer">
       <div class="menu-section-label">GENERAL</div>
@@ -258,6 +272,7 @@
     {% endif %}
   </nav>
 </aside>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
 
 
 {% if is_user_onboarded %}
@@ -381,8 +396,44 @@
     }
   }
 
+  function toggleMobileSidebar() {
+    var sidebar = document.getElementById("appSidebar") || document.querySelector(".sidebar");
+    var overlay = document.getElementById("sidebarOverlay");
+    if (sidebar) {
+      sidebar.classList.toggle("active");
+    }
+    if (overlay) {
+      overlay.classList.toggle("active");
+    }
+  }
+
+  function closeMobileSidebar() {
+    var sidebar = document.getElementById("appSidebar") || document.querySelector(".sidebar");
+    var overlay = document.getElementById("sidebarOverlay");
+    if (sidebar) {
+      sidebar.classList.remove("active");
+    }
+    if (overlay) {
+      overlay.classList.remove("active");
+    }
+  }
+
   // Ensure documents and onboarding submenu expansion states are maintained based on server-side or localStorage flags
   document.addEventListener("DOMContentLoaded", function () {
+    // Auto-inject hamburger menu button into top-navbar if missing
+    var navbars = document.querySelectorAll(".top-navbar");
+    navbars.forEach(function (nav) {
+      if (!nav.querySelector(".hamburger-btn")) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "hamburger-btn";
+        btn.setAttribute("aria-label", "Toggle navigation");
+        btn.onclick = toggleMobileSidebar;
+        btn.innerHTML = "<span>☰</span>";
+        nav.insertBefore(btn, nav.firstChild);
+      }
+    });
+
     // Initialize Lucide icons for the modal
     if (typeof lucide !== 'undefined') {
       lucide.createIcons();
