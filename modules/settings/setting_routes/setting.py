@@ -4,6 +4,7 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from permissions import ROLE_PERMISSIONS 
+from utils.barcode_helper import ensure_user_secure_code
 
 setting_routes = Blueprint('setting_routes', __name__)
 
@@ -30,6 +31,8 @@ def get_settings():
         if not user:
             flash("User not found.")
             return redirect(url_for('index'))
+
+    user = ensure_user_secure_code(user, users_coll)
             
     has_signing_password = bool(user.get('signing_password_hash'))
     has_signature = bool(user.get('signature_image'))

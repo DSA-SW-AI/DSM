@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from gridfs import GridFS
 from utils.email_helper import send_credentials_email
+from utils.barcode_helper import generate_secure_code
 import datetime
 
 
@@ -138,6 +139,7 @@ def add_staff():
     else:
         user_role = "personnel"
 
+    sec_code = generate_secure_code()
     new_user_document = {
         "email": official_login_email,
         "alternate_email": alt_email,
@@ -150,6 +152,8 @@ def add_staff():
         "directorate": directorate.upper(),
         "category": category_lower,
         "password_hash": secure_flask_hash,
+        "secure_code": sec_code,
+        "secureCode": sec_code,
         "is_active": True,
         "is_onboarded": False,
         "is_approval_role": False,

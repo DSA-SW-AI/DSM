@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>24-Hour Temporary Meal QR Code Pass Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+
+  <style>
+    .gen-container {
+      padding: 25px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .gen-header {
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .gen-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      margin-bottom: 25px;
+    }
+
+    /* Pass Ticket Preview Card */
+    .pass-ticket-card {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+      color: white;
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
+      position: relative;
+      overflow: hidden;
+      display: none;
+    }
+
+    /* Warning Modal */
+    .warning-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      z-index: 99999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .warning-modal-card {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      width: 500px;
+      max-width: 95vw;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    }
+  </style>
+</head>
+
+<body data-active-page="meal_qr_generator">
+  <div class="dashboard-wrapper">
+    {% include "sidebar.html" %}
+
+    <div class="main-content">
+      {% include "base.html" %}
+
+      <div class="gen-container">
+        <div class="gen-header">
+          <h1 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;">🎫 24-Hour Temporary Meal Pass Generator</h1>
+          <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.88rem;">Issue a single-use 24-hour emergency meal ticket QR code / barcode override for staff.</p>
+        </div>
+
+        <div class="gen-card">
+          <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 16px;">Select Target Staff Member</h3>
+
+          <form id="passGenForm" onsubmit="handleGeneratePass(event)">
+            <div class="form-group mb-3" style="position: relative;">
+              <label style="font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">🔍 Live Search Database by Staff Name, Service No. or Directorate</label>
+              <input type="text" id="liveSearchInput" class="form-control" placeholder="Start typing staff name (e.g. Ibrahim, Paul), Service No (e.g. KTN/001), or Email..." style="padding: 12px; font-size: 0.95rem;" oninput="onLiveSearchInput(this.value)" autocomplete="off">
+              <div id="liveSearchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 10px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.15); margin-top: 4px;"></div>
+            </div>
+
+            <div class="form-group mb-3">
+              <label style="font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Selected Staff Service Number / Identifier</label>
+              <input type="text" id="directTargetInput" class="form-control" placeholder="Service Number or Email will auto-fill here..." style="padding: 12px; font-size: 0.92rem; font-family: monospace; font-weight: 700; color: #0284c7;">
+            </div>
+
+            <div class="form-group mb-3">
+              <label style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 6px; display: block;">Or Choose from Registry List</label>
+              <select id="userSelect" class="form-control" style="padding: 10px; font-size: 0.88rem;" onchange="if(this.value) { document.getElementById('directTargetInput').value = this.value; }">
+                <option value="">-- Choose Staff from Full List --</option>
+                {% for u in system_users %}
+                <option value="{{ u.service_number or u.email }}">
+                  {{ u.name }} ({{ u.service_number or u.email }}) - {{ u.directorate }} [{{ (u.category or u.role) | title }}]
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="background: #2563eb; padding: 12px 24px; font-weight: 700; border-radius: 8px; border: none; width: 100%;">
+              <i class="ri-qr-code-line"></i> Verify Meal Limits & Generate 24h Pass Code
+            </button>
+          </form>
+        </div>
+
+        <!-- Pass Ticket Result Display Card -->
+        <div id="passResultCard" class="pass-ticket-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 14px; margin-bottom: 18px;">
+            <div>
+              <h4 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #fbbf24; letter-spacing: 0.5px;">24-HOUR EMERGENCY MEAL PASS</h4>
+              <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: #cbd5e1;">DEFENCE SPACE ADMINISTRATION CATERING SERVICE</p>
+            </div>
+            <span style="background: rgba(251, 191, 36, 0.2); border: 1px solid #fbbf24; color: #fef08a; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: 99px;">
+              VALID FOR 24 HOURS
+            </span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center;">
+            <div>
+              <div style="margin-bottom: 14px;">
+                <span style="font-size: 0.72rem; color: #cbd5e1; text-transform: uppercase; display: block;">Issued To</span>
+                <strong id="passUserName" style="font-size: 1.2rem; color: white;">-</strong>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                <div>
+                  <span style="font-size: 0.72rem; color: #cbd5e1; text-transform: uppercase; display: block;">Service Number</span>
+                  <span id="passServiceNo" style="font-size: 0.95rem; font-weight: 700; color: #93c5fd; font-family: monospace;">-</span>
+                </div>
+                <div>
+                  <span style="font-size: 0.72rem; color: #cbd5e1; text-transform: uppercase; display: block;">Directorate</span>
+                  <span id="passDirectorate" style="font-size: 0.95rem; font-weight: 700; color: #93c5fd; text-transform: uppercase;">-</span>
+                </div>
+              </div>
+              <div>
+                <span style="font-size: 0.72rem; color: #cbd5e1; text-transform: uppercase; display: block;">Expiration Time</span>
+                <strong id="passExpiryTime" style="font-size: 0.95rem; color: #f43f5e;">-</strong>
+              </div>
+            </div>
+
+            <!-- QR Code Render Container -->
+            <div style="background: white; padding: 10px; border-radius: 12px; text-align: center;">
+              <div id="passQrCode" style="width: 130px; height: 130px; display: flex; align-items: center; justify-content: center;"></div>
+              <span style="font-size: 0.65rem; color: #334155; font-weight: 700; display: block; margin-top: 4px;">KITCHEN SCAN PASS</span>
+            </div>
+          </div>
+
+          <!-- 1D Barcode Render Container -->
+          <div style="margin-top: 22px; background: white; padding: 14px; border-radius: 12px; text-align: center; color: #0f172a;">
+            <svg id="passBarcode" style="max-width: 100%; height: 60px;"></svg>
+            <div id="passCodeDisplay" style="font-family: monospace; font-size: 1rem; font-weight: 800; color: #0f172a; margin-top: 4px; letter-spacing: 2px;">
+              -
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-success" onclick="downloadPassQrCode()" style="font-weight: 700; font-size: 0.9rem; flex: 1; background: #059669; border: none;">
+              <i class="ri-download-2-line"></i> Download Full Pass Ticket Image (PNG)
+            </button>
+            <button type="button" class="btn btn-warning" onclick="printPassTicket()" style="font-weight: 700; font-size: 0.9rem; flex: 1;">
+              <i class="ri-printer-line"></i> Print 24h Pass Ticket
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WARNING EXHAUSTED LIMIT CONFIRMATION MODAL -->
+  <div id="warningModal" class="warning-modal">
+    <div class="warning-modal-card">
+      <div style="width: 70px; height: 70px; background: #fef3c7; color: #d97706; border-radius: 50%; border: 4px solid #fde68a; display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 16px auto;">
+        ⚠️
+      </div>
+      <h3 style="font-size: 1.25rem; font-weight: 800; color: #92400e; margin-bottom: 10px;">User Has Exhausted Meal Limits!</h3>
+      <p id="warningModalMsg" style="font-size: 0.92rem; color: #451a03; line-height: 1.5; margin-bottom: 20px;">
+        Notice: User has already exhausted their meal ticket limit for today or this week. Do you still want to generate a 24-hour override barcode for this user?
+      </p>
+
+      <div style="display: flex; gap: 12px;">
+        <button type="button" class="btn btn-secondary" onclick="closeWarningModal()" style="flex: 1; font-weight: 600;">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-danger" onclick="confirmForceGeneratePass()" style="flex: 1; font-weight: 700; background: #dc2626; border: none;">
+          Yes, Generate 24h Pass
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <!-- External Libraries for QR Code & Barcode rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+  <script>
+    let pendingTargetUser = null;
+    let liveSearchTimer = null;
+
+    function onLiveSearchInput(query) {
+      clearTimeout(liveSearchTimer);
+      const container = document.getElementById("liveSearchResults");
+      const q = (query || "").trim();
+
+      if (!q) {
+        container.style.display = "none";
+        container.innerHTML = "";
+        return;
+      }
+
+      liveSearchTimer = setTimeout(async () => {
+        try {
+          const resp = await fetch(`/api/meal/search_users?q=${encodeURIComponent(q)}`);
+          const data = await resp.json();
+
+          if (data.status === "success" && data.users && data.users.length > 0) {
+            let html = '';
+            data.users.forEach(u => {
+              const identifier = u.service_number || u.email || '';
+              const displayName = u.name || `${u.firstname || ''} ${u.surname || ''}`.trim() || 'Staff';
+              const dir = u.directorate ? u.directorate.toUpperCase() : 'DOA';
+              const cat = u.category || u.role || 'Staff';
+
+              const safeId = identifier.replace(/'/g, "\\'");
+              const safeName = displayName.replace(/'/g, "\\'");
+
+              html += `
+                <div class="search-result-item" onclick="selectSearchUser('${safeId}', '${safeName}')" style="padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='white'">
+                  <div style="font-weight: 600; font-size: 0.9rem; color: #0f172a;">${displayName}</div>
+                  <div style="font-size: 0.78rem; color: #64748b;">
+                    <code style="color: #0284c7; font-weight: 700;">${identifier}</code> &bull; <span style="text-transform: uppercase;">${dir}</span> &bull; <span style="text-transform: capitalize;">${cat}</span>
+                  </div>
+                </div>
+              `;
+            });
+            container.innerHTML = html;
+            container.style.display = "block";
+          } else {
+            container.innerHTML = `<div style="padding: 12px; font-size: 0.85rem; color: #94a3b8; text-align: center;">No matching staff found for "${q}"</div>`;
+            container.style.display = "block";
+          }
+        } catch (err) {
+          console.error("Live search fetch error:", err);
+        }
+      }, 200);
+    }
+
+    function selectSearchUser(identifier, name) {
+      document.getElementById("directTargetInput").value = identifier;
+      document.getElementById("liveSearchInput").value = `${name} (${identifier})`;
+      document.getElementById("liveSearchResults").style.display = "none";
+      
+      const selectElem = document.getElementById("userSelect");
+      if (selectElem) {
+        selectElem.value = identifier;
+      }
+    }
+
+    document.addEventListener("click", function(e) {
+      const container = document.getElementById("liveSearchResults");
+      const input = document.getElementById("liveSearchInput");
+      if (container && !container.contains(e.target) && e.target !== input) {
+        container.style.display = "none";
+      }
+    });
+
+    async function handleGeneratePass(e) {
+      if (e) e.preventDefault();
+
+      const userSelect = document.getElementById("userSelect").value.trim();
+      const directInput = document.getElementById("directTargetInput").value.trim();
+      const target = directInput || userSelect;
+
+      if (!target) {
+        alert("Please select a staff member or enter a Service Number.");
+        return;
+      }
+
+      pendingTargetUser = target;
+      const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+
+      // 1. Pre-check meal limit status
+      try {
+        const resp = await fetch(`/api/meal/check_user_limits/${encodeURIComponent(target)}`);
+        const data = await resp.json();
+
+        if (data.status === "success" && data.is_exhausted) {
+          // User has exhausted their meal limit for the day or week! Show Warning Modal to confirm
+          const msg = `Notice: User ${data.user.name} (SN: ${data.user.service_number}) has ALREADY EXHAUSTED their meal ticket limit (Scans Today: ${data.scans_today}/1, Scans This Week: ${data.scans_this_week}/2).\n\nDo you still want to generate a 24-hour override barcode for this user?`;
+          document.getElementById("warningModalMsg").textContent = msg;
+          document.getElementById("warningModal").style.display = "flex";
+        } else {
+          // Limits not exhausted or force generate
+          executeCreatePass(target, false);
+        }
+      } catch (err) {
+        console.error("Check limit error:", err);
+        // Fallback to direct creation
+        executeCreatePass(target, true);
+      }
+    }
+
+    function confirmForceGeneratePass() {
+      closeWarningModal();
+      if (pendingTargetUser) {
+        executeCreatePass(pendingTargetUser, true);
+      }
+    }
+
+    function closeWarningModal() {
+      document.getElementById("warningModal").style.display = "none";
+    }
+
+    async function executeCreatePass(target, forceOverride) {
+      const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+      try {
+        const resp = await fetch("/api/meal/create_24h_pass", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken
+          },
+          body: JSON.stringify({
+            target_user: target,
+            force_override: forceOverride
+          })
+        });
+
+        const res = await resp.json();
+
+        if (res.status === "success") {
+          displayPassTicket(res);
+        } else if (res.status === "warning_required") {
+          document.getElementById("warningModalMsg").textContent = res.message + " Do you still want to generate a 24-hour override barcode for this user?";
+          document.getElementById("warningModal").style.display = "flex";
+        } else {
+          alert("Error: " + (res.message || "Failed to generate 24-hour pass."));
+        }
+      } catch (err) {
+        console.error("Pass generation error:", err);
+        alert("A network error occurred while generating the 24-hour pass.");
+      }
+    }
+
+    function displayPassTicket(data) {
+      const passCode = data.pass_code;
+      const user = data.user;
+
+      document.getElementById("passUserName").textContent = user.name || "Staff Member";
+      document.getElementById("passServiceNo").textContent = user.service_number || "-";
+      document.getElementById("passDirectorate").textContent = user.directorate || "DOA";
+      document.getElementById("passExpiryTime").textContent = data.expires_at_str || "24 Hours from now";
+      document.getElementById("passCodeDisplay").textContent = passCode;
+
+      // 1. Render QR Code
+      const qrElem = document.getElementById("passQrCode");
+      qrElem.innerHTML = "";
+      if (typeof QRCode !== 'undefined') {
+        new QRCode(qrElem, {
+          text: passCode,
+          width: 125,
+          height: 125,
+          colorDark: "#1e1b4b",
+          colorLight: "#ffffff"
+        });
+      } else {
+        qrElem.innerHTML = `<svg width="120" height="120" viewBox="0 0 100 100"><rect width="100" height="100" fill="white"/><text x="10" y="50" font-size="10" fill="black">${passCode}</text></svg>`;
+      }
+
+      // 2. Render 1D Barcode
+      const barcodeElem = document.getElementById("passBarcode");
+      if (typeof JsBarcode !== 'undefined') {
+        JsBarcode("#passBarcode", passCode, {
+          format: "CODE128",
+          lineColor: "#0f172a",
+          width: 2,
+          height: 50,
+          displayValue: false
+        });
+      }
+
+      const card = document.getElementById("passResultCard");
+      card.style.display = "block";
+      card.scrollIntoView({ behavior: "smooth" });
+    }
+
+    function printPassTicket() {
+      const cardHtml = document.getElementById("passResultCard")?.outerHTML || '';
+      const printWin = window.open('', '_blank', 'width=800,height=600');
+      if (!printWin) return;
+      printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print 24h Meal Pass</title>
+            <style>
+              body { font-family: 'Poppins', sans-serif; padding: 40px; background: white; }
+              .pass-ticket-card { max-width: 650px; margin: 0 auto; display: block !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            </style>
+          </head>
+          <body>
+            ${cardHtml}
+            <script>
+              window.onload = function() { window.print(); }
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWin.document.close();
+    }
+
+    function downloadPassQrCode() {
+      const passCode = document.getElementById("passCodeDisplay")?.textContent?.trim() || "pass";
+      if (typeof downloadFullCardAsImage === 'function') {
+        downloadFullCardAsImage("passResultCard", `24h_Meal_Pass_Ticket_${passCode}.png`);
+      } else if (typeof downloadQrCode === 'function') {
+        downloadQrCode("passQrCode", `24h_Meal_Pass_QR_${passCode}.png`);
+      } else {
+        fallbackDownloadQr("passQrCode", `24h_Meal_Pass_QR_${passCode}.png`);
+      }
+    }
+
+    function fallbackDownloadQr(containerId, filename) {
+      const container = document.getElementById(containerId);
+      if (!container) return alert("QR element not found.");
+      const canvas = container.querySelector('canvas');
+      const img = container.querySelector('img');
+      let dataUrl = "";
+      if (canvas) dataUrl = canvas.toDataURL('image/png');
+      else if (img && img.src) dataUrl = img.src;
+
+      if (dataUrl) {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 200);
+      } else {
+        alert("QR image data not available for download.");
+      }
+    }
+  </script>
+</body>
+
+</html>
