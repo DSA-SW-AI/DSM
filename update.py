@@ -21,8 +21,8 @@ db = client["DSM"]
 users_collection = db["users"]
 
 result = users_collection.update_many(
-    {"is_final_approver":"false"},
-    {"$set": {"is_final_approver": False}}
+    {"is_approval_role":"true"},
+    {"$set": {"is_approval_role": True}}
 )
 
-print(f"Updated {result.modified_count} documents where 'is_final_approver' was 'false' to False.")
+print(f"Updated {result.modified_count} documents where 'is_approval_role' was 'true' to True.")

@@ -154,7 +154,7 @@
 #     for staff in all_staff:
 
 #         # Double-check: Skip if this is an approval-only account
-#         if staff.get('is_approval_role') == True or staff.get('is_approval_role') == 'true':
+#         if staff.get('is_approval_role') is True:
 #             skipped_approval_accounts += 1
 #             continue
 
@@ -573,7 +573,7 @@ def initialize_all_staff_balances(delete_existing: bool = False, year: int = Non
     
     for staff in all_staff:
         # Double-check: Skip if this is an approval-only account
-        if staff.get('is_approval_role') == True or staff.get('is_approval_role') == 'true':
+        if staff.get('is_approval_role') is True:
             skipped_approval_accounts += 1
             continue
         
@@ -595,10 +595,10 @@ def initialize_all_staff_balances(delete_existing: bool = False, year: int = Non
         # Determine annual entitlement
         if 2 <= grade <= 6:
             annual_entitlement = 21
-        elif 7 <= grade <= 15:
+        elif grade >= 7:
             annual_entitlement = 30
         else:
-            annual_entitlement = 21  # Default
+            annual_entitlement = 30 if str(service_number).startswith(('NA/', 'NN/', 'NAF/')) else 21  # Default
         
         # Check if balance already exists
         existing_balance = db.leave_balances.find_one({

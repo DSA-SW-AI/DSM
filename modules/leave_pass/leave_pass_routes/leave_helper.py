@@ -3,6 +3,9 @@ from flask import current_app
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 import holidays
+from utils.approval import (
+    is_personal_dual_account
+)
 
 
 class StaffObj:
@@ -14,6 +17,120 @@ class StaffObj:
         self.service_number = service_number
         self.full_name = full_name
         self.directorate = directorate
+
+MILITARY_RANK_TO_GRADE = {
+    # Army Ranks
+    "field marshal": 18,
+    "gen": 17, "general": 17,
+    "lt gen": 16, "lieutenant general": 16,
+    "maj gen": 15, "major general": 15,
+    "brig gen": 14, "brigadier general": 14, "brig": 14, "brigadier": 14,
+    "col": 13, "colonel": 13,
+    "lt col": 12, "lieutenant colonel": 12,
+    "maj": 11, "major": 11,
+    "capt": 10, "captain": 10,
+    "lt": 9, "lieutenant": 9, "lieut": 9,
+    "2lt": 8, "2nd lt": 8, "second lieutenant": 8,
+    
+    # Navy Ranks
+    "adm of the fleet": 18,
+    "adm": 17, "admiral": 17,
+    "v adm": 16, "vice admiral": 16,
+    "r adm": 15, "rear admiral": 15,
+    "cdre": 14, "commodore": 14,
+    "nn capt": 13, "navy captain": 13, "capt (nn)": 13,
+    "cdr": 12, "commander": 12,
+    "lt cdr": 11, "lt commander": 11, "lieutenant commander": 11,
+    "sub lt": 9, "sub lieutenant": 9,
+    "midshipman": 8,
+    
+    # Air Force Ranks
+    "marshal of the naf": 18,
+    "air chf mshl": 17, "air chief marshal": 17,
+    "air mshl": 16, "air marshal": 16,
+    "avm": 15, "air vice marshal": 15,
+    "air cdre": 14, "air commodore": 14,
+    "gp capt": 13, "group captain": 13,
+    "wg cdr": 12, "wing commander": 12,
+    "sqn ldr": 11, "squadron leader": 11,
+    "flt lt": 10, "flight lieutenant": 10,
+    "fg off": 9, "flying officer": 9,
+    "plt off": 8, "pilot officer": 8,
+    
+    # Warrant Officers / Senior NCOs (Grade >= 7 -> 30 days)
+    "mwo": 7, "master warrant officer": 7,
+    "awo": 7, "air warrant officer": 7,
+    "navy mwo": 7,
+    "wo1": 7, "warrant officer 1": 7, "woi": 7, "warrant officer i": 7,
+    
+    # Other NCOs / Junior Ranks (Grade 2-6 -> 21 days)
+    "wo": 6, "warrant officer": 6, "wo2": 6, "warrant officer 2": 6, "woii": 6, "warrant officer ii": 6, "cpo": 6, "chief petty officer": 6,
+    "ssgt": 5, "staff sergeant": 5, "fsgt": 5, "flight sergeant": 5, "po": 5, "petty officer": 5,
+    "sgt": 4, "sergeant": 4,
+    "cpl": 3, "corporal": 3, "ls": 3, "leading seaman": 3,
+    "lcpl": 2, "lance corporal": 2, "ab": 2, "able seaman": 2,
+    "pte": 1, "private": 1, "acm": 1, "acw": 1, "acm/acw": 1, "aircraftman": 1, "aircraftwoman": 1, "sn": 1, "seaman": 1,
+    "recruit": 0, "os": 0, "ordinary seaman": 0,
+}
+
+
+def extract_grade(staff_doc) -> int:
+    """
+    Accurately extracts or maps the numerical grade for civilian (GL 02-17)
+    and military ranks (Army, Navy, Air Force) from staff document.
+    """
+    if not staff_doc or not isinstance(staff_doc, dict):
+        return 0
+
+    rank_or_grade = (
+        staff_doc.get('rankOrGrade') or 
+        staff_doc.get('rank') or 
+        staff_doc.get("onboarding_data", {}).get("step_1", {}).get("rankOrGrade") or
+        staff_doc.get("onboarding_data", {}).get("step_1", {}).get("rank") or 
+        ""
+    ).strip()
+
+    # 1. Check for Civilian "Grade Level X" or "Grade X" or "GL X"
+    import re
+    gl_match = re.search(r'(?:Grade\s*Level|Grade|GL)\s*(\d+)', rank_or_grade, re.IGNORECASE)
+    if gl_match:
+        try:
+            return int(gl_match.group(1))
+        except Exception:
+            pass
+
+    # 2. Check for Military Rank matching (sorted by length descending for best token match)
+    clean_rank = rank_or_grade.lower().strip()
+    if clean_rank:
+        # Exact match first
+        if clean_rank in MILITARY_RANK_TO_GRADE:
+            return MILITARY_RANK_TO_GRADE[clean_rank]
+        
+        # Substring/prefix match
+        for m_rank, m_grade in sorted(MILITARY_RANK_TO_GRADE.items(), key=lambda x: len(x[0]), reverse=True):
+            # Check whole word boundary or substring
+            pattern = r'\b' + re.escape(m_rank) + r'\b'
+            if re.search(pattern, clean_rank) or clean_rank.startswith(m_rank):
+                return m_grade
+
+    # 3. Check for standalone digits in rank string if present
+    num_match = re.search(r'\b(\d+)\b', rank_or_grade)
+    if num_match:
+        try:
+            return int(num_match.group(1))
+        except Exception:
+            pass
+
+    # 4. Service Number Prefix Fallback
+    sn = staff_doc.get('serviceNumber') or staff_doc.get('service_number') or ''
+    if isinstance(sn, str):
+        if sn.startswith(('NA/', 'NN/', 'NAF/')):
+            return 10  # Default military officer grade (30 days)
+        elif sn.startswith('DSA/CIV/'):
+            return 8   # Default civilian grade (30 days)
+
+    return 0
+
 
 def get_staff_object(service_number: str) -> StaffObj:
     """Fetch staff details from database (users collection) and extract grade."""
@@ -35,26 +152,7 @@ def get_staff_object(service_number: str) -> StaffObj:
     if not staff:
         raise ValueError(f"Staff not found in users collection: {service_number}")
     
-    # Extract grade from rankOrGrade string
-    grade = 0
-    rank_or_grade = staff.get('rankOrGrade', '')
-    
-    # Try to extract grade from "Grade Level 8"
-    if 'Grade Level' in rank_or_grade:
-        try:
-            grade_str = rank_or_grade.split('Grade Level')[-1].strip()
-            grade = int(grade_str)
-        except:
-            grade = 0
-    else:
-        # Try to extract any number from the rank
-        try:
-            import re
-            numbers = re.findall(r'\d+', rank_or_grade)
-            if numbers:
-                grade = int(numbers[0])
-        except:
-            grade = 0
+    grade = extract_grade(staff)
     
     return StaffObj(
         grade=grade,
@@ -591,23 +689,32 @@ def calculate_user_pending_leave_count(user_data, db):
     user_id_str = str(user_data.get("_id"))
     user_ids = [uid for uid in [user_sn, user_id_str, user_email] if uid]
 
-    is_so_approver = user_data.get("is_so_approver") in (True, "true", "True") or user_role == "so"
-    is_ad_approver = user_data.get("is_ad_approver") in (True, "true", "True") or user_role == "ad"
-    is_dd_approver = user_data.get("is_dd_approver") in (True, "true", "True") or user_role == "dd"
+    is_so_approver = user_data.get("is_so_approver") is True or user_role == "so"
+    is_ad_approver = user_data.get("is_ad_approver") is True or user_role == "ad"
+    is_dd_approver = user_data.get("is_dd_approver") is True or user_role == "dd"
     is_final_approver = (
-        user_data.get("is_final_approver") in (True, "true", "True")
-        or user_data.get("is_final_approval") in (True, "true", "True")
+        user_data.get("is_final_approver") is True
+        or user_data.get("is_final_approval") is True
     )
     is_director_doa = ("director" in user_role) and (is_final_approver or user_dir == "DOA")
-    is_cdsa = ("cdsa" in user_role) or user_data.get("is_cdsa_approver") in (True, "true", "True")
-    is_approval_role = (
-        user_data.get("is_approval_role") in (True, "true", "True")
-        or ("director" in user_role)
-        or is_final_approver
-        or is_cdsa
-        or is_so_approver or is_ad_approver or is_dd_approver
-        or user_role in ("civilian_head_cao", "civilian_head", "deputy_civilian_head_cao", "central_registry", "registry", "cdsa")
-    )
+    is_cdsa = ("cdsa" in user_role) or user_data.get("is_cdsa_approver") is True
+    is_personal_account = is_personal_dual_account(user_data)
+    if is_personal_account:
+        # Personal so/ad/dd/director account: never an approver.
+        is_so_approver = is_ad_approver = is_dd_approver = False
+        is_final_approver = False
+        is_director_doa = False
+        is_cdsa = False
+        is_approval_role = False
+    else:
+        is_approval_role = (
+            user_data.get("is_approval_role") is True
+            or ("director" in user_role)
+            or is_final_approver
+            or is_cdsa
+            or is_so_approver or is_ad_approver or is_dd_approver
+            or user_role in ("civilian_head_cao", "civilian_head", "deputy_civilian_head_cao", "central_registry", "registry", "cdsa")
+        )
 
     total_count = 0
 
@@ -624,7 +731,8 @@ def calculate_user_pending_leave_count(user_data, db):
         total_count += (relievers_cnt + apps_awaiting_reliever)
 
     # If plain civilian staff with no approval role, they cannot approve leaves
-    if user_role == "civilian" and not is_approval_role:
+    # (likewise for the personal account of an so/ad/dd/director).
+    if (user_role == "civilian" and not is_approval_role) or is_personal_account:
         return total_count
 
     # 2. Check candidate active applications
@@ -709,7 +817,7 @@ def calculate_user_pending_leave_count(user_data, db):
             elif is_dd_approver and step_role == "dd" and (app_dir == user_dir or not app_dir):
                 is_users_turn = True
             elif step_role == "director":
-                if first_pending_step.get("is_final_approver") in (True, "true", "True") or first_pending_step.get("registry_type") == "director_doa":
+                if first_pending_step.get("is_final_approver") is True or first_pending_step.get("registry_type") == "director_doa":
                     if is_final_approver or (user_role == "director" and user_dir == "DOA"):
                         is_users_turn = True
                 elif (user_role == "director" or "director" in user_role) and app_dir == user_dir:
@@ -728,7 +836,7 @@ def calculate_user_pending_leave_count(user_data, db):
         if app_status in ("approved",):
             # Final approver receipt issuance (Director DOA)
             if is_director_doa and not app.get("receiptNumber"):
-                final_step = next((s for s in chain if s.get("is_final_approver") in (True, "true", "True") or s.get("registry_type") == "director_doa"), None)
+                final_step = next((s for s in chain if s.get("is_final_approver") is True or s.get("registry_type") == "director_doa"), None)
                 if final_step and not final_step.get("receipt"):
                     total_count += 1
                     continue
@@ -755,4 +863,4 @@ def calculate_user_pending_leave_count(user_data, db):
                     total_count += 1
                     continue
 
-    return total_count
+    return total_count

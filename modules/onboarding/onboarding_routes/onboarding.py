@@ -156,7 +156,7 @@ def add_staff():
         "secureCode": sec_code,
         "is_active": True,
         "is_onboarded": False,
-        "is_approval_role": "false",
+        "is_approval_role": False,
         "created_at": datetime.datetime.now()
     }
     

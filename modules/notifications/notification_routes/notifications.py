@@ -64,7 +64,8 @@ def get_notifications():
     }
 
     # For civilian staff without approver privileges, exclude notifications intended for approver roles
-    if user_role == 'civilian' and not user.get('is_approval_role'):
+    from utils.approval import resolve_is_approval_role, is_personal_dual_account
+    if (user_role == 'civilian' and not resolve_is_approval_role(user)) or is_personal_dual_account(user):
         query["$and"].append({
             "$nor": [
                 {"target.role": {"$in": ["civilian_head_cao", "civilian_head", "so", "ad", "dd", "director"]}},

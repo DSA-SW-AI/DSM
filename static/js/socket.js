@@ -109,6 +109,10 @@ socket.on("connect", () => {
         }
     });
 
+    // Refresh sidebar badge counts on socket connect/reconnect
+    if (typeof window.updateSidebarCounts === "function") {
+        window.updateSidebarCounts();
+    }
 });
 
 socket.on("room_joined", (data) => console.log("📌 Joined room:", data.room));
@@ -120,6 +124,11 @@ socket.on("new_notification", (data) => {
     if (isDuplicate(data)) {
         console.log("[socket.js] Duplicate — skipping:", data.type);
         return;
+    }
+
+    // Refresh sidebar counts immediately upon receiving any new notification
+    if (typeof window.updateSidebarCounts === "function") {
+        setTimeout(window.updateSidebarCounts, 300);
     }
 
     // Play notification beep sound
@@ -618,24 +627,113 @@ function showDocumentNotificationModal(data) {
     });
 }
 
-// ── Live Real-time Sidebar Badges Listener ────────────────────────────────
-socket.on("update_sidebar_badges", (counts) => {
-    console.log("📊 [socket.js] Received update_sidebar_badges:", counts);
+// ── Live Real-time Sidebar Badges Handler ──────────────────────────────────
+function updateBadgeElement(elOrSelector, count) {
+    const el = typeof elOrSelector === "string" ? document.querySelector(elOrSelector) : elOrSelector;
+    if (!el) return;
+    const num = parseInt(count, 10);
+    if (!isNaN(num) && num > 0) {
+        el.textContent = num;
+        el.style.display = "inline-block";
+    } else {
+        el.textContent = "";
+        el.style.display = "none";
+    }
+}
+
+function applySidebarCounts(counts) {
     if (!counts) return;
 
-    // Update unread documents badge
-    const unreadBadge = document.getElementById("sidebar-unread-docs-badge");
-    if (unreadBadge) {
-        const cnt = counts.unread_docs_count || 0;
-        unreadBadge.textContent = cnt > 0 ? cnt : "";
-        unreadBadge.style.display = cnt > 0 ? "inline-block" : "none";
+    // 1. Unread documents badge
+    if (counts.unread_docs_count !== undefined) {
+        updateBadgeElement("#sidebar-unread-docs-badge", counts.unread_docs_count);
     }
 
-    // Update assigned documents badge
-    const assignedBadge = document.getElementById("sidebar-assigned-docs-badge");
-    if (assignedBadge) {
-        const cnt = counts.assigned_docs_count || 0;
-        assignedBadge.textContent = cnt > 0 ? cnt : "";
-        assignedBadge.style.display = cnt > 0 ? "inline-block" : "none";
+    // 2. Assigned documents badge
+    if (counts.assigned_docs_count !== undefined) {
+        updateBadgeElement("#sidebar-assigned-docs-badge", counts.assigned_docs_count);
+    }
+
+    // 3. Pending onboarding staff badge
+    if (counts.pending_onboarding_count !== undefined) {
+        updateBadgeElement("#sidebar-pending-onboarding-badge", counts.pending_onboarding_count);
+    }
+
+    // 4. Pending leave and pass actions badge
+    if (counts.pending_leave_pass_count !== undefined) {
+        updateBadgeElement("#sidebar-leave-pass-badge", counts.pending_leave_pass_count);
+    }
+
+    // 5. Supports badge
+    if (counts.unread_support_count !== undefined) {
+        updateBadgeElement("#sidebar-support-badge", counts.unread_support_count);
+        updateBadgeElement("#sidebar-support-badge-non-onboarded", counts.unread_support_count);
+        document.querySelectorAll(".sidebar-support-badge").forEach(el => updateBadgeElement(el, counts.unread_support_count));
+    }
+
+    // 6. Notifications badge
+    if (counts.unread_notifications_count !== undefined) {
+        updateBadgeElement("#sidebar-notifications-badge", counts.unread_notifications_count);
+        document.querySelectorAll("#notificationBadge, .notification-badge, #unreadNotificationBadge").forEach(el => updateBadgeElement(el, counts.unread_notifications_count));
+    }
+}
+
+window.applySidebarCounts = applySidebarCounts;
+
+window.updateSidebarCounts = function () {
+    fetch("/api/sidebar-counts", {
+        method: "GET",
+        headers: {
+            "Accept": "application/json"
+        },
+        credentials: "same-origin"
+    })
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            if (data && data.status === "success" && data.counts) {
+                applySidebarCounts(data.counts);
+            }
+        })
+        .catch(err => {
+            // Silently suppress polling network errors
+        });
+};
+
+// Listen for direct socket broadcast events for real-time sidebar count updates
+socket.on("update_sidebar_badges", (counts) => {
+    if (counts) {
+        applySidebarCounts(counts);
     }
 });
+
+// Periodic background heartbeat polling every 20 seconds
+if (!window._sidebarCountInterval) {
+    window._sidebarCountInterval = setInterval(window.updateSidebarCounts, 20000);
+}
+
+// Immediate refresh on tab focus / visibility change
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && typeof window.updateSidebarCounts === "function") {
+        window.updateSidebarCounts();
+    }
+});
+
+window.addEventListener("focus", () => {
+    if (typeof window.updateSidebarCounts === "function") {
+        window.updateSidebarCounts();
+    }
+});
+
+// Trigger initial refresh
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+        if (typeof window.updateSidebarCounts === "function") {
+            window.updateSidebarCounts();
+        }
+    });
+} else {
+    window.updateSidebarCounts();
+}

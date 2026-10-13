@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 .env
+debug_query.log
+scratch_avatars.txt
+seed.py

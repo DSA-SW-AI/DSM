@@ -14,6 +14,12 @@ from flask_socketio import emit, join_room
 from utils.sockets import handle_connect, handle_join_rooms, handle_join
 
 from permissions import ROLE_PERMISSIONS 
+from utils.approval import is_personal_dual_account
+from utils.email_helper import (
+    send_approval_action_email,
+    send_leave_final_approval_email,
+    send_leave_rejection_email,
+)
 
 
 approver_dashboard = Blueprint('approver_dashboard', __name__)
@@ -22,9 +28,9 @@ approver_dashboard = Blueprint('approver_dashboard', __name__)
 # Functions to create notifications and emit sockets for leave application approvals
 # ─────────────────────────────────────────────────────────────
 
-def notify_pending_approval(app, next_step, current_user):
+def notify_pending_approval(app, next_step, current_user, prev_comments=None):
     """
-    Emits Socket.IO notification to next approver(s) for Leave/Pass applications.
+    Emits Socket.IO notification and sends action-required email to next approver(s) for Leave/Pass applications.
     Ensures notifications strictly target the approver's private email room and role room,
     never leaking to other users via shared/duplicate service numbers.
     """
@@ -37,8 +43,8 @@ def notify_pending_approval(app, next_step, current_user):
     approver_email = (next_step.get("approverEmail") or "").strip().lower()
 
     # If approverEmail is missing from step, resolve it from users_coll accurately
-    if not approver_email and users_coll is not None:
-        target_user = None
+    target_user = None
+    if users_coll is not None:
         if role in ("civilian_head_cao", "civilian_head"):
             target_user = users_coll.find_one({
                 "role": {"$in": ["civilian_head_cao", "civilian_head"]},
@@ -56,14 +62,14 @@ def notify_pending_approval(app, next_step, current_user):
         elif role == "dd":
             target_user = users_coll.find_one({"directorate": directorate, "is_dd_approver": True, "is_active": True})
         elif role == "director":
-            if next_step.get("is_final_approver") in (True, "true", "True"):
-                target_user = users_coll.find_one({"is_final_approver": {"$in": ["true", True]}, "is_active": True})
+            if next_step.get("is_final_approver") is True:
+                target_user = users_coll.find_one({"is_final_approver": True, "is_active": True})
             else:
                 target_user = users_coll.find_one({"directorate": directorate, "role": "director", "is_active": True})
         elif role == "central_registry":
             target_user = users_coll.find_one({"directorate": "CDSA", "role": "central_registry", "is_active": True}) \
                 or users_coll.find_one({"directorate": "CDSA", "role": "registry", "is_active": True}) \
-                or users_coll.find_one({"is_cdsa_approver": {"$in": ["true", True]}, "is_active": True})
+                or users_coll.find_one({"is_cdsa_approver": True, "is_active": True})
         elif approver_id:
             target_user = users_coll.find_one({
                 "service_number": approver_id,
@@ -77,7 +83,7 @@ def notify_pending_approval(app, next_step, current_user):
                 ]
             }) or users_coll.find_one({"service_number": approver_id})
 
-        if target_user and target_user.get("email"):
+        if not approver_email and target_user and target_user.get("email"):
             approver_email = target_user["email"].strip().lower()
 
     date_str = None
@@ -111,6 +117,38 @@ def notify_pending_approval(app, next_step, current_user):
         role_room = f"ROLE_{role}"
         print(f"[SOCKET] Role-based notification to room: {role_room}")
         socketio.emit("new_notification", payload, room=role_room)
+
+    # Dispatch GovMail Action-Required Email to approver
+    if approver_email:
+        try:
+            applicant_name = app.get("applicantName") or app.get("fullName") or "Staff"
+            service_number = app.get("applicantId") or app.get("service_number") or "N/A"
+            rank_or_grade = app.get("rank") or app.get("grade") or app.get("rankOrGrade") or ""
+            approver_name = next_step.get("approverName") or (target_user.get("fullName") if target_user else None) or (target_user.get("name") if target_user else None)
+            prev_name = current_user.get("fullName") or current_user.get("name")
+            prev_role = current_user.get("role")
+
+            send_approval_action_email(
+                target_email=approver_email,
+                approver_name=approver_name,
+                approver_role=role,
+                applicant_name=applicant_name,
+                service_number=service_number,
+                rank_or_grade=rank_or_grade,
+                directorate=directorate,
+                leave_type=app.get("leave_type", "Leave/Pass"),
+                start_date=str(app.get("startDate", "")),
+                end_date=str(app.get("endDate", "")),
+                number_of_days=app.get("numberOfDays") or app.get("days") or 1,
+                reference_id=app.get("referenceId", "N/A"),
+                prev_approver_name=prev_name,
+                prev_approver_role=prev_role,
+                prev_comments=prev_comments,
+                reason=app.get("reason"),
+                async_dispatch=True
+            )
+        except Exception as e:
+            print(f"[EMAIL] Error dispatching pending approval email in approver_dashboard: {e}")
 
 
 def notify_registries_approval(app, current_user, approver_role="director", receipt_number=None, comments=None):
@@ -504,8 +542,8 @@ def dashboard_leave_pass():
         "is_dd_approver":  session.get("is_dd_approver", False),
         "is_ad_approver":  session.get("is_ad_approver", False),
         "is_final_approver": (
-            session.get("is_final_approver") in (True, "true", "True")
-            or session.get("is_final_approval") in (True, "true", "True")
+            session.get("is_final_approver") is True
+            or session.get("is_final_approval") is True
         ),
         "is_approval_role": session.get("is_approval_role", False),
     }
@@ -522,18 +560,27 @@ def dashboard_leave_pass():
     is_chief_clerk    = 'registry'        in user_role
     is_cdsa           = 'cdsa'            in user_role
     is_central_reg    = 'central_registry' in user_role
-    is_so_approver   = current_user["is_so_approver"] in (True, "true", "True") or user_role == "so"
-    is_dd_approver    = current_user["is_dd_approver"] in (True, "true", "True") or user_role == "dd"
-    is_ad_approver    = current_user["is_ad_approver"] in (True, "true", "True") or user_role == "ad"
-    is_approval_role  = (
-        current_user["is_approval_role"] in (True, "true", "True")
-        or session.get("is_approval_role") in (True, "true", "True")
-        or ('director' in user_role)
-        or is_final_approver
-        or is_chief_clerk or is_cdsa or is_central_reg
-        or is_so_approver or is_dd_approver or is_ad_approver
-        or user_role in ('civilian_head_cao', 'civilian_head', 'so', 'ad', 'dd')
-    )
+    # Personal (is_approval_role == false) so/ad/dd/director accounts must not be re-promoted here.
+    _acct = {"role": user_role, "is_approval_role": session.get("is_approval_role")}
+    is_personal_account = is_personal_dual_account(_acct)
+    is_so_approver   = (not is_personal_account) and (current_user["is_so_approver"] is True or user_role == "so")
+    is_dd_approver    = (not is_personal_account) and (current_user["is_dd_approver"] is True or user_role == "dd")
+    is_ad_approver    = (not is_personal_account) and (current_user["is_ad_approver"] is True or user_role == "ad")
+    if is_personal_account:
+        is_director_doa = False
+        is_final_approver = False
+        current_user["is_final_approver"] = False
+        is_approval_role = False
+    else:
+        is_approval_role  = (
+            current_user["is_approval_role"] is True
+            or session.get("is_approval_role") is True
+            or ('director' in user_role)
+            or is_final_approver
+            or is_chief_clerk or is_cdsa or is_central_reg
+            or is_so_approver or is_dd_approver or is_ad_approver
+            or user_role in ('civilian_head_cao', 'civilian_head', 'so', 'ad', 'dd')
+        )
     current_user["is_approval_role"] = is_approval_role
     current_user["is_so_approver"] = is_so_approver
     current_user["is_ad_approver"] = is_ad_approver
@@ -660,7 +707,7 @@ def dashboard_leave_pass():
 
         query_conditions = [
             {"approvalChain.approverId": {"$in": user_ids}},
-            {"approvalChain": {"$elemMatch": {"role": "director", "is_final_approver": {"$in": [True, "true", "True"]}}}},
+            {"approvalChain": {"$elemMatch": {"role": "director", "is_final_approver": True}}},
             {"directorate": user_directorate, "approvalChain.role": "director"},
         ]
         director_doa_query = {"$or": query_conditions, **filter_query}
@@ -678,7 +725,7 @@ def dashboard_leave_pass():
                     is_my_step = False
                     if step.get("approverId") in user_ids:
                         is_my_step = True
-                    elif step.get("is_final_approver") in (True, "true", "True"):
+                    elif step.get("is_final_approver") is True:
                         is_my_step = True
                     elif step.get("role") == "director" and app.get("directorate") == user_directorate:
                         is_my_step = True
@@ -694,7 +741,7 @@ def dashboard_leave_pass():
                     is_my_step = False
                     if step.get("approverId") in user_ids:
                         is_my_step = True
-                    elif step.get("is_final_approver") in (True, "true", "True"):
+                    elif step.get("is_final_approver") is True:
                         is_my_step = True
                     elif step.get("role") == "director" and app.get("directorate") == user_directorate:
                         is_my_step = True
@@ -723,7 +770,7 @@ def dashboard_leave_pass():
             elif app_status == "rejected" or user_step_status == "rejected":
                 rejected_applications.append(app)
 
-            elif (user_step.get("is_final_approver") in (True, "true", "True") or (is_director_doa and user_step.get("role") == "director")) and app_status in ("approved",) and not app.get("receiptNumber"):
+            elif (user_step.get("is_final_approver") is True or (is_director_doa and user_step.get("role") == "director")) and app_status in ("approved",) and not app.get("receiptNumber"):
                 # Awaiting final receipt issuance by Director DOA
                 pending_applications.append(app)
 
@@ -1051,7 +1098,7 @@ def dashboard_leave_pass():
             {"$match": {
                 "$or": [
                     {"approvalChain.approverId": {"$in": user_ids}},
-                    {"approvalChain": {"$elemMatch": {"role": "director", "is_final_approver": {"$in": [True, "true", "True"]}}}},
+                    {"approvalChain": {"$elemMatch": {"role": "director", "is_final_approver": True}}},
                     {"directorate": user_directorate, "approvalChain.role": "director"},
                 ],
                 **filter_query
@@ -1208,10 +1255,10 @@ def approve(app_id):
     chain            = app.get("approvalChain", [])
     user_id          = current_user["service_number"]
     user_directorate = current_user["directorate"]
-    is_so_approver   = current_user.get("is_so_approver") in (True, "true", "True") or user_role == "so"
-    is_ad_approver   = current_user.get("is_ad_approver") in (True, "true", "True") or user_role == "ad"
-    is_dd_approver   = current_user.get("is_dd_approver") in (True, "true", "True") or user_role == "dd"
-    is_final_approver = current_user.get("is_final_approver") in (True, "true", "True") or user_role == "director" or 'director' in user_role
+    is_so_approver   = current_user.get("is_so_approver") is True or user_role == "so"
+    is_ad_approver   = current_user.get("is_ad_approver") is True or user_role == "ad"
+    is_dd_approver   = current_user.get("is_dd_approver") is True or user_role == "dd"
+    is_final_approver = current_user.get("is_final_approver") is True or user_role == "director" or 'director' in user_role
     user_ids = [uid for uid in [user_id, current_user.get("service_number"), current_user.get("email")] if uid]
 
     # ── Find user's step ──────────────────────────────────────────────
@@ -1256,7 +1303,7 @@ def approve(app_id):
                 user_step = step
                 break
 
-            if is_final_approver and step.get("is_final_approver") in (True, "true", "True"):
+            if is_final_approver and step.get("is_final_approver") is True:
                 user_step_index = i
                 user_step = step
                 break
@@ -1396,7 +1443,7 @@ def approve(app_id):
 
         # Check if this step is the final approval step (same directorate as final approver, or final approver reviewing cross-directorate)
         is_final_approval_step = (
-            user_step.get("is_final_approver") in (True, "true", "True") or
+            user_step.get("is_final_approver") is True or
             (current_user.get("is_final_approver") and user_step.get("role") == "director" and (app.get("directorate") == current_user.get("directorate") or app.get("status") in ("approved", "Approved")))
         )
 
@@ -1438,7 +1485,7 @@ def approve(app_id):
                 continue
             
             # Final Approver step (keep pending but notify) across all role buckets
-            if step.get("is_final_approver") in (True, "true", "True") or step.get("registry_type") == "director_doa":
+            if step.get("is_final_approver") is True or step.get("registry_type") == "director_doa":
                 final_approver_step = step
                 break
 
@@ -1459,7 +1506,7 @@ def approve(app_id):
         # Notify final approver if present (Director DOA)
         if final_approver_step:
             msg = f"Application {app.get('referenceId')} approved by Director. Please approve and issue the leave receipt."
-            notify_pending_approval(app, final_approver_step, current_user)
+            notify_pending_approval(app, final_approver_step, current_user, prev_comments=comments)
             target_email = final_approver_step.get("approverEmail")
             notifications_coll.insert_one({
                 "type":          "action_required",
@@ -1509,7 +1556,7 @@ def approve(app_id):
             None
         )
         if next_step:
-            notify_pending_approval(app, next_step, current_user)
+            notify_pending_approval(app, next_step, current_user, prev_comments=comments)
 
         _notify_applicant_approved_step(
             app, current_user,
@@ -2088,7 +2135,7 @@ def issue_receipt(app_id):
     if isinstance(user_roles, str):
         user_roles = [user_roles]
 
-    is_director_doa_user = (any('director' in str(r).lower() for r in user_roles) and (session.get("is_final_approver") in (True, "true", "True") or current_user.get("is_final_approver") in (True, "true", "True"))) or session.get("is_final_approver") in (True, "true", "True")
+    is_director_doa_user = (any('director' in str(r).lower() for r in user_roles) and (session.get("is_final_approver") is True or current_user.get("is_final_approver") is True)) or session.get("is_final_approver") is True
     is_director_user = any('director' in str(r).lower() for r in user_roles)
 
     user_step_idx = None
@@ -2096,7 +2143,7 @@ def issue_receipt(app_id):
 
     if is_director_doa_user or is_director_user:
         for i, s in enumerate(chain):
-            if (s.get("role") == "director" and s.get("is_final_approver") in (True, "true", "True")) or s.get("is_final_approver") in (True, "true", "True"):
+            if (s.get("role") == "director" and s.get("is_final_approver") is True) or s.get("is_final_approver") is True:
                 user_step_idx = i
                 break
             elif s.get("role") == "director" and s.get("approverId") == user_id:
@@ -2549,10 +2596,10 @@ def reject(app_id):
 
     user_id = current_user["service_number"]
     user_directorate = current_user["directorate"]
-    is_so_approver = current_user.get("is_so_approver") in (True, "true", "True") or user_role == "so"
-    is_ad_approver = current_user.get("is_ad_approver") in (True, "true", "True") or user_role == "ad"
-    is_dd_approver = current_user.get("is_dd_approver") in (True, "true", "True") or user_role == "dd"
-    is_final_approver = current_user.get("is_final_approver") in (True, "true", "True") or user_role == "director" or 'director' in user_role
+    is_so_approver = current_user.get("is_so_approver") is True or user_role == "so"
+    is_ad_approver = current_user.get("is_ad_approver") is True or user_role == "ad"
+    is_dd_approver = current_user.get("is_dd_approver") is True or user_role == "dd"
+    is_final_approver = current_user.get("is_final_approver") is True or user_role == "director" or 'director' in user_role
 
     # ── 5. Find the user's pending step ──────────────────────────────
     def find_user_step(chain, user, app):
@@ -2592,7 +2639,7 @@ def reject(app_id):
             if user.get("role") in ("civilian_head_cao", "civilian_head") and step_role in ("civilian_head_cao", "civilian_head"):
                 return i, step
 
-            if is_final_approver and step.get("is_final_approver") in (True, "true", "True"):
+            if is_final_approver and step.get("is_final_approver") is True:
                 return i, step
 
             # Role‑based matching (only for roles with flags)
