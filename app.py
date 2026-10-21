@@ -47,6 +47,11 @@ from initialize_all_balances import (
     initialize_all_staff_balances,
     initialize_single_staff_balance,
 )
+from utils.barcode_helper import (
+    generate_secure_code,
+    ensure_user_secure_code,
+    backfill_all_users_secure_code,
+)
 from modules.notifications.notification_routes.notifications import notification_routes
 from modules.settings.setting_routes.setting import setting_routes
 from modules.support.support_routes.supports import support_routes
@@ -56,6 +61,7 @@ from modules.super_admin.super_admin_routes.super_admin import super_admin_route
 from modules.super_admin.super_admin_routes.meal_ticket_bulk import (
     meal_ticket_upload_routes,
 )
+from modules.kitchen.kitchen_routes.kitchen import kitchen_routes
 from modules.documents.document_routes.assigned_documents import (
     assigned_document_routes,
 )
@@ -97,6 +103,19 @@ app.config["SECRET_KEY"] = os.getenv(
 )
 csrf = CSRFProtect(app)
 
+from flask.json.provider import DefaultJSONProvider
+
+class MongoJSONProvider(DefaultJSONProvider):
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, (datetime.datetime, datetime.date)):
+            return obj.isoformat()
+        return super().default(obj)
+
+app.json_provider_class = MongoJSONProvider
+app.json = MongoJSONProvider(app)
+
 
 # Session(app)
 socketio.init_app(app, manage_session=False, cors_allowed_origins="*")
@@ -114,6 +133,7 @@ app.fs = fs
 
 # DATABASE COLLECTIONS
 users_collection = db["users"]
+backfill_all_users_secure_code(users_collection)
 applications_collection = db["applications"]
 leave_balances = db["leave_balances"]
 medical_records = db["medical_records"]
@@ -139,6 +159,7 @@ app.register_blueprint(chat_routes)
 app.register_blueprint(onboarding_routes)
 app.register_blueprint(super_admin_routes)
 app.register_blueprint(meal_ticket_upload_routes)
+app.register_blueprint(kitchen_routes)
 app.register_blueprint(assigned_document_routes)
 app.register_blueprint(base_document_routes)
 app.register_blueprint(add_document_routes)
@@ -548,6 +569,9 @@ def dashboard():
         return redirect(url_for("onboarding_routes.onboarding_portal"))
 
     user_role = user_data.get("role", "civilian")
+    if user_role == "kitchen":
+        return redirect(url_for("kitchen_routes.kitchen_dashboard_view"))
+
     user_dir = str(user_data.get("directorate", "doa")).lower()
 
     # ================= LIVE TIMELINE STREAM ENGINE =================
@@ -1049,4 +1073,4 @@ def undeveloped_views():
 # START THE FLASK-SOCKETIO SERVER INSTANCE
 # ✅ Start the app
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=10000, debug=True)

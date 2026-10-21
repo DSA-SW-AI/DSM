@@ -397,6 +397,15 @@
               Delegation / Out of Office
             </button>
             {% endif %}
+            <button class="settings-nav-btn" id="nav-barcode" onclick="switchPanel('barcode')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              My Barcode & QR Code
+            </button>
           </div>
 
           <!-- Settings Panels -->
@@ -448,6 +457,16 @@
 
                 <button type="submit" class="settings-btn-save">Save Profile Details</button>
               </form>
+
+              <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 16px; border-radius: 10px;">
+                <div>
+                  <h4 style="font-size: 0.95rem; font-weight: 700; color: #1e293b; margin: 0 0 4px 0;">🪪 Digital Barcode & secureCode</h4>
+                  <p style="font-size: 0.8rem; color: #64748b; margin: 0;">secureCode: <strong style="color: #0284c7; font-family: monospace;">{{ user_detail.secure_code or user_detail.secureCode }}</strong></p>
+                </div>
+                <button type="button" class="btn-secondary" onclick="switchPanel('barcode')" style="font-size: 0.82rem; padding: 8px 14px;">
+                  View Full Barcode & QR Code →
+                </button>
+              </div>
             </div>
 
             <!-- Panel 2: Preferences -->
@@ -666,6 +685,93 @@
               </form>
             </div>
             {% endif %}
+
+            <!-- Panel 7: Barcode & QR Code -->
+            <div class="settings-panel" id="panel-barcode">
+              <h2 class="panel-title">🪪 Digital Identification & Barcode</h2>
+              <p class="panel-desc">Your account has been issued an official system barcode and QR code. The QR code encodes your unique <strong>secureCode</strong> which is tied exclusively to your account for identity verification.</p>
+
+              <div class="id-card-wrapper" style="background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 100%); color: white; border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); margin-bottom: 24px; position: relative; overflow: hidden;">
+                <!-- Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 14px; margin-bottom: 18px;">
+                  <div>
+                    <h4 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #60a5fa; letter-spacing: 0.5px;">DEFENCE SPACE ADMINISTRATION</h4>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: #9ca3af; text-transform: uppercase;">Official Staff Digital Credentials</p>
+                  </div>
+                  <span style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93c5fd; font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: 99px;">
+                    VERIFIED USER
+                  </span>
+                </div>
+
+                <!-- User Details Grid -->
+                <div style="display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center;">
+                  <div>
+                    <div style="margin-bottom: 12px;">
+                      <span style="font-size: 0.72rem; color: #9ca3af; text-transform: uppercase; display: block;">Full Name</span>
+                      <strong style="font-size: 1.1rem; color: #ffffff;">{{ user_detail.name }}</strong>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                      <div>
+                        <span style="font-size: 0.72rem; color: #9ca3af; text-transform: uppercase; display: block;">Service Number</span>
+                        <span style="font-size: 0.92rem; color: #e0f2fe; font-weight: 600;">{{ user_detail.service_number or 'N/A' }}</span>
+                      </div>
+                      <div>
+                        <span style="font-size: 0.72rem; color: #9ca3af; text-transform: uppercase; display: block;">Directorate</span>
+                        <span style="font-size: 0.92rem; color: #e0f2fe; font-weight: 600; text-transform: uppercase;">{{ user_detail.directorate or 'N/A' }}</span>
+                      </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                      <div>
+                        <span style="font-size: 0.72rem; color: #9ca3af; text-transform: uppercase; display: block;">Rank / Designation</span>
+                        <span style="font-size: 0.9rem; color: #cbd5e1;">{{ user_detail.rank or user_detail.appt or 'Staff' }}</span>
+                      </div>
+                      <div>
+                        <span style="font-size: 0.72rem; color: #9ca3af; text-transform: uppercase; display: block;">Role</span>
+                        <span style="font-size: 0.9rem; color: #cbd5e1; text-transform: capitalize;">{{ (user_detail.role or 'civilian') | replace('_', ' ') }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- QR Code Container -->
+                  <div style="background: white; padding: 10px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-align: center;">
+                    <div id="userQrCode" style="display: flex; justify-content: center; align-items: center; width: 130px; height: 130px;"></div>
+                    <span style="font-size: 0.65rem; color: #4b5563; font-weight: 600; display: block; margin-top: 4px;">SCAN QR VERIFICATION</span>
+                  </div>
+                </div>
+
+                <!-- 1D Barcode Container -->
+                <div style="margin-top: 20px; background: rgba(255,255,255,0.95); padding: 14px; border-radius: 12px; text-align: center; color: #111827;">
+                  <svg id="userBarcode" style="max-width: 100%; height: 60px;"></svg>
+                  <div style="font-family: monospace; font-size: 0.95rem; font-weight: 700; color: #1e293b; margin-top: 4px; letter-spacing: 2px;">
+                    {{ user_detail.secure_code or user_detail.secureCode }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Secure Code Box -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+                <label style="font-size: 0.82rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 6px;">Your Unique secureCode</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <input type="text" id="secureCodeInput" class="form-control" value="{{ user_detail.secure_code or user_detail.secureCode }}" readonly style="font-family: monospace; font-weight: 700; font-size: 1.05rem; letter-spacing: 1.5px; background: white; color: #0f172a;">
+                  <button type="button" class="btn-secondary" onclick="copySecureCode()" style="white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    Copy Code
+                  </button>
+                </div>
+                <p style="font-size: 0.78rem; color: #64748b; margin-top: 8px; margin-bottom: 0;">This <code>secureCode</code> is tied directly to your profile and embedded inside both your 1D Barcode and 2D QR code for instant identity authentication.</p>
+              </div>
+
+              <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button type="button" class="settings-btn-save" onclick="downloadUserQrCode()" style="display: flex; align-items: center; gap: 8px; background: #059669; border: none;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Download Full Digital ID Card (PNG)
+                </button>
+                <button type="button" class="settings-btn-save" onclick="printIdCard()" style="display: flex; align-items: center; gap: 8px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                  Print ID Card & Barcode
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -681,7 +787,8 @@
 
   <!-- Production version -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   <script>
     let statusModalCallback = null;
 
@@ -741,6 +848,10 @@
       });
       const targetPanel = document.getElementById(`panel-${panelId}`);
       if (targetPanel) targetPanel.classList.add('active');
+
+      if (panelId === 'barcode') {
+        setTimeout(renderUserBarcodeAndQr, 50);
+      }
     }
 
     function validateSigningPasswordForm(e) {
@@ -994,11 +1105,183 @@
     {% endif %}
   {% endwith %}
 
+  <!-- External Libraries for QR Code & Barcode rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+  <script>
+    const userSecureCode = "{{ user_detail.secure_code or user_detail.secureCode or 'SEC-0000-0000-0000' }}";
+
+    function copySecureCode() {
+      const input = document.getElementById('secureCodeInput');
+      if (input) {
+        input.select();
+        navigator.clipboard.writeText(input.value).then(() => {
+          showStatusModal('success', 'Copied!', 'Your secureCode has been copied to your clipboard.');
+        }).catch(() => {
+          document.execCommand('copy');
+          showStatusModal('success', 'Copied!', 'Your secureCode has been copied to your clipboard.');
+        });
+      }
+    }
+
+    function printIdCard() {
+      const cardContent = document.querySelector('.id-card-wrapper')?.outerHTML || '';
+      const printWin = window.open('', '_blank', 'width=800,height=600');
+      if (!printWin) {
+        showStatusModal('error', 'Unsuccessful', 'Popup blocked. Please allow popups for this site to print.');
+        return;
+      }
+      printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print Digital ID Card - ${userSecureCode}</title>
+            <style>
+              body { font-family: 'Poppins', sans-serif; padding: 40px; background: white; margin: 0; }
+              .id-card-wrapper { max-width: 650px; margin: 0 auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            </style>
+          </head>
+          <body>
+            ${cardContent}
+            <script>
+              window.onload = function() { window.print(); }
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWin.document.close();
+    }
+
+    function downloadUserQrCode() {
+      const code = userSecureCode || "secureCode";
+      if (typeof downloadFullCardAsImage === 'function') {
+        downloadFullCardAsImage('.id-card-wrapper', `DSA_Digital_ID_Card_${code}.png`);
+      } else if (typeof downloadQrCode === 'function') {
+        downloadQrCode('userQrCode', `Staff_QR_${code}.png`);
+      } else {
+        fallbackDownloadQr('userQrCode', `Staff_QR_${code}.png`);
+      }
+    }
+
+    function renderUserBarcodeAndQr() {
+      if (!userSecureCode) return;
+
+      // 1. Render QR Code
+      const qrContainer = document.getElementById('userQrCode');
+      if (qrContainer) {
+        qrContainer.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+          try {
+            new QRCode(qrContainer, {
+              text: userSecureCode,
+              width: 125,
+              height: 125,
+              colorDark : "#0d1b2a",
+              colorLight : "#ffffff",
+              correctLevel : QRCode.CorrectLevel.H
+            });
+          } catch(err) {
+            console.warn('QRCode JS error, rendering SVG fallback:', err);
+            qrContainer.innerHTML = generateFallbackQrSvg(userSecureCode);
+          }
+        } else {
+          qrContainer.innerHTML = generateFallbackQrSvg(userSecureCode);
+        }
+      }
+
+      // 2. Render 1D Barcode
+      const barcodeElem = document.getElementById('userBarcode');
+      if (barcodeElem) {
+        if (typeof JsBarcode !== 'undefined') {
+          try {
+            JsBarcode("#userBarcode", userSecureCode, {
+              format: "CODE128",
+              lineColor: "#0f172a",
+              width: 2,
+              height: 50,
+              displayValue: false,
+              margin: 4
+            });
+          } catch (e) {
+            console.warn('JsBarcode error, rendering SVG fallback:', e);
+            renderFallbackBarcodeSvg(barcodeElem, userSecureCode);
+          }
+        } else {
+          renderFallbackBarcodeSvg(barcodeElem, userSecureCode);
+        }
+      }
+    }
+
+    // SVG Fallbacks for Barcode and QR Code if CDN fails offline
+    function renderFallbackBarcodeSvg(svgElem, text) {
+      if (!svgElem) return;
+      let barsSvg = '';
+      let x = 10;
+      const height = 50;
+      for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        const w1 = (code % 3) + 1;
+        const w2 = ((code * 2) % 3) + 1;
+        barsSvg += `<rect x="${x}" y="0" width="${w1}" height="${height}" fill="#0f172a"/>`;
+        x += w1 + w2;
+        barsSvg += `<rect x="${x}" y="0" width="${w2}" height="${height}" fill="#0f172a"/>`;
+        x += w1 + 2;
+      }
+      svgElem.setAttribute('viewBox', `0 0 ${x + 10} ${height}`);
+      svgElem.innerHTML = `<rect width="100%" height="100%" fill="white"/>` + barsSvg;
+    }
+
+    function generateFallbackQrSvg(text) {
+      const size = 21;
+      const cellSize = 5;
+      const totalSize = size * cellSize;
+      let rects = '';
+
+      function isFinderPattern(r, c) {
+        if (r < 7 && c < 7) return true;
+        if (r < 7 && c >= size - 7) return true;
+        if (r >= size - 7 && c < 7) return true;
+        return false;
+      }
+
+      let hash = 0;
+      for (let i = 0; i < text.length; i++) hash = (hash << 5) - hash + text.charCodeAt(i);
+
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          let isBlack = false;
+          if (isFinderPattern(r, c)) {
+            const inTopLeft = r < 7 && c < 7;
+            const inTopRight = r < 7 && c >= size - 7;
+            const inBottomLeft = r >= size - 7 && c < 7;
+            let pr = r, pc = c;
+            if (inTopRight) pc -= (size - 7);
+            if (inBottomLeft) pr -= (size - 7);
+            if (pr === 0 || pr === 6 || pc === 0 || pc === 6 || (pr >= 2 && pr <= 4 && pc >= 2 && pc <= 4)) {
+              isBlack = true;
+            }
+          } else {
+            const bit = Math.abs(hash ^ (r * 31 + c * 17)) % 2;
+            isBlack = bit === 1;
+          }
+          if (isBlack) {
+            rects += `<rect x="${c * cellSize}" y="${r * cellSize}" width="${cellSize}" height="${cellSize}" fill="#0d1b2a"/>`;
+          }
+        }
+      }
+
+      return `<svg width="125" height="125" viewBox="0 0 ${totalSize} ${totalSize}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="white"/>${rects}</svg>`;
+    }
+  </script>
+
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const hash = window.location.hash.replace('#', '');
       if (hash && document.getElementById(`nav-${hash}`)) {
         switchPanel(hash);
+      } else {
+        renderUserBarcodeAndQr();
       }
     });
   </script>

@@ -2,24 +2,24 @@
 
 ROLE_PERMISSIONS = {
     "super_admin": {
-            "sidebar": ["dashboard", "super_admin_dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics", "support", "notification", "setting"],
-            "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports", "super_admin"],
-            "actions": ["approve_documents", "incoming_register", "outgoing_register", "super_admin_actions"]
+            "sidebar": ["dashboard", "super_admin_dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics", "meal_statistics", "meal_qr_generator", "support", "notification", "setting"],
+            "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports", "super_admin", "kitchen", "meal_tickets"],
+            "actions": ["approve_documents", "incoming_register", "outgoing_register", "super_admin_actions", "create_24h_qr", "view_meal_statistics"]
         },
     "cdsa": {
-            "sidebar": ["dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics", "support", "notification", "setting"],
-            "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports"],
-            "actions": ["approve_documents", "incoming_register", "outgoing_register"]
+            "sidebar": ["dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics", "meal_statistics", "support", "notification", "setting"],
+            "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports", "kitchen"],
+            "actions": ["approve_documents", "incoming_register", "outgoing_register", "view_meal_statistics"]
         },
     "dcdsa": {
-            "sidebar": ["dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics", "support", "notification", "setting"],
-            "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports"],
-            "actions": ["approve_documents", "incoming_register", "outgoing_register"]
+            "sidebar": ["dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics", "meal_statistics", "support", "notification", "setting"],
+            "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports", "kitchen"],
+            "actions": ["approve_documents", "incoming_register", "outgoing_register", "view_meal_statistics"]
         },
     "director": {
-        "sidebar": ["dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics", "support", "notification", "setting"],
-        "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports"],
-        "actions": ["approve_documents", "incoming_register", "outgoing_register"]
+        "sidebar": ["dashboard", "documents", "incoming", "outgoing", "filing_cabinets", "civilian_personnel", "recruitment_transfers", "leave_pass", "parade_states", "hr_reports", "analytics", "meal_statistics", "support", "notification", "setting"],
+        "modules": ["documents", "personnel_civilian", "promotions", "recruitment_transfer", "leave_pass", "reports", "kitchen"],
+        "actions": ["approve_documents", "incoming_register", "outgoing_register", "view_meal_statistics"]
     },
     "dd": {  # Deputy Director
         "sidebar": ["dashboard", "documents", "incoming", "outgoing", "leave_pass", "parade_states", "hr_reports", "support", "notification", "setting"],
@@ -62,10 +62,20 @@ ROLE_PERMISSIONS = {
         "actions": ["process_leave"]
     },
     "civilian_head_cao": {
-            "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "support", "notification", "setting"],
-            "modules": ["personnel_civilian", "leave_pass"],
-            "actions": ["process_leave"]
+            "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "meal_statistics", "support", "notification", "setting"],
+            "modules": ["personnel_civilian", "leave_pass", "kitchen"],
+            "actions": ["process_leave", "view_meal_statistics"]
         },
+    "catering_officer": {
+        "sidebar": ["dashboard", "meal_statistics", "meal_qr_generator", "documents", "leave_pass", "support", "notification", "setting"],
+        "modules": ["kitchen", "meal_tickets", "documents", "leave_pass"],
+        "actions": ["create_24h_qr", "view_meal_statistics", "process_leave"]
+    },
+    "kitchen": {
+        "sidebar": ["dashboard", "meal_statistics"],
+        "modules": ["kitchen", "meal_tickets"],
+        "actions": ["scan_meals", "view_meal_statistics"]
+    },
     "civilian": {
         "sidebar": ["dashboard", "documents", "leave_pass", "support", "notification", "setting"],
         "modules": ["documents", "leave_pass"],

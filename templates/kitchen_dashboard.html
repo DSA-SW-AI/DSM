@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Meal Scanner & Feed</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
+
+  <style>
+    .kitchen-container {
+      padding: 25px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .kitchen-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .kitchen-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #111827;
+      margin: 0;
+    }
+
+    .kitchen-grid {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 25px;
+    }
+
+    /* Scanner Viewport */
+    .scanner-card {
+      background: #0f172a;
+      color: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .viewport-box {
+      position: relative;
+      width: 100%;
+      height: 280px;
+      background: #1e293b;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #334155;
+    }
+
+    .viewport-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scan-target-overlay {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border: 3px solid #38bdf8;
+      border-radius: 12px;
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55);
+      animation: pulseTarget 2s infinite ease-in-out;
+      pointer-events: none;
+    }
+
+    @keyframes pulseTarget {
+      0%, 100% { border-color: #38bdf8; }
+      50% { border-color: #4ade80; }
+    }
+
+    .scanner-input-group {
+      margin-top: 20px;
+    }
+
+    .manual-input {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: white;
+      font-family: monospace;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 12px;
+      border-radius: 8px;
+      width: 100%;
+    }
+
+    .manual-input:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    /* Table side */
+    .feed-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    }
+
+    .feed-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .feed-table th {
+      background: #f8fafc;
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      border-bottom: 2px solid #e2e8f0;
+      text-align: left;
+    }
+
+    .feed-table td {
+      padding: 14px;
+      font-size: 0.88rem;
+      color: #1e293b;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .feed-table tr:hover {
+      background: #f8fafc;
+    }
+
+    /* Status Badges */
+    .served-badge {
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 99px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Pop-up Modals */
+    .scan-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      z-index: 99999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-card {
+      background: white;
+      border-radius: 20px;
+      padding: 32px;
+      width: 480px;
+      max-width: 95vw;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+      position: relative;
+    }
+
+    .modal-icon-wrapper {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px auto;
+      font-size: 40px;
+    }
+
+    .modal-icon-green {
+      background: #dcfce7;
+      color: #16a34a;
+      border: 4px solid #bbf7d0;
+    }
+
+    .modal-icon-red {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 4px solid #fecaca;
+    }
+
+    .modal-title-green {
+      color: #15803d;
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .modal-title-red {
+      color: #b91c1c;
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .user-info-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 18px 0;
+      text-align: left;
+    }
+
+    .btn-modal-ok {
+      padding: 14px;
+      width: 100%;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-modal-green {
+      background: #16a34a;
+      color: white;
+    }
+
+    .btn-modal-green:hover {
+      background: #15803d;
+    }
+
+    .btn-modal-red {
+      background: #dc2626;
+      color: white;
+    }
+
+    .btn-modal-red:hover {
+      background: #b91c1c;
+    }
+
+    @media (max-width: 992px) {
+      .kitchen-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body data-active-page="dashboard">
+  <div class="dashboard-wrapper">
+    {% include "sidebar.html" %}
+
+    <div class="main-content">
+      {% include "base.html" %}
+
+      <div class="kitchen-container">
+        <div class="kitchen-header">
+          <div>
+            <h1 class="kitchen-title">🍱 Kitchen Meal Scanner & Live Feed</h1>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.88rem;">Scan staff barcode/QR code to verify daily meal eligibility.</p>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <span style="background: #eff6ff; color: #1d4ed8; font-weight: 700; padding: 6px 14px; border-radius: 99px; font-size: 0.85rem;">
+              Today's Served Total: <span id="todayCountBadge">{{ today_count }}</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="kitchen-grid">
+          <!-- Left Column: Camera Scanner & Manual Input -->
+          <div>
+            <div class="scanner-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <h3 style="font-size: 1rem; font-weight: 700; margin: 0; color: #f8fafc;">📷 Live Scanner</h3>
+                <span id="camStatusIndicator" style="font-size: 0.75rem; background: #334155; color: #94a3b8; padding: 3px 8px; border-radius: 99px;">Camera Idle</span>
+              </div>
+
+              <!-- Camera Viewport Box -->
+              <div class="viewport-box" id="viewportContainer">
+                <video id="webcamVideo" class="viewport-video" autoplay playsinline muted style="display:none;"></video>
+                <div class="scan-target-overlay" id="targetOverlay" style="display:none;"></div>
+                <div id="camPlaceholder" style="text-align: center; color: #94a3b8; padding: 20px;">
+                  <i class="ri-camera-lens-line" style="font-size: 48px; color: #64748b;"></i>
+                  <p style="margin-top: 10px; font-size: 0.85rem;">Click "Start Camera" or scan barcode using USB reader</p>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-top: 14px;">
+                <button type="button" id="btnStartCam" class="btn btn-primary btn-sm" onclick="startCamera()" style="flex: 1; font-weight: 600;">
+                  <i class="ri-camera-fill"></i> Start Camera
+                </button>
+                <button type="button" id="btnStopCam" class="btn btn-secondary btn-sm" onclick="stopCamera()" style="flex: 1; font-weight: 600; display:none;">
+                  <i class="ri-camera-off-fill"></i> Stop Camera
+                </button>
+              </div>
+
+              <!-- Manual Barcode Scanner Input -->
+              <div class="scanner-input-group">
+                <label style="font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; display: block;">
+                  Barcode / QR Code Scanner Input
+                </label>
+                <form id="scanForm" onsubmit="handleScanSubmit(event)">
+                  <input type="text" id="barcodeInput" class="manual-input" placeholder="Scan or enter secureCode / Service No..." autofocus autocomplete="off">
+                  <button type="submit" class="btn btn-info w-100 mt-2" style="font-weight: 700; background: #38bdf8; border: none; color: #0f172a;">
+                    <i class="ri-qr-scan-line"></i> Verify & Process Meal Ticket
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Daily Live Scanned Feed Table -->
+          <div>
+            <div class="feed-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0;">📋 Daily Served Meal Log</h3>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fetchTodayFeed()">
+                  <i class="ri-refresh-line"></i> Refresh Log
+                </button>
+              </div>
+
+              <div style="overflow-x: auto; max-height: 520px;">
+                <table class="feed-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Name</th>
+                      <th>Service No.</th>
+                      <th>Directorate</th>
+                      <th>Category</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="feedTableBody">
+                    {% if today_scans %}
+                      {% for scan in today_scans %}
+                      <tr>
+                        <td><strong>{{ scan.time_str }}</strong></td>
+                        <td style="font-weight: 600;">{{ scan.name }}</td>
+                        <td><code style="color: #0284c7;">{{ scan.service_number }}</code></td>
+                        <td><span style="text-transform: uppercase;">{{ scan.directorate }}</span></td>
+                        <td><span style="text-transform: capitalize;">{{ scan.category }}</span></td>
+                        <td>
+                          <span class="served-badge">
+                            ✔ Served
+                            {% if scan.is_temp_override %} (24h Pass){% endif %}
+                          </span>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr id="emptyFeedRow">
+                        <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px 0;">
+                          No meal tickets scanned yet today.
+                        </td>
+                      </tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GREEN SUCCESS MODAL (READY TO BE SERVED) -->
+  <div id="greenModal" class="scan-modal">
+    <div class="modal-card">
+      <div class="modal-icon-wrapper modal-icon-green">
+        ✔
+      </div>
+      <h2 class="modal-title-green">READY TO BE SERVED</h2>
+      <p style="color: #475569; font-size: 0.92rem; margin-bottom: 0;">Meal ticket verified successfully!</p>
+
+      <div class="user-info-box">
+        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Staff Name</div>
+        <div id="greenName" style="font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-bottom: 10px;">-</div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; display: block;">Service Number</span>
+            <strong id="greenServiceNo" style="color: #0284c7; font-family: monospace; font-size: 0.95rem;">-</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; display: block;">Directorate</span>
+            <strong id="greenDirectorate" style="text-transform: uppercase; color: #334155;">-</strong>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="btn-modal-ok btn-modal-green" onclick="closeGreenModal()">
+        OK - SERVE MEAL
+      </button>
+    </div>
+  </div>
+
+  <!-- RED REJECTION MODAL (ALREADY SERVED / LIMIT EXCEEDED) -->
+  <div id="redModal" class="scan-modal">
+    <div class="modal-card">
+      <div class="modal-icon-wrapper modal-icon-red">
+        ✖
+      </div>
+      <h2 class="modal-title-red">MEAL CLAIM DENIED</h2>
+      <p id="redMessage" style="color: #b91c1c; font-size: 0.98rem; font-weight: 700; margin-bottom: 0;">User has already been served.</p>
+
+      <div class="user-info-box" style="background: #fef2f2; border-color: #fecaca;">
+        <div style="font-size: 0.75rem; color: #991b1b; text-transform: uppercase; font-weight: 700;">Target User</div>
+        <div id="redName" style="font-size: 1.05rem; font-weight: 800; color: #7f1d1d; margin-bottom: 8px;">-</div>
+        <div>
+          <span style="font-size: 0.72rem; color: #991b1b; text-transform: uppercase;">Service Number: </span>
+          <strong id="redServiceNo" style="font-family: monospace; color: #b91c1c;">-</strong>
+        </div>
+      </div>
+
+      <button type="button" class="btn-modal-ok btn-modal-red" onclick="closeRedModal()">
+        OK - CLOSE NOTICE
+      </button>
+    </div>
+  </div>
+
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script>
+    let mediaStream = null;
+    let scanProcessing = false;
+    let pendingScanData = null;
+
+    // Focus barcode input automatically
+    document.addEventListener("DOMContentLoaded", () => {
+      const input = document.getElementById("barcodeInput");
+      if (input) input.focus();
+    });
+
+    async function handleScanSubmit(e) {
+      if (e) e.preventDefault();
+      if (scanProcessing) return;
+
+      const input = document.getElementById("barcodeInput");
+      const code = (input.value || "").trim();
+      if (!code) return;
+
+      scanProcessing = true;
+      const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+
+      try {
+        const resp = await fetch("/api/kitchen/scan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken
+          },
+          body: JSON.stringify({ code: code })
+        });
+
+        const result = await resp.json();
+        input.value = "";
+        input.focus();
+
+        if (result.status === "success") {
+          pendingScanData = result.user;
+          showGreenModal(result.message, result.user);
+        } else if (result.status === "limit_exceeded") {
+          showRedModal(result.message, result.user);
+        } else {
+          showRedModal(result.message || "Unrecognized barcode or user record.", { name: "Unknown User", service_number: code });
+        }
+      } catch (err) {
+        console.error("Scan processing error:", err);
+        showRedModal("Network or processing error. Please try again.", { name: "System Error", service_number: "-" });
+      } finally {
+        scanProcessing = false;
+      }
+    }
+
+    function showGreenModal(message, user) {
+      document.getElementById("greenName").textContent = user.name || "Staff Member";
+      document.getElementById("greenServiceNo").textContent = user.service_number || "-";
+      document.getElementById("greenDirectorate").textContent = user.directorate || "DOA";
+      const modal = document.getElementById("greenModal");
+      modal.style.display = "flex";
+    }
+
+    function closeGreenModal() {
+      const modal = document.getElementById("greenModal");
+      modal.style.display = "none";
+      if (pendingScanData) {
+        addScanToFeedTable(pendingScanData);
+        pendingScanData = null;
+      }
+      const input = document.getElementById("barcodeInput");
+      if (input) input.focus();
+    }
+
+    function showRedModal(message, user) {
+      document.getElementById("redMessage").textContent = message;
+      document.getElementById("redName").textContent = user ? user.name : "User";
+      document.getElementById("redServiceNo").textContent = user ? user.service_number : "-";
+      const modal = document.getElementById("redModal");
+      modal.style.display = "flex";
+    }
+
+    function closeRedModal() {
+      const modal = document.getElementById("redModal");
+      modal.style.display = "none";
+      const input = document.getElementById("barcodeInput");
+      if (input) input.focus();
+    }
+
+    function addScanToFeedTable(user) {
+      const tbody = document.getElementById("feedTableBody");
+      const emptyRow = document.getElementById("emptyFeedRow");
+      if (emptyRow) emptyRow.remove();
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${user.time_str || 'Just now'}</strong></td>
+        <td style="font-weight: 600;">${user.name}</td>
+        <td><code style="color: #0284c7;">${user.service_number}</code></td>
+        <td><span style="text-transform: uppercase;">${user.directorate}</span></td>
+        <td><span style="text-transform: capitalize;">${user.category}</span></td>
+        <td><span class="served-badge">✔ Served</span></td>
+      `;
+      tbody.insertBefore(tr, tbody.firstChild);
+
+      const badge = document.getElementById("todayCountBadge");
+      if (badge) {
+        let cnt = parseInt(badge.textContent || "0");
+        badge.textContent = cnt + 1;
+      }
+    }
+
+    async function fetchTodayFeed() {
+      try {
+        const resp = await fetch("/api/kitchen/today_feed");
+        const data = await resp.json();
+        if (data.status === "success") {
+          const tbody = document.getElementById("feedTableBody");
+          if (data.scans.length === 0) {
+            tbody.innerHTML = `<tr id="emptyFeedRow"><td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px 0;">No meal tickets scanned yet today.</td></tr>`;
+          } else {
+            tbody.innerHTML = data.scans.map(s => `
+              <tr>
+                <td><strong>${s.time_str}</strong></td>
+                <td style="font-weight: 600;">${s.name}</td>
+                <td><code style="color: #0284c7;">${s.service_number}</code></td>
+                <td><span style="text-transform: uppercase;">${s.directorate}</span></td>
+                <td><span style="text-transform: capitalize;">${s.category}</span></td>
+                <td><span class="served-badge">✔ Served ${s.is_temp_override ? '(24h Pass)' : ''}</span></td>
+              </tr>
+            `).join("");
+          }
+          const badge = document.getElementById("todayCountBadge");
+          if (badge) badge.textContent = data.count;
+        }
+      } catch (e) {
+        console.error("Failed to fetch today feed:", e);
+      }
+    }
+
+    // Cross-browser & Secure Context getUserMedia Polyfill Helper
+    function getCrossBrowserUserMedia(constraints) {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        return navigator.mediaDevices.getUserMedia(constraints);
+      }
+      const legacyGetUserMedia = navigator.getUserMedia ||
+                                 navigator.webkitGetUserMedia ||
+                                 navigator.mozGetUserMedia ||
+                                 navigator.msGetUserMedia;
+      if (legacyGetUserMedia) {
+        return new Promise((resolve, reject) => {
+          legacyGetUserMedia.call(navigator, constraints, resolve, reject);
+        });
+      }
+      return Promise.reject(new Error("Browser camera API is disabled on unencrypted HTTP connections. Access the portal via 'http://localhost:5000' or HTTPS, or use USB Barcode Reader / manual input below."));
+    }
+
+    // Camera Stream logic
+    async function startCamera() {
+      const video = document.getElementById("webcamVideo");
+      const overlay = document.getElementById("targetOverlay");
+      const placeholder = document.getElementById("camPlaceholder");
+      const btnStart = document.getElementById("btnStartCam");
+      const btnStop = document.getElementById("btnStopCam");
+      const indicator = document.getElementById("camStatusIndicator");
+
+      try {
+        mediaStream = await getCrossBrowserUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = mediaStream;
+        video.style.display = "block";
+        overlay.style.display = "block";
+        placeholder.style.display = "none";
+        btnStart.style.display = "none";
+        btnStop.style.display = "block";
+        indicator.textContent = "Camera Live";
+        indicator.style.background = "#065f46";
+        indicator.style.color = "#a7f3d0";
+      } catch (err) {
+        const errorMsg = err.message || "Unable to access webcam.";
+        alert("Webcam Video Stream Notice:\n\n" + errorMsg);
+        indicator.textContent = "Camera Disabled";
+        indicator.style.background = "#991b1b";
+        indicator.style.color = "#fecaca";
+      }
+    }
+
+    function stopCamera() {
+      const video = document.getElementById("webcamVideo");
+      const overlay = document.getElementById("targetOverlay");
+      const placeholder = document.getElementById("camPlaceholder");
+      const btnStart = document.getElementById("btnStartCam");
+      const btnStop = document.getElementById("btnStopCam");
+      const indicator = document.getElementById("camStatusIndicator");
+
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+      video.style.display = "none";
+      overlay.style.display = "none";
+      placeholder.style.display = "block";
+      btnStart.style.display = "block";
+      btnStop.style.display = "none";
+      indicator.textContent = "Camera Idle";
+      indicator.style.background = "#334155";
+      indicator.style.color = "#94a3b8";
+    }
+  </script>
+</body>
+
+</html>

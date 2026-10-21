@@ -12,6 +12,7 @@ import secrets
 import string
 from utils.excel_parser import parse_xlsx_to_dicts
 from utils.email_helper import send_credentials_email
+from utils.barcode_helper import generate_secure_code
 
 super_admin_routes = Blueprint('super_admin_routes', __name__)
 
@@ -676,6 +677,7 @@ def super_admin_bulk_upload():
         else:
             user_role = "personnel"
 
+        sec_code = generate_secure_code()
         new_user = {
             "email": official_email,
             "alternate_email": alternate_email,
@@ -688,6 +690,8 @@ def super_admin_bulk_upload():
             "directorate": directorate,
             "category": category,
             "password_hash": password_hash,
+            "secure_code": sec_code,
+            "secureCode": sec_code,
             "is_active": True,
             "is_onboarded": False,
             "is_approval_role": False,
