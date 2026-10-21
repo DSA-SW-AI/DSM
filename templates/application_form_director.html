@@ -966,6 +966,274 @@
 
     <script>
 
+        // === TACOS Balances and Leave Parameters ===
+        const annualRemaining = parseInt("{{ (leave_data.balances.annualRemaining if leave_data.balances else 0)|default(0) }}") || 0;
+        const rawCasual = parseInt("{{ (leave_data.balances.casualCalendarDaysRemaining if leave_data.balances else 7)|default(7) }}");
+        const casualRemaining = isNaN(rawCasual) ? 7 : rawCasual;
+        const rawComp = parseInt("{{ (leave_data.balances.compassionateRemaining if leave_data.balances else 10)|default(10) }}");
+        const compassionateRemaining = isNaN(rawComp) ? 10 : rawComp;
+        const rawSickYear = parseInt("{{ (leave_data.balances.sickThisYearRemaining if leave_data.balances else 21)|default(21) }}");
+        const sickThisYearRemaining = isNaN(rawSickYear) ? 21 : rawSickYear;
+        const rawSickRolling = parseInt("{{ (leave_data.balances.sickRollingRemaining if leave_data.balances else 42)|default(42) }}");
+        const sickRollingRemaining = isNaN(rawSickRolling) ? 42 : rawSickRolling;
+        const maternityAvailable = {{ 'true' if (not leave_data.balances or leave_data.balances.maternityAvailable is not defined or leave_data.balances.maternityAvailable) else 'false' }};
+        const paternityAvailable = {{ 'true' if (not leave_data.balances or leave_data.balances.paternityAvailable is not defined or leave_data.balances.paternityAvailable) else 'false' }};
+        const terminalAvailable = {{ 'true' if (not leave_data.balances or ((leave_data.balances.terminalAvailable is not defined or leave_data.balances.terminalAvailable) and not leave_data.balances.terminalGranted)) else 'false' }};
+        const terminalEntitlement = parseInt("{{ (leave_data.entitlements.terminal if (leave_data and leave_data.entitlements) else 42)|default(42) }}") || 42;
+        const applicantGender = "{{ applicant_gender|default('')|lower }}";
+
+        function showValidationErrorModal(title, message) {
+            const titleEl = document.getElementById('validationErrorTitle');
+            const msgEl = document.getElementById('validationErrorMessage');
+            const modal = document.getElementById('validationErrorModal');
+            if (titleEl) titleEl.textContent = title;
+            if (msgEl) msgEl.innerHTML = message;
+            if (modal) {
+                modal.style.display = 'flex';
+                setTimeout(() => {
+                    if (modal.children && modal.children[0]) {
+                        modal.children[0].style.transform = 'scale(1)';
+                    }
+                }, 50);
+            }
+        }
+
+        window.closeValidationErrorModal = function () {
+            const modal = document.getElementById('validationErrorModal');
+            if (modal) {
+                if (modal.children && modal.children[0]) {
+                    modal.children[0].style.transform = 'scale(0.9)';
+                }
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 150);
+            }
+        };
+
+        document.getElementById('validationErrorModal')?.addEventListener('click', function (e) {
+            if (e.target === this) {
+                closeValidationErrorModal();
+            }
+        });
+
+        function validateLeaveTypeAvailability(leaveType) {
+            if (!leaveType) return { valid: true };
+
+            if (leaveType === 'maternity') {
+                if (applicantGender && applicantGender === 'male') {
+                    return {
+                        valid: false,
+                        title: 'Maternity Leave Not Applicable',
+                        message: 'Maternity leave is only available to female personnel.'
+                    };
+                }
+                if (!maternityAvailable) {
+                    return {
+                        valid: false,
+                        title: 'Maternity Leave Unavailable',
+                        message: 'Maternity leave has already been utilized for this cycle/year.'
+                    };
+                }
+            }
+
+            if (leaveType === 'paternity') {
+                if (applicantGender && applicantGender === 'female') {
+                    return {
+                        valid: false,
+                        title: 'Paternity Leave Not Applicable',
+                        message: 'Paternity leave is only available to male personnel.'
+                    };
+                }
+                if (!paternityAvailable) {
+                    return {
+                        valid: false,
+                        title: 'Paternity Leave Unavailable',
+                        message: 'Paternity leave has already been utilized for this cycle/year.'
+                    };
+                }
+            }
+
+            if (leaveType === 'terminal') {
+                if (!terminalAvailable) {
+                    return {
+                        valid: false,
+                        title: 'Terminal Leave Unavailable',
+                        message: 'Terminal leave has already been granted or is not available prior to retirement.'
+                    };
+                }
+            }
+
+            return { valid: true };
+        }
+
+        function validateLeaveSelection(leaveType, days, isSubmit = false) {
+            if (!leaveType) return { valid: true };
+            days = parseInt(days) || 0;
+
+            const availCheck = validateLeaveTypeAvailability(leaveType);
+            if (!availCheck.valid) return availCheck;
+
+            // 1. Compassionate Leave
+            if (leaveType === 'compassionate') {
+                if (days > compassionateRemaining) {
+                    return {
+                        valid: false,
+                        title: 'Compassionate Leave Limit Exceeded',
+                        message: compassionateRemaining > 0
+                            ? `You selected <strong>${days}</strong> working days, but the recommended maximum for compassionate leave is <strong>${compassionateRemaining}</strong> working day(s) per year (You currently have <strong>${compassionateRemaining}</strong> day(s) remaining of your 10-day allowance).`
+                            : `You selected <strong>${days}</strong> working days, but you have exhausted your compassionate leave allowance for this year (0 days remaining of 10-day allowance).`
+                    };
+                }
+            }
+
+            // 2. Annual Leave
+            if (leaveType === 'annual') {
+                if (days > annualRemaining) {
+                    return {
+                        valid: false,
+                        title: 'Annual Leave Limit Exceeded',
+                        message: `You selected <strong>${days}</strong> working days, but you only have <strong>${annualRemaining}</strong> annual leave days remaining.`
+                    };
+                }
+            }
+
+            // 3. Casual Leave / Pass
+            if (leaveType === 'casual' || leaveType === 'pass') {
+                const maxCasualAllowed = casualRemaining + annualRemaining;
+                if (days > maxCasualAllowed) {
+                    return {
+                        valid: false,
+                        title: 'Casual Leave Limit Exceeded',
+                        message: `You selected <strong>${days}</strong> calendar days. Your remaining casual leave allowance is <strong>${casualRemaining}</strong> days, which combined with your <strong>${annualRemaining}</strong> annual leave days, allows a maximum of <strong>${maxCasualAllowed}</strong> days.`
+                    };
+                }
+            }
+
+            // 4. Sick Leave
+            if (leaveType === 'sick') {
+                const isHospitalized = document.getElementById('hospitalized_check')?.checked;
+                const isFirstHosp = document.querySelector('input[name="first_hospitalization"]')?.checked;
+                if (!isHospitalized && days > sickRollingRemaining) {
+                    return {
+                        valid: false,
+                        title: 'Sick Leave Limit Exceeded',
+                        message: `You selected <strong>${days}</strong> working days, which exceeds the maximum allowable 42 working days in a rolling 12-month period (you have <strong>${sickRollingRemaining}</strong> working days remaining).`
+                    };
+                }
+                if (isHospitalized && isFirstHosp && days > 90) {
+                    return {
+                        valid: false,
+                        title: 'Hospitalization Sick Leave Limit Exceeded',
+                        message: `First hospitalization leave is limited to approximately 90 calendar days (~3 months).`
+                    };
+                }
+                if (isSubmit) {
+                    const hasMedCert = document.querySelector('input[name="has_medical_certificate"]')?.checked;
+                    if (!hasMedCert) {
+                        return {
+                            valid: false,
+                            title: 'Medical Certificate Required',
+                            message: `A medical certificate from a government hospital is mandatory for sick leave.`
+                        };
+                    }
+                }
+            }
+
+            // 5. Maternity Leave
+            if (leaveType === 'maternity') {
+                if (days > 112) {
+                    return {
+                        valid: false,
+                        title: 'Maternity Leave Limit Exceeded',
+                        message: `Maternity leave is fixed at exactly 112 working days (16 weeks). You selected <strong>${days}</strong> working days.`
+                    };
+                }
+                if (isSubmit && days > 0 && days !== 112) {
+                    return {
+                        valid: false,
+                        title: 'Maternity Leave Duration Invalid',
+                        message: `Maternity leave must be exactly 112 working days (16 weeks). Currently selected: <strong>${days}</strong> working days.`
+                    };
+                }
+                if (isSubmit) {
+                    const edd = document.getElementById('expected_delivery_date')?.value;
+                    if (!edd) {
+                        return {
+                            valid: false,
+                            title: 'Expected Delivery Date Required',
+                            message: `Please provide your Expected Delivery Date (EDD) for maternity leave.`
+                        };
+                    }
+                }
+            }
+
+            // 6. Paternity Leave
+            if (leaveType === 'paternity') {
+                if (days > 14) {
+                    return {
+                        valid: false,
+                        title: 'Paternity Leave Limit Exceeded',
+                        message: `Paternity leave is fixed at a maximum of 14 working days. You selected <strong>${days}</strong> working days.`
+                    };
+                }
+                if (isSubmit && days > 0 && days !== 14) {
+                    return {
+                        valid: false,
+                        title: 'Paternity Leave Duration Invalid',
+                        message: `Paternity leave must be exactly 14 working days. Currently selected: <strong>${days}</strong> working days.`
+                    };
+                }
+            }
+
+            // 7. Disembarkation Leave
+            if (leaveType === 'disembarkation') {
+                if (days > 14) {
+                    return {
+                        valid: false,
+                        title: 'Disembarkation Leave Limit Exceeded',
+                        message: `Disembarkation leave cannot exceed 14 working days (7 days for 3-6 months attachment, 14 days for > 6 months). You selected <strong>${days}</strong> working days.`
+                    };
+                }
+                if (days > annualRemaining) {
+                    return {
+                        valid: false,
+                        title: 'Annual Leave Balance Insufficient',
+                        message: `Disembarkation leave requires sufficient annual leave balance. You selected <strong>${days}</strong> working days, but have only <strong>${annualRemaining}</strong> annual leave days remaining.`
+                    };
+                }
+                if (isSubmit) {
+                    const months = parseInt(document.getElementById('attachment_months')?.value) || 0;
+                    if (months < 3) {
+                        return {
+                            valid: false,
+                            title: 'Invalid Attachment Duration',
+                            message: `Disembarkation leave requires a continuous course/operational attachment of at least 3 months.`
+                        };
+                    }
+                }
+            }
+
+            // 8. Terminal Leave
+            if (leaveType === 'terminal') {
+                if (days > terminalEntitlement) {
+                    return {
+                        valid: false,
+                        title: 'Terminal Leave Limit Exceeded',
+                        message: `Terminal leave entitlement for your grade level is <strong>${terminalEntitlement}</strong> working days. You selected <strong>${days}</strong> working days.`
+                    };
+                }
+                if (isSubmit && days > 0 && days !== terminalEntitlement) {
+                    return {
+                        valid: false,
+                        title: 'Terminal Leave Duration Invalid',
+                        message: `Terminal leave must be exactly <strong>${terminalEntitlement}</strong> working days for your grade level. Currently selected: <strong>${days}</strong> working days.`
+                    };
+                }
+            }
+
+            return { valid: true };
+        }
+
         // === Show / hide conditional fields ===
         const leaveTypeSelect = document.getElementById('leave_type');
         const maternityFields = document.getElementById('maternity_fields');
@@ -973,75 +1241,84 @@
         const sickFields = document.getElementById('sick_fields');
         const firstHospField = document.getElementById('first_hospitalization_field');
 
-        leaveTypeSelect.addEventListener('change', function () {
+        leaveTypeSelect?.addEventListener('change', function () {
             const type = this.value;
 
-            // Hide all
-            [maternityFields, disembarkationFields, sickFields].forEach(el => el.style.display = 'none');
-            firstHospField.style.display = 'none';
+            if (maternityFields) maternityFields.style.display = 'none';
+            if (disembarkationFields) disembarkationFields.style.display = 'none';
+            if (sickFields) sickFields.style.display = 'none';
+            if (firstHospField) firstHospField.style.display = 'none';
 
-            if (type === 'maternity') {
+            if (type === 'maternity' && maternityFields) {
                 maternityFields.style.display = 'block';
-            } else if (type === 'disembarkation') {
+            } else if (type === 'disembarkation' && disembarkationFields) {
                 disembarkationFields.style.display = 'block';
-            } else if (type === 'sick') {
+            } else if (type === 'sick' && sickFields) {
                 sickFields.style.display = 'block';
             }
 
-            // Recalculate when leave type changes
-            updateLeaveDaysDisplay();
+            const typeCheck = validateLeaveTypeAvailability(type);
+            if (!typeCheck.valid) {
+                showValidationErrorModal(typeCheck.title, typeCheck.message);
+                this.value = '';
+                if (maternityFields) maternityFields.style.display = 'none';
+                if (disembarkationFields) disembarkationFields.style.display = 'none';
+                if (sickFields) sickFields.style.display = 'none';
+                return;
+            }
 
+            // Recalculate and validate with current dates
+            updateLeaveDaysDisplay(false);
         });
 
         // Show first hospitalization option only if hospitalized is checked
         document.getElementById('hospitalized_check')?.addEventListener('change', function () {
-            firstHospField.style.display = this.checked ? 'block' : 'none';
+            if (firstHospField) firstHospField.style.display = this.checked ? 'block' : 'none';
+            updateLeaveDaysDisplay(false);
         });
 
         // Auto-sync effective date with start date (initially)
-        document.getElementById('start_date').addEventListener('change', function () {
+        document.getElementById('start_date')?.addEventListener('change', function () {
             const start = this.value;
             if (start) {
-                document.getElementById('effective_date').value = start;
+                const eff = document.getElementById('effective_date');
+                if (eff) eff.value = start;
             }
-            updateLeaveDaysDisplay();
+            updateLeaveDaysDisplay(false);
         });
 
         // Warn if effective date differs from start date
-        document.getElementById('effective_date').addEventListener('change', function () {
-            const start = document.getElementById('start_date').value;
+        document.getElementById('effective_date')?.addEventListener('change', function () {
+            const start = document.getElementById('start_date')?.value;
             const warning = document.getElementById('effective-warning');
-            if (start && this.value !== start) {
-                warning.style.display = 'block';
-            } else {
-                warning.style.display = 'none';
+            if (warning) {
+                warning.style.display = (start && this.value !== start) ? 'block' : 'none';
             }
-            updateLeaveDaysDisplay();
+            updateLeaveDaysDisplay(false);
         });
 
         // When end date changes, update display
-        document.getElementById('end_date').addEventListener('change', function () {
-            updateLeaveDaysDisplay();
+        document.getElementById('end_date')?.addEventListener('change', function () {
+            updateLeaveDaysDisplay(false);
         });
 
-        // When leave type changes, update display
-        document.getElementById('leave_type').addEventListener('change', function () {
-            updateLeaveDaysDisplay();
+        document.getElementById('attachment_months')?.addEventListener('input', function () {
+            updateLeaveDaysDisplay(false);
         });
 
 
         // Main function to update leave days display
-        function updateLeaveDaysDisplay() {
-            const start = document.getElementById('start_date').value;
-            const end = document.getElementById('end_date').value;
-            const effective = document.getElementById('effective_date').value;
+        function updateLeaveDaysDisplay(isInitial = false) {
+            const start = document.getElementById('start_date')?.value;
+            const end = document.getElementById('end_date')?.value;
+            const effective = document.getElementById('effective_date')?.value;
             const leaveType = document.getElementById('leave_type')?.value;
-            // const daysDisplay = document.getElementById('calculated_days');
             const messageEl = document.getElementById('days_message');
             const hiddenField = document.getElementById('calculated_days_actual');
 
+            if (!messageEl) return;
+
             if (!start || !end || !effective || !leaveType) {
-                // daysDisplay.textContent = '—';
                 messageEl.innerHTML = '';
                 if (hiddenField) hiddenField.value = '';
                 return;
@@ -1052,14 +1329,12 @@
             const endDate = new Date(end);
 
             if (startDate > endDate) {
-                // daysDisplay.textContent = '—';
-                messageEl.innerHTML = '<div class="leave-info-message error"><i class="bi bi-exclamation-triangle"></i> ⚠️ End date must be after effective date</div>';
+                messageEl.innerHTML = '<div class="leave-info-message error"><i class="bi bi-exclamation-triangle"></i> ⚠️ End date must be on or after effective date</div>';
                 if (hiddenField) hiddenField.value = '';
                 return;
             }
 
             // Show loading state
-            // daysDisplay.textContent = '...';
             messageEl.innerHTML = '<div class="leave-info-message loading"><span class="spinner"></span> Calculating working days...</div>';
 
             // Call backend API for accurate calculation
@@ -1080,17 +1355,29 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
-                        // daysDisplay.textContent = '—';
                         messageEl.innerHTML = `<div class="leave-info-message error"><i class="bi bi-exclamation-triangle"></i> ⚠️ ${data.error}</div>`;
                         if (hiddenField) hiddenField.value = '';
                         return;
                     }
 
-                    // Display the exact days from backend
-                    // daysDisplay.textContent = data.days;
-
                     // Store in hidden field for form submission
                     if (hiddenField) hiddenField.value = data.days;
+
+                    // Validate leave limits (triggers modal if exceeded)
+                    const validation = validateLeaveSelection(leaveType, data.days, false);
+                    if (!validation.valid && !isInitial) {
+                        showValidationErrorModal(validation.title, validation.message);
+                    }
+
+                    let validationWarningHtml = '';
+                    if (!validation.valid) {
+                        validationWarningHtml = `
+                            <div class="validation-note" style="background: #fff5f5; color: #c53030; border-left: 3px solid #e53e3e; margin-top: 8px; padding: 6px 10px; border-radius: 4px; font-weight: 600;">
+                                <i class="bi bi-exclamation-triangle-fill" style="color: #e53e3e; margin-right: 4px;"></i>
+                                ${validation.title}: ${validation.message}
+                            </div>
+                        `;
+                    }
 
                     // Build informative message with enhanced styling
                     const messageContainer = document.createElement('div');
@@ -1099,21 +1386,22 @@
                     if (data.type === 'calendar') {
                         messageContainer.className += ' casual';
                         messageContainer.innerHTML = `
-                <div class="message-title">
-                    <i class="bi bi-calendar-check"></i>
-                    <span>Casual Leave Calculation</span>
-                </div>
-                <div>
-                    <span class="info-tooltip" data-tooltip="Casual leave counts all days including weekends">
-                        📅 Total duration:
-                    </span>
-                    <span class="days-count">${data.days}</span> calendar days
-                </div>
-                <div class="validation-note">
-                    <i class="bi bi-info-circle"></i>
-                    Includes weekends. No deduction from annual leave if within 7-day allowance.
-                </div>
-            `;
+                            <div class="message-title">
+                                <i class="bi bi-calendar-check"></i>
+                                <span>Casual Leave Calculation</span>
+                            </div>
+                            <div>
+                                <span class="info-tooltip" data-tooltip="Casual leave counts all days including weekends">
+                                    📅 Total duration:
+                                </span>
+                                <span class="days-count">${data.days}</span> calendar days
+                            </div>
+                            <div class="validation-note">
+                                <i class="bi bi-info-circle"></i>
+                                Includes weekends. Free up to remaining casual allowance (${casualRemaining} days).
+                            </div>
+                            ${validationWarningHtml}
+                        `;
                     } else {
                         messageContainer.className += ' working';
 
@@ -1121,41 +1409,42 @@
                         let holidaysHtml = '';
                         if (data.holidays_excluded && data.holidays_excluded.length > 0) {
                             const holidayItems = data.holidays_excluded.map(h => `
-                    <div class="holiday-item">
-                        <span class="holiday-name">${h.name}</span>
-                        <span class="holiday-date">${h.date}</span>
-                    </div>
-                `).join('');
+                                <div class="holiday-item">
+                                    <span class="holiday-name">${h.name}</span>
+                                    <span class="holiday-date">${h.date}</span>
+                                </div>
+                            `).join('');
 
                             holidaysHtml = `
-                    <div class="holiday-list">
-                        <details>
-                            <summary>⚠️ Excludes ${data.holidays_excluded.length} public holiday(s)</summary>
-                            <div style="margin-top: 8px;">
-                                ${holidayItems}
-                            </div>
-                        </details>
-                    </div>
-                `;
+                                <div class="holiday-list">
+                                    <details>
+                                        <summary>⚠️ Excludes ${data.holidays_excluded.length} public holiday(s)</summary>
+                                        <div style="margin-top: 8px;">
+                                            ${holidayItems}
+                                        </div>
+                                    </details>
+                                </div>
+                            `;
                         }
 
                         messageContainer.innerHTML = `
-                <div class="message-title">
-                    <i class="bi bi-briefcase"></i>
-                    <span>Working Days Calculation</span>
-                </div>
-                <div>
-                    <span class="info-tooltip" data-tooltip="Working days exclude weekends and public holidays">
-                        💼 Total working days:
-                    </span>
-                    <span class="days-count">${data.days}</span> working days
-                </div>
-                ${holidaysHtml}
-                <div class="validation-note">
-                    <i class="bi bi-check-circle"></i>
-                    This is the final count that will be used for validation
-                </div>
-            `;
+                            <div class="message-title">
+                                <i class="bi bi-briefcase"></i>
+                                <span>Working Days Calculation</span>
+                            </div>
+                            <div>
+                                <span class="info-tooltip" data-tooltip="Working days exclude weekends and public holidays">
+                                    💼 Total working days:
+                                </span>
+                                <span class="days-count">${data.days}</span> working days
+                            </div>
+                            ${holidaysHtml}
+                            <div class="validation-note">
+                                <i class="bi bi-check-circle"></i>
+                                Count used for TACOS compliance and entitlement tracking
+                            </div>
+                            ${validationWarningHtml}
+                        `;
                     }
 
                     // Clear and append the new message
@@ -1164,7 +1453,6 @@
                 })
                 .catch(error => {
                     console.error('Error calculating days:', error);
-                    // daysDisplay.textContent = '—';
                     messageEl.innerHTML = '<div class="leave-info-message error"><i class="bi bi-exclamation-triangle"></i> ⚠️ Error calculating days</div>';
                     if (hiddenField) hiddenField.value = '';
                 });
@@ -1172,7 +1460,7 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function () {
-            updateLeaveDaysDisplay();
+            updateLeaveDaysDisplay(true);
 
             const overseerSelect = document.getElementById("director_reliever_select");
             const serviceNoInput = document.getElementById("director_reliever_service_number");
@@ -1198,21 +1486,18 @@
             }
         });
 
-
-
-
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
 
-        fileInput.addEventListener('change', () => {
+        fileInput?.addEventListener('change', () => {
             fileList.innerHTML = '';
             Array.from(fileInput.files).forEach((file, index) => {
                 const item = document.createElement('div');
                 item.className = 'file-item';
                 item.innerHTML = `
-                <span>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                <button type="button" onclick="removeFile(${index})">Remove</button>
-            `;
+                    <span>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    <button type="button" onclick="removeFile(${index})">Remove</button>
+                `;
                 fileList.appendChild(item);
             });
         });
@@ -1226,66 +1511,33 @@
             fileInput.dispatchEvent(new Event('change'));
         }
 
-        const annualRemaining = parseInt("{{ leave_data.balances.annualRemaining|default(0) }}") || 0;
-        const casualRemaining = parseInt("{{ leave_data.balances.casualCalendarDaysRemaining|default(0) }}") || 0;
-
-        function showValidationErrorModal(title, message) {
-            document.getElementById('validationErrorTitle').textContent = title;
-            document.getElementById('validationErrorMessage').innerHTML = message;
-            const modal = document.getElementById('validationErrorModal');
-            modal.style.display = 'flex';
-            setTimeout(() => {
-                modal.children[0].style.transform = 'scale(1)';
-            }, 50);
-        }
-
-        window.closeValidationErrorModal = function () {
-            const modal = document.getElementById('validationErrorModal');
-            modal.children[0].style.transform = 'scale(0.9)';
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 150);
-        }
-
-        // === Form Submit Interceptor to show Success Modal ===
+        // === Form Submit Interceptor to show Success/Error Modal ===
         document.getElementById('registerForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
 
-            const formData = new FormData(this);
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Submit Application';
+
+            const days = parseInt(document.getElementById('calculated_days_actual')?.value) || 0;
+            const leaveType = document.getElementById('leave_type')?.value;
+
+            // Full submit validation for all leave/pass types
+            const check = validateLeaveSelection(leaveType, days, true);
+            if (!check.valid) {
+                showValidationErrorModal(check.title, check.message);
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+                return;
+            }
 
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
             }
 
-            const days = parseInt(document.getElementById('calculated_days_actual')?.value) || 0;
-            const leaveType = document.getElementById('leave_type')?.value;
-
-            if (leaveType === 'annual' && days > annualRemaining) {
-                showValidationErrorModal(
-                    'Annual Leave Limit Exceeded',
-                    `You selected <strong>${days}</strong> working days, but you only have <strong>${annualRemaining}</strong> annual leave days remaining.`
-                );
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnHtml;
-                }
-                return;
-            }
-
-            if ((leaveType === 'casual' || leaveType === 'pass') && days > (casualRemaining + annualRemaining)) {
-                showValidationErrorModal(
-                    'Casual Leave Limit Exceeded',
-                    `You selected <strong>${days}</strong> calendar/calendar-equivalent days. Your remaining casual leave is <strong>${casualRemaining}</strong> days, which combined with your <strong>${annualRemaining}</strong> annual leave days, allows a maximum of <strong>${casualRemaining + annualRemaining}</strong> days.`
-                );
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnHtml;
-                }
-                return;
-            }
+            const formData = new FormData(this);
 
             fetch(this.action, {
                 method: 'POST',
@@ -1313,12 +1565,19 @@
 
                         // Show success modal
                         const successModal = document.getElementById('applicationSuccessModal');
-                        successModal.style.display = 'flex';
-                        setTimeout(() => {
-                            successModal.children[0].style.transform = 'scale(1)';
-                        }, 50);
+                        if (successModal) {
+                            successModal.style.display = 'flex';
+                            setTimeout(() => {
+                                if (successModal.children && successModal.children[0]) {
+                                    successModal.children[0].style.transform = 'scale(1)';
+                                }
+                            }, 50);
+                        }
                     } else {
-                        alert(data && data.error ? data.error : 'An error occurred during submission.');
+                        showValidationErrorModal(
+                            'Submission Failed',
+                            data && data.error ? data.error : 'An error occurred during submission.'
+                        );
                         if (submitBtn) {
                             submitBtn.disabled = false;
                             submitBtn.innerHTML = originalBtnHtml;
@@ -1327,7 +1586,10 @@
                 })
                 .catch(error => {
                     console.error('Submission error:', error);
-                    alert('A network error occurred while submitting your application.');
+                    showValidationErrorModal(
+                        'Submission Error',
+                        'A network error occurred while submitting your application.'
+                    );
                     if (submitBtn) {
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalBtnHtml;
