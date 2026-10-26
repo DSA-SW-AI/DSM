@@ -6,3 +6,4 @@ debug_query.log
 *.log
 scratch_avatars.txt
 seed.py
+docs/
