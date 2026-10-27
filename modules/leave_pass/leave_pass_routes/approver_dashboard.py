@@ -3158,6 +3158,34 @@ def view_receipt(app_id):
         # Convert dates in application
         start_date = convert_date(app.get('startDate'))
         end_date = convert_date(app.get('endDate'))
+
+        # Resolve applicant user and appointment
+        applicant_id = app.get('applicantId')
+        applicant_user = None
+        if applicant_id:
+            applicant_user = current_app.users_collection.find_one({
+                "$or": [{"service_number": applicant_id}, {"email": applicant_id}]
+            })
+
+        applicant_appt = (
+            app.get('appt')
+            or app.get('designation')
+            or app.get('appointment')
+        )
+        if not applicant_appt or applicant_appt == 'N/A':
+            if applicant_user:
+                applicant_appt = (
+                    applicant_user.get('appt')
+                    or applicant_user.get('designation')
+                    or applicant_user.get('appointment')
+                    or (applicant_user.get('onboarding_data', {}).get('step_1', {}).get('appt')
+                        if isinstance(applicant_user.get('onboarding_data'), dict) else None)
+                )
+        if not applicant_appt:
+            applicant_appt = 'N/A'
+
+        app['appt'] = applicant_appt
+        app['designation'] = applicant_appt
         
         # Prepare receipt data for template
         receipt_data = {
@@ -3170,6 +3198,7 @@ def view_receipt(app_id):
             'final_approval_date': final_approval_date,
             'approving_authority': 'Director',
             'application': app,
+            'applicant_appt': applicant_appt,
             'start_date': start_date,
             'end_date': end_date,
             'user': current_user
@@ -3303,8 +3332,8 @@ def download_receipt(app_id):
                 print(f"Error adding logo: {e}")
         
         # Header
+        story.append(Paragraph("LEAVE/PASS", subtitle_style))
         story.append(Paragraph("DEFENCE SPACE ADMINISTRATION", title_style))
-        story.append(Paragraph("LEAVE/PASS APPROVAL", subtitle_style))
         
         # Receipt number box
         receipt_number = receipt_info.get('receiptNumber', 'N/A')
@@ -3355,43 +3384,79 @@ def download_receipt(app_id):
                     return dt_value
             return 'N/A'
         
+        # Resolve applicant user, rank, and appointment
+        applicant_id = app.get('applicantId')
+        applicant_user = None
+        if applicant_id:
+            applicant_user = current_app.users_collection.find_one({"$or": [{"service_number": applicant_id}, {"email": applicant_id}]})
+
         # Format applicant rank
-        applicant_rank = app.get('rankOrGrade') or app.get('rank') or app.get('designation', 'N/A')
-        if applicant_rank == 'N/A':
-            # Try to fetch from user collection
-            applicant_id = app.get('applicantId')
-            if applicant_id:
-                applicant_user = current_app.users_collection.find_one({"$or": [{"service_number": applicant_id}, {"email": applicant_id}]})
-                if applicant_user:
-                    applicant_rank = applicant_user.get('rank') or applicant_user.get('rankOrGrade') or applicant_user.get('designation', 'N/A')
-        
+        applicant_rank = app.get('rankOrGrade') or app.get('rank')
+        if not applicant_rank or applicant_rank == 'N/A':
+            if applicant_user:
+                applicant_rank = (
+                    applicant_user.get('rankOrGrade')
+                    or applicant_user.get('rank')
+                    or (applicant_user.get('onboarding_data', {}).get('step_1', {}).get('rankOrGrade')
+                        if isinstance(applicant_user.get('onboarding_data'), dict) else None)
+                    or (applicant_user.get('onboarding_data', {}).get('step_1', {}).get('rank')
+                        if isinstance(applicant_user.get('onboarding_data'), dict) else None)
+                )
+        if not applicant_rank:
+            applicant_rank = 'N/A'
+
+        # Format applicant appointment
+        applicant_appt = (
+            app.get('appt')
+            or app.get('designation')
+            or app.get('appointment')
+        )
+        if not applicant_appt or applicant_appt == 'N/A':
+            if applicant_user:
+                applicant_appt = (
+                    applicant_user.get('appt')
+                    or applicant_user.get('designation')
+                    or applicant_user.get('appointment')
+                    or (applicant_user.get('onboarding_data', {}).get('step_1', {}).get('appt')
+                        if isinstance(applicant_user.get('onboarding_data'), dict) else None)
+                )
+        if not applicant_appt:
+            applicant_appt = 'N/A'
+
+        app['appt'] = applicant_appt
+        app['designation'] = applicant_appt
+        applicant_directorate = app.get('directorate', 'N/A')
+
         # Application details table
         details_data = [
             [Paragraph("<b>APPLICATION DETAILS</b>", styles['Normal']), ""],
             ["Reference ID:", app.get('referenceId', 'N/A')],
+            ["No:", app.get('applicantId', 'N/A')],
+            ["Station:", f"{'Defence Space Administration (DSA)'}"],
             ["Applicant Name:", f"{app.get('applicantName', 'N/A')}"],
-            ["Service Number:", app.get('applicantId', 'N/A')],
-            ["Rank:", applicant_rank],
-            ["Directorate:", app.get('directorate', 'N/A')],
-            ["Leave Type:", app.get('leave_type', 'N/A').title()],
+            ["Dept/Appointment:", f"{applicant_directorate} / {applicant_appt}"],
+            # ["Rank/Grade:", applicant_rank],
+            ["Has permission to absent from his/her quarter/duty"],
+            ["From:", format_date(app.get('startDate'))],
+            ["To:", format_date(app.get('endDate'))],
+            ["For the purpose of proceeding to:"], [ f"{app.get('leave_type', 'N/A').title()}"],
+            ["Date:", format_datetime(final_approval_date)],
             ["Number of Days:", str(app.get('numberOfDays', 'N/A'))],
-            ["Start Date:", format_date(app.get('startDate'))],
-            ["End Date:", format_date(app.get('endDate'))],
         ]
         
         # Create table
         table = Table(details_data, colWidths=[1.5*inch, 4*inch])
         table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('SPAN', (0, 0), (1, 0)),
             ('BACKGROUND', (0, 0), (1, 0), colors.HexColor('#e2e8f0')),
             ('TEXTCOLOR', (0, 0), (1, 0), colors.HexColor('#1a3a5c')),
             ('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (1, 0), 12),
+            ('FONTSIZE', (0, 0), (1, 0), 10),
             ('ALIGN', (0, 0), (1, 0), 'CENTER'),
         ]))
         
@@ -3400,28 +3465,28 @@ def download_receipt(app_id):
 
         # Approval details with ranks (using data directly from approvalChain)
         approval_data = [
-            [Paragraph("<b>APPROVAL INFORMATION</b>", styles['Normal']), ""],
-            ["Final Approved By:", f"{final_approver_name} ({final_approver_rank})" if final_approver_rank != 'N/A' else final_approver_name],
-            ["Approving Authority:", "Director"],
-            ["Approval Date:", format_datetime(final_approval_date)],
-            ["", ""],
-            ["Leave/Pass Issued By:", f"{receipt_issuer_name} ({receipt_issuer_rank})" if receipt_issuer_rank != 'N/A' else receipt_issuer_name],
-            ["Issuing Authority:", "Director"],
+            [Paragraph("<b>RELEASING AUTHOURITY</b>", styles['Normal']), ""],
+            # ["Final Approved By:", f"{final_approver_name} ({final_approver_rank})" if final_approver_rank != 'N/A' else final_approver_name],
+            ["Name & Rank:", f"{final_approver_name} ({final_approver_rank})" if final_approver_rank != 'N/A' else final_approver_name],
+            ["Appointment:", "Director"],
             ["Issue Date:", format_datetime(receipt_issue_date)],
+            ["If sick while on leave/pass report to the nearest medical Officer and show this pass"],
+            # ["Approval Date:", format_datetime(final_approval_date)],
+            # ["Leave/Pass Issued By:", f"{receipt_issuer_name} ({receipt_issuer_rank})" if receipt_issuer_rank != 'N/A' else receipt_issuer_name],
         ]
         
         approval_table = Table(approval_data, colWidths=[1.5*inch, 4*inch])
         approval_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('SPAN', (0, 0), (1, 0)),
             ('BACKGROUND', (0, 0), (1, 0), colors.HexColor('#e2e8f0')),
             ('TEXTCOLOR', (0, 0), (1, 0), colors.HexColor('#1a3a5c')),
             ('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (1, 0), 12),
+            ('FONTSIZE', (0, 0), (1, 0), 10),
             ('ALIGN', (0, 0), (1, 0), 'CENTER'),
         ]))
         
@@ -3429,35 +3494,35 @@ def download_receipt(app_id):
         story.append(Spacer(1, 0.3*inch))
         
         # Comments if any
-        comments = app.get('comments') or receipt_info.get('comments')
-        if comments:
-            comments_style = ParagraphStyle(
-                'Comments',
-                parent=styles['Normal'],
-                fontSize=10,
-                textColor=colors.HexColor('#4a5568'),
-                leftIndent=20,
-                rightIndent=20
-            )
-            story.append(Paragraph("<b>Comments:</b>", styles['Normal']))
-            story.append(Paragraph(comments, comments_style))
-            story.append(Spacer(1, 0.2*inch))
+        # comments = app.get('comments') or receipt_info.get('comments')
+        # if comments:
+        #     comments_style = ParagraphStyle(
+        #         'Comments',
+        #         parent=styles['Normal'],
+        #         fontSize=10,
+        #         textColor=colors.HexColor('#4a5568'),
+        #         leftIndent=20,
+        #         rightIndent=20
+        #     )
+        #     story.append(Paragraph("<b>Comments:</b>", styles['Normal']))
+        #     story.append(Paragraph(comments, comments_style))
+        #     story.append(Spacer(1, 0.2*inch))
         
         # Footer note
-        footer_style = ParagraphStyle(
-            'Footer',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=colors.HexColor('#718096'),
-            alignment=TA_CENTER,
-            spaceBefore=20
-        )
+        # footer_style = ParagraphStyle(
+        #     'Footer',
+        #     parent=styles['Normal'],
+        #     fontSize=9,
+        #     textColor=colors.HexColor('#718096'),
+        #     alignment=TA_CENTER,
+        #     spaceBefore=20
+        # )
         
-        story.append(Paragraph(
-            "This is a computer-generated receipt and does not require a signature. "
-            "Please present this receipt when requested by relevant authorities.",
-            footer_style
-        ))
+        # story.append(Paragraph(
+        #     "This is a computer-generated receipt and does not require a signature. "
+        #     "Please present this receipt when requested by relevant authorities.",
+        #     footer_style
+        # ))
         
         # Add QR code or stamp area (optional)
         story.append(Spacer(1, 0.2*inch))
@@ -3468,7 +3533,7 @@ def download_receipt(app_id):
             textColor=colors.HexColor('#a0aec0'),
             alignment=TA_CENTER
         )
-        story.append(Paragraph("Digitally Generated Document", stamp_style))
+        # story.append(Paragraph("Digitally Generated Document", stamp_style))
         
         # Build PDF
         doc.build(story)

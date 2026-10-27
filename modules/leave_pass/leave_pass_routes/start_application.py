@@ -1139,7 +1139,8 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
         "applicantName": applicant['fullName'],
         "applicantId":   applicant['service_number'],
         "rankOrGrade":   applicant['rankOrGrade'],
-        "designation":     applicant['designation'],
+        "designation":   applicant['designation'],
+        "appt":          applicant['designation'],
         "role_bucket":   role_bucket,           # stored for reference
         "leave_type":    leave_type,
         "directorate":   directorate,

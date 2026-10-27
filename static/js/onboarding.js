@@ -231,14 +231,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Reflect completed milestones on Step 0 roadmap
     updateChecklistIndicators();
 
-    // 3. Resume automatically where the user stopped
+    // 3. User lands on Step 0 roadmap where completed steps show checkmarks and the
+    // "Continue (Step X) →" banner lets them resume intentionally instead of being forcibly redirected.
     const resumeStepVal = (typeof RESUME_STEP !== 'undefined') ? Number(RESUME_STEP) : 0;
     const hasAnyCompleted = Object.values(completedSteps).some(v => v === true);
 
-    if (hasAnyCompleted && resumeStepVal > 0 && resumeStepVal <= 5) {
-        console.log(`Auto-resuming onboarding session at Step ${resumeStepVal}`);
-        goToStep(resumeStepVal);
-    }
+    // Keep user on the roadmap (Step 0) on fresh page load/login.
+    // They can click the "Continue (Step X)" banner button or any step card to proceed.
 });
 
 /**

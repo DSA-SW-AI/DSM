@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-  {% include 'pwa_head.html' %}
+    {% include 'pwa_head.html' %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leave Approval Receipt - {{ receipt_data.receipt_number }}</title>
@@ -165,8 +165,8 @@
             <div class="logo mb-3">
                 <img src="{{ url_for('static', filename='images/dsa2.png') }}" alt="DCS Logo" style="height: 80px;">
             </div>
+            <h1>LEAVE/PASS</h1>
             <h1>DEFENCE SPACE ADMINISTRATION</h1>
-            <p>Leave/Pass Approval Receipt</p>
             <div class="receipt-number">
                 <i class="bi bi-receipt"></i> {{ receipt_data.receipt_number }}
             </div>
@@ -181,31 +181,62 @@
                     <div class="info-value">{{ receipt_data.application.get('referenceId', 'N/A') }}</div>
                 </div>
                 <div class="info-row">
-                    <div class="info-label">Applicant Name:</div>
-                    <div class="info-value">{{ receipt_data.application.get('applicantName', 'N/A') }}</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">Service Number:</div>
+                    <div class="info-label">No:</div>
                     <div class="info-value">{{ receipt_data.application.get('applicantId', 'N/A') }}</div>
                 </div>
                 <div class="info-row">
-                    <div class="info-label">Directorate:</div>
-                    <div class="info-value">{{ receipt_data.application.get('directorate', 'N/A') }}</div>
+                    <div class="info-label">Station:</div>
+                    <div class="info-value">Defence Space Administration (DSA)</div>
                 </div>
                 <div class="info-row">
+                    <div class="info-label">Applicant Name:</div>
+                    <div class="info-value">{{ receipt_data.application.get('applicantName', 'N/A') }}</div>
+                </div>
+                <!-- <div class="info-row">
+                    <div class="info-label">Service Number:</div>
+                    <div class="info-value">{{ receipt_data.application.get('applicantId', 'N/A') }}</div>
+                </div> -->
+                <div class="info-row">
+                    <div class="info-label">Directorate/Appointment:</div>
+                    <div class="info-value">{{ receipt_data.application.get('directorate', 'N/A') }} / {{
+                        receipt_data.applicant_appt or receipt_data.application.get('appt') or receipt_data.application.get('designation') or receipt_data.application.get('appointment') or 'N/A' }}</div>
+                </div>
+                <p>Has permission to absent from his/her quarter/duty</p>
+                <div class="info-row">
+                    <div class="info-label">From:</div>
+                    <div class="info-value">
+                        {% if receipt_data.start_date and receipt_data.end_date %}
+                        {{ receipt_data.start_date.strftime('%d %B, %Y') }} To {{ receipt_data.end_date.strftime('%d %B,
+                        %Y') }}
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- <div class="info-row">
                     <div class="info-label">Rank/Grade:</div>
                     <div class="info-value">{{ receipt_data.application.get('rankOrGrade') or
                         receipt_data.application.get('rank', 'N/A') }}</div>
-                </div>
+                </div> -->
                 <div class="info-row">
-                    <div class="info-label">Leave Type:</div>
+                    <div class="info-label">For the purpose of proceeding to:</div>
                     <div class="info-value">{{ receipt_data.application.get('leave_type', 'N/A').title() }}</div>
                 </div>
                 <div class="info-row">
+                    <div class="info-label">Date:</div>
+                    <div class="info-value">
+                        {% if receipt_data.final_approval_date %}
+                        {{ receipt_data.final_approval_date.strftime('%d %B, %Y at %I:%M %p') }}
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- <div class="info-row">
                     <div class="info-label">Number of Days:</div>
                     <div class="info-value">{{ receipt_data.application.get('numberOfDays', 'N/A') }}</div>
-                </div>
-                <div class="info-row">
+                </div> -->
+                <!-- <div class="info-row">
                     <div class="info-label">Period:</div>
                     <div class="info-value">
                         {% if receipt_data.start_date and receipt_data.end_date %}
@@ -215,14 +246,14 @@
                         N/A
                         {% endif %}
                     </div>
-                </div>
+                </div> -->
             </div>
 
             <!-- Approval Information -->
             <div class="info-section">
-                <h3><i class="bi bi-check-circle"></i> Approval Information</h3>
+                <h3><i class="bi bi-check-circle"></i>Releasing Authority</h3>
                 <div class="info-row">
-                    <div class="info-label">Final Approved By:</div>
+                    <div class="info-label">Name & Rank:</div>
                     <div class="info-value">
                         {{ receipt_data.final_approver }}
                         {% if receipt_data.final_approver_rank and receipt_data.final_approver_rank != 'N/A' %}
@@ -231,10 +262,10 @@
                     </div>
                 </div>
                 <div class="info-row">
-                    <div class="info-label">Approving Authority:</div>
+                    <div class="info-label">Appointment:</div>
                     <div class="info-value">{{ receipt_data.approving_authority or 'Director' }}</div>
                 </div>
-                <div class="info-row">
+                <!-- <div class="info-row">
                     <div class="info-label">Approval Date:</div>
                     <div class="info-value">
                         {% if receipt_data.final_approval_date %}
@@ -243,8 +274,8 @@
                         N/A
                         {% endif %}
                     </div>
-                </div>
-                <div class="info-row">
+                </div> -->
+                <!-- <div class="info-row">
                     <div class="info-label">Receipt Issued By:</div>
                     <div class="info-value">
                         {{ receipt_data.issued_by or 'N/A' }}
@@ -252,9 +283,9 @@
                         <span style="color: #718096; font-size: 12px;">({{ receipt_data.issued_by_rank }})</span>
                         {% endif %}
                     </div>
-                </div>
+                </div> -->
                 <div class="info-row">
-                    <div class="info-label">Receipt Issue Date:</div>
+                    <div class="info-label">Issued Date:</div>
                     <div class="info-value">
                         {% if receipt_data.issued_date %}
                         {{ receipt_data.issued_date.strftime('%d %B, %Y at %I:%M %p') }}
@@ -263,18 +294,19 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="info-row">
+                <p>If sick while on leave/pass report to the nearest medical Officer and show this pass.</p>
+                <!-- <div class="info-row">
                     <div class="info-label">Status:</div>
                     <div class="info-value">
                         <span class="status-badge status-issued">
                             <i class="bi bi-check-circle-fill"></i> ISSUED
                         </span>
                     </div>
-                </div>
+                </div> -->
             </div>
 
             <!-- Reason/Comments -->
-            {% set reason = receipt_data.application.get('reason') %}
+            <!-- {% set reason = receipt_data.application.get('reason') %}
             {% if reason %}
             <div class="info-section">
                 <h3><i class="bi bi-chat"></i> Leave Reason</h3>
@@ -284,14 +316,14 @@
                     </div>
                 </div>
             </div>
-            {% endif %}
+            {% endif %} -->
         </div>
 
-        <div class="footer-note">
+        <!-- <div class="footer-note">
             <i class="bi bi-shield-check"></i> This is a computer-generated receipt and does not require a
             signature.<br>
             Please present this receipt when requested by relevant authorities.
-        </div>
+        </div> -->
     </div>
 
     <div class="no-print" style="text-align: center; margin-top: 20px;">
