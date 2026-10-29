@@ -42,19 +42,44 @@ ROLE_PERMISSIONS = {
                 "actions": ["review_documents", "incoming_register"]
             },
     "registry": {
-        "sidebar": ["dashboard", "documents", "incoming","civilian_personnel" ,"outgoing", "filing_cabinets", "leave_pass", "pending_emails", "support", "notification", "setting"],
-        "modules": ["documents","personnel_civilian"],
-        "actions": ["incoming_register", "outgoing_register", "archive_files"]
+        "sidebar": ["dashboard", "documents", "incoming", "civilian_personnel", "outgoing", "filing_cabinets", "leave_pass", "parade_states", "pending_emails", "support", "notification", "setting"],
+        "modules": ["documents", "personnel_civilian", "parade_states"],
+        "actions": ["incoming_register", "outgoing_register", "archive_files", "view_parade_state"]
     },
     "central_registry": {
-            "sidebar": ["dashboard", "documents", "incoming","civilian_personnel" ,"outgoing", "filing_cabinets", "leave_pass", "pending_emails", "support", "notification", "setting"],
-            "modules": ["documents","personnel_civilian"],
-            "actions": ["incoming_register", "outgoing_register", "archive_files"]
+            "sidebar": ["dashboard", "documents", "incoming", "civilian_personnel", "outgoing", "filing_cabinets", "leave_pass", "parade_states", "pending_emails", "support", "notification", "setting"],
+            "modules": ["documents", "personnel_civilian", "parade_states"],
+            "actions": ["incoming_register", "outgoing_register", "archive_files", "view_parade_state"]
         },
     "personnel": {
-        "sidebar": ["dashboard", "documents", "leave_pass", "support", "notification", "setting"],
-        "modules": ["personnel_civilian", "recruitment_transfer", "leave_pass", "reports"],
-        "actions": ["update_roster", "process_leave"]
+        "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "support", "notification", "setting"],
+        "modules": ["personnel_civilian", "recruitment_transfer", "leave_pass", "reports", "parade_states"],
+        "actions": ["update_roster", "process_leave", "view_parade_state"]
+    },
+    "civilian_ao": {
+        "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "support", "notification", "setting"],
+        "modules": ["documents", "personnel_civilian", "leave_pass", "parade_states"],
+        "actions": ["manage_parade_state", "dispatch_parade_state", "manage_shifts"]
+    },
+    "military_ao": {
+        "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "support", "notification", "setting"],
+        "modules": ["documents", "leave_pass", "parade_states"],
+        "actions": ["manage_parade_state", "dispatch_parade_state"]
+    },
+    "ao": {
+        "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "support", "notification", "setting"],
+        "modules": ["documents", "personnel_civilian", "leave_pass", "parade_states"],
+        "actions": ["manage_parade_state", "dispatch_parade_state", "manage_shifts"]
+    },
+    "admin_officer": {
+        "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "support", "notification", "setting"],
+        "modules": ["documents", "personnel_civilian", "leave_pass", "parade_states"],
+        "actions": ["manage_parade_state", "dispatch_parade_state", "manage_shifts"]
+    },
+    "rsm": {
+        "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "support", "notification", "setting"],
+        "modules": ["documents", "leave_pass", "parade_states"],
+        "actions": ["view_parade_state"]
     },
     "civilian_head": {
         "sidebar": ["dashboard", "documents", "leave_pass", "parade_states", "support", "notification", "setting"],

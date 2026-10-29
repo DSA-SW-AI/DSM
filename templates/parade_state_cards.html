@@ -1,0 +1,1725 @@
+<!-- templates/parade_state_cards.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  {% include 'pwa_head.html' %}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSM - Dispatched Parade State Returns (FILO Queue)</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.css">
+
+  <style>
+    /* ==========================================================================
+       EXECUTIVE PARADE STATE RETURNS (FILO QUEUE & MULTI-METHOD SEARCH)
+       ========================================================================== */
+    :root {
+      --ps-primary: #1e3a8a;
+      --ps-primary-dark: #0f172a;
+      --ps-accent: #2563eb;
+      --ps-success: #16a34a;
+      --ps-warning: #d97706;
+      --ps-danger: #dc2626;
+      --ps-surface: #ffffff;
+      --ps-bg: #f8fafc;
+      --ps-border: #e2e8f0;
+      --ps-text: #0f172a;
+      --ps-muted: #64748b;
+    }
+
+    /* Hero Header Card */
+    .ps-hero-card {
+      background: linear-gradient(135deg, #0b1329 0%, #172554 50%, #1e3a8a 100%);
+      border-radius: 22px;
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.22);
+      color: #ffffff;
+    }
+    .ps-hero-card::before {
+      content: '';
+      position: absolute;
+      top: -100px; right: -100px;
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .ps-hero-card::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: 30%;
+      width: 240px; height: 240px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .ps-hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 20px;
+      position: relative;
+      z-index: 2;
+    }
+    .ps-hero-left h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: -0.5px;
+    }
+    .ps-hero-left p {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin: 8px 0 0 0;
+      max-width: 680px;
+      line-height: 1.5;
+    }
+
+    .scope-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-size: 12.5px;
+      font-weight: 700;
+      margin-top: 12px;
+      backdrop-filter: blur(8px);
+    }
+    .scope-global {
+      background: rgba(34, 197, 94, 0.18);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .scope-directorate {
+      background: rgba(59, 130, 246, 0.2);
+      color: #bfdbfe;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .ps-hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .hero-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(8px);
+    }
+    .hero-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
+    .hero-btn-primary {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border-color: #3b82f6;
+    }
+    .hero-btn-primary:hover {
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    }
+
+    /* Metrics Strip */
+    .ps-metrics-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .ps-metric-card {
+      background: #ffffff;
+      border: 1px solid var(--ps-border);
+      border-radius: 16px;
+      padding: 18px 22px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .ps-metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+    }
+    .metric-icon-box {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .metric-icon-blue   { background: #eff6ff; color: #2563eb; }
+    .metric-icon-green  { background: #f0fdf4; color: #16a34a; }
+    .metric-icon-purple { background: #faf5ff; color: #9333ea; }
+    .metric-icon-amber  { background: #fffbeb; color: #d97706; }
+
+    .metric-text-wrap .metric-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ps-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 4px;
+    }
+    .metric-text-wrap .metric-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--ps-text);
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.1;
+    }
+    .metric-text-wrap .metric-sub {
+      font-size: 11.5px;
+      color: #94a3b8;
+      margin-top: 3px;
+    }
+
+    /* Filter & Search Console */
+    .ps-filter-panel {
+      background: #ffffff;
+      border: 1px solid var(--ps-border);
+      border-radius: 18px;
+      padding: 22px 26px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+    }
+    .filter-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .filter-panel-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ps-text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preset-pills-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .preset-pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--ps-border);
+      background: var(--ps-bg);
+      color: var(--ps-muted);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .preset-pill:hover {
+      background: #e2e8f0;
+      color: var(--ps-text);
+    }
+    .preset-pill.active {
+      background: var(--ps-primary-dark);
+      color: #ffffff;
+      border-color: var(--ps-primary-dark);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+    }
+
+    .filter-grid-row {
+      display: grid;
+      grid-template-columns: 2fr 1.2fr 1fr 1fr auto;
+      gap: 14px;
+      align-items: flex-end;
+    }
+    @media (max-width: 1100px) {
+      .filter-grid-row { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 680px) {
+      .filter-grid-row { grid-template-columns: 1fr; }
+    }
+
+    .filter-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .filter-field label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .input-with-icon {
+      position: relative;
+    }
+    .input-with-icon i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 16px;
+    }
+    .filter-input {
+      width: 100%;
+      padding: 9px 12px 9px 36px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 13.5px;
+      color: var(--ps-text);
+      background: #ffffff;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
+    }
+    .filter-input:focus {
+      border-color: var(--ps-accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .filter-select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--ps-text);
+      background: #ffffff;
+      outline: none;
+      font-weight: 500;
+      box-sizing: border-box;
+    }
+    .filter-select:focus {
+      border-color: var(--ps-accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .filter-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-filter-submit {
+      padding: 9px 18px;
+      background: var(--ps-accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-filter-submit:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+    .btn-filter-reset {
+      padding: 9px 14px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-filter-reset:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    /* Directorate Pills (Quick Jump for Global Viewers) */
+    .dir-quick-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed #e2e8f0;
+      flex-wrap: wrap;
+    }
+    .dir-pill-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #64748b;
+      margin-right: 4px;
+      text-transform: uppercase;
+    }
+    .dir-tag {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .dir-tag:hover {
+      background: #e0f2fe;
+      color: #0284c7;
+      border-color: #bae6fd;
+    }
+    .dir-tag.active {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+
+    /* Queue Context Bar */
+    .queue-context-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 0 4px;
+    }
+    .queue-context-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .filo-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .results-count-text {
+      font-size: 13.5px;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    /* Cards Grid */
+    .ps-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 22px;
+      margin-bottom: 36px;
+    }
+
+    .ps-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .ps-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+      border-color: #cbd5e1;
+    }
+    .ps-card.latest-card {
+      border: 2px solid #3b82f6;
+      box-shadow: 0 8px 28px rgba(59, 130, 246, 0.15);
+    }
+
+    /* Card Top Ribbon */
+    .ps-card-ribbon {
+      padding: 18px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f1f5f9;
+      background: #ffffff;
+    }
+    .ps-card-left-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .dir-badge-icon {
+      width: 46px; height: 46px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .badge-military {
+      background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+      color: #bfdbfe;
+      box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+    }
+    .badge-civilian {
+      background: linear-gradient(135deg, #064e3b, #047857);
+      color: #a7f3d0;
+      box-shadow: 0 4px 12px rgba(6, 78, 59, 0.2);
+    }
+
+    .dir-title-box h3 {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ps-text);
+      margin: 0;
+      letter-spacing: -0.3px;
+    }
+    .dir-title-box p {
+      font-size: 12px;
+      color: #64748b;
+      margin: 3px 0 0 0;
+      font-weight: 500;
+    }
+
+    .card-meta-tags {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    .filo-rank-tag {
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .rank-first {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+    .rank-standard {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+    .certified-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #059669;
+    }
+    .pulse-dot {
+      width: 7px; height: 7px;
+      background: #10b981;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulseAnim 2s infinite;
+    }
+    @keyframes pulseAnim {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Card Body */
+    .ps-card-body {
+      padding: 20px 22px;
+      flex: 1;
+    }
+
+    .stats-quad-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-quad-box {
+      text-align: center;
+      padding: 12px 6px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+    .quad-val {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .quad-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+    }
+    .quad-present .quad-val { color: #16a34a; }
+    .quad-absent  .quad-val { color: #dc2626; }
+    .quad-leave   .quad-val { color: #0284c7; }
+    .quad-strength .quad-val { color: #0f172a; }
+
+    /* Attendance Rate Gauge */
+    .rate-indicator-block {
+      background: #f8fafc;
+      border: 1px solid #f1f5f9;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    .rate-indicator-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+    }
+    .rate-indicator-val {
+      font-size: 14px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .rate-track {
+      width: 100%;
+      height: 9px;
+      background: #e2e8f0;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .rate-fill-bar {
+      height: 100%;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #16a34a, #22c55e);
+      transition: width 0.8s ease;
+    }
+    .rate-fill-bar.rate-warning { background: linear-gradient(90deg, #d97706, #f59e0b); }
+    .rate-fill-bar.rate-danger  { background: linear-gradient(90deg, #dc2626, #ef4444); }
+
+    /* Shift & Remarks Callout */
+    .card-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+    .shift-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #f1f5f9;
+      color: #334155;
+    }
+
+    .remarks-callout {
+      background: #eff6ff;
+      border-left: 3px solid #3b82f6;
+      border-radius: 0 8px 8px 0;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #1e3a8a;
+      margin-top: 10px;
+      font-style: italic;
+    }
+
+    /* Card Footer */
+    .ps-card-footer {
+      padding: 14px 22px;
+      background: #f8fafc;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .dispatch-signature {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.4;
+    }
+    .dispatch-signature strong {
+      color: #1e293b;
+      font-weight: 700;
+    }
+
+    .card-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-card-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .btn-inspect {
+      background: var(--ps-primary-dark);
+      color: #ffffff;
+    }
+    .btn-inspect:hover {
+      background: #1e293b;
+      transform: translateY(-1px);
+    }
+    .btn-print-card {
+      background: #ffffff;
+      color: #475569;
+      border-color: #cbd5e1;
+    }
+    .btn-print-card:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    /* Empty State */
+    .ps-empty-box {
+      text-align: center;
+      padding: 70px 40px;
+      background: #ffffff;
+      border: 2px dashed #cbd5e1;
+      border-radius: 22px;
+      margin-bottom: 30px;
+    }
+    .ps-empty-icon {
+      font-size: 56px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+    .ps-empty-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--ps-text);
+      margin: 0 0 8px;
+    }
+    .ps-empty-text {
+      font-size: 14px;
+      color: var(--ps-muted);
+      max-width: 520px;
+      margin: 0 auto 20px;
+      line-height: 1.5;
+    }
+
+    /* ==========================================================================
+       MODAL: FULL NOMINAL ROLL BREAKDOWN (INTERACTIVE DETAIL SLIDE-OVER)
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(5px);
+      z-index: 1200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-container {
+      background: #ffffff;
+      border-radius: 20px;
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35);
+      border: 1px solid var(--ps-border);
+      animation: modalSlideUp 0.25s ease-out;
+      overflow: hidden;
+    }
+    @keyframes modalSlideUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-head {
+      padding: 22px 28px;
+      border-bottom: 1px solid var(--ps-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+    }
+    .modal-head-title h3 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--ps-text);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .modal-head-title p {
+      font-size: 12.5px;
+      color: var(--ps-muted);
+      margin: 4px 0 0 0;
+    }
+    .btn-modal-close {
+      background: none;
+      border: none;
+      font-size: 26px;
+      color: #94a3b8;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+      transition: color 0.15s;
+    }
+    .btn-modal-close:hover { color: #0f172a; }
+
+    .modal-body {
+      padding: 24px 28px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .modal-stat-pill {
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      text-align: center;
+    }
+    .modal-stat-pill strong {
+      display: block;
+      font-size: 20px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .modal-stat-pill span {
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+
+    .modal-roster-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .modal-filter-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .modal-tab-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .modal-tab-btn.active {
+      background: var(--ps-primary-dark);
+      color: #ffffff;
+      border-color: var(--ps-primary-dark);
+    }
+
+    .modal-search-box {
+      position: relative;
+      width: 240px;
+    }
+    .modal-search-box input {
+      width: 100%;
+      padding: 7px 10px 7px 32px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 12.5px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .modal-search-box i {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+    }
+
+    .modal-roster-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .modal-roster-table th {
+      background: #f8fafc;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 700;
+      color: #475569;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .modal-roster-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #1e293b;
+      vertical-align: middle;
+    }
+    .modal-roster-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .st-present { background: #dcfce7; color: #15803d; }
+    .st-absent  { background: #fee2e2; color: #dc2626; }
+    .st-leave   { background: #e0f2fe; color: #0284c7; }
+    .st-sick    { background: #f3e8ff; color: #7e22ce; }
+    .st-pass    { background: #fef3c7; color: #b45309; }
+    .st-off     { background: #f1f5f9; color: #64748b; }
+
+    .photo-preview-thumb {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: #e2e8f0;
+      object-fit: cover;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      transition: transform 0.15s;
+    }
+    .photo-preview-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .modal-foot {
+      padding: 16px 28px;
+      background: #f8fafc;
+      border-top: 1px solid var(--ps-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* High-res Image Modal */
+    .img-lightbox {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .img-lightbox-inner {
+      text-align: center;
+      max-width: 600px;
+      width: 100%;
+    }
+    .img-lightbox img {
+      max-width: 100%;
+      max-height: 75vh;
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      border: 3px solid rgba(255,255,255,0.2);
+    }
+    .img-lightbox-caption {
+      margin-top: 14px;
+      color: #f8fafc;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-wrapper">
+    {% include "sidebar.html" %}
+
+    <main class="main-content">
+      <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 ODOGWU &gt;
+          <span class="active-crumb">Parade State Returns</span>
+        </div>
+        <div class="user-profile-badge">
+          <div class="user-avatar-circle" style="width:38px;height:38px;border-radius:50%;overflow:hidden;background:#1e3a8a;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">
+            {{ user.name[:2] | upper if user and user.name else 'DS' }}
+          </div>
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:11px;padding:2px 8px;border-radius:10px;">
+                {{ user.role | replace('_', ' ') | title }} &bull; {{ user_dir }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div style="padding: 24px 30px;">
+
+        <!-- 1. Executive Hero Header -->
+        <div class="ps-hero-card">
+          <div class="ps-hero-top">
+            <div class="ps-hero-left">
+              <h1>
+                <i class="ri-medal-fill" style="color: #60a5fa;"></i>
+                <span>Dispatched Parade State Returns</span>
+              </h1>
+              <p>
+                {% if is_global_viewer %}
+                  Executive HQ Command View &mdash; Dispatched daily returns from all directorates arranged in First In Last Out (FILO) sequence. Search and filter by dates, directorates, or keywords.
+                {% else %}
+                  Official Directorate Ledger &mdash; Daily returns dispatched to <strong>{{ user_dir }}</strong> (Director, Registry, and Civilian Head) in First In Last Out (FILO) order.
+                {% endif %}
+              </p>
+              <div>
+                {% if is_global_viewer %}
+                  <span class="scope-pill scope-global">
+                    <i class="ri-global-line"></i> HQ Command Mode: Full Access (All Directorates)
+                  </span>
+                {% else %}
+                  <span class="scope-pill scope-directorate">
+                    <i class="ri-shield-check-line"></i> Directorate Scoped: Only {{ user_dir }} Dispatches
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="ps-hero-actions">
+              {% if is_ao %}
+                <a href="/parade-state" class="hero-btn hero-btn-primary" title="Switch to live daily compilation and clock-in ledger">
+                  <i class="ri-dashboard-line"></i> Live Parade Management
+                </a>
+              {% endif %}
+              <button type="button" class="hero-btn" onclick="window.print()">
+                <i class="ri-printer-line"></i> Print Page
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Metrics KPI Strip -->
+        <div class="ps-metrics-strip">
+          <div class="ps-metric-card">
+            <div class="metric-icon-box metric-icon-blue">
+              <i class="ri-stack-line"></i>
+            </div>
+            <div class="metric-text-wrap">
+              <div class="metric-label">Returns in Queue</div>
+              <div class="metric-value">{{ stats_summary.total_cards }}</div>
+              <div class="metric-sub">FILO Queue Stack</div>
+            </div>
+          </div>
+
+          <div class="ps-metric-card">
+            <div class="metric-icon-box metric-icon-green">
+              <i class="ri-user-follow-line"></i>
+            </div>
+            <div class="metric-text-wrap">
+              <div class="metric-label">Total On Parade</div>
+              <div class="metric-value">{{ stats_summary.total_present }}</div>
+              <div class="metric-sub">Across visible returns</div>
+            </div>
+          </div>
+
+          <div class="ps-metric-card">
+            <div class="metric-icon-box metric-icon-purple">
+              <i class="ri-pie-chart-2-line"></i>
+            </div>
+            <div class="metric-text-wrap">
+              <div class="metric-label">Avg Attendance Rate</div>
+              <div class="metric-value">{{ stats_summary.avg_attendance_rate }}%</div>
+              <div class="metric-sub">Strength: {{ stats_summary.total_strength }}</div>
+            </div>
+          </div>
+
+          <div class="ps-metric-card">
+            <div class="metric-icon-box metric-icon-amber">
+              <i class="ri-time-line"></i>
+            </div>
+            <div class="metric-text-wrap">
+              <div class="metric-label">Latest Dispatch</div>
+              <div class="metric-value" style="font-size: 15px; font-weight: 700; font-family: inherit; margin-top: 3px;">
+                {{ stats_summary.latest_dispatch_str[:16] | replace('T', ' ') if stats_summary.latest_dispatch_str else 'No Dispatches' }}
+              </div>
+              <div class="metric-sub">Top of Queue (FILO #1)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Multi-Method Search & Filter Console -->
+        <div class="ps-filter-panel">
+          <div class="filter-panel-header">
+            <div class="filter-panel-title">
+              <i class="ri-filter-3-line" style="color: #2563eb;"></i>
+              Search & Filter Console
+            </div>
+
+            <!-- Quick Date Presets -->
+            <div class="preset-pills-row">
+              <a href="?preset=all{% if selected_directorate %}&directorate={{ selected_directorate }}{% endif %}{% if selected_ao_type %}&ao_type={{ selected_ao_type }}{% endif %}"
+                 class="preset-pill {% if not date_preset and not target_date and not from_date %}active{% endif %}">
+                All (FILO Stack)
+              </a>
+              <a href="?preset=today{% if selected_directorate %}&directorate={{ selected_directorate }}{% endif %}{% if selected_ao_type %}&ao_type={{ selected_ao_type }}{% endif %}"
+                 class="preset-pill {% if date_preset == 'today' %}active{% endif %}">
+                Today
+              </a>
+              <a href="?preset=yesterday{% if selected_directorate %}&directorate={{ selected_directorate }}{% endif %}{% if selected_ao_type %}&ao_type={{ selected_ao_type }}{% endif %}"
+                 class="preset-pill {% if date_preset == 'yesterday' %}active{% endif %}">
+                Yesterday
+              </a>
+              <a href="?preset=week{% if selected_directorate %}&directorate={{ selected_directorate }}{% endif %}{% if selected_ao_type %}&ao_type={{ selected_ao_type }}{% endif %}"
+                 class="preset-pill {% if date_preset == 'week' %}active{% endif %}">
+                Last 7 Days
+              </a>
+              <a href="?preset=month{% if selected_directorate %}&directorate={{ selected_directorate }}{% endif %}{% if selected_ao_type %}&ao_type={{ selected_ao_type }}{% endif %}"
+                 class="preset-pill {% if date_preset == 'month' %}active{% endif %}">
+                This Month
+              </a>
+            </div>
+          </div>
+
+          <!-- Main Filter Form -->
+          <form method="GET" action="/parade-state" id="filterForm">
+            {% if is_ao %}<input type="hidden" name="view" value="cards">{% endif %}
+
+            <div class="filter-grid-row">
+              <!-- Keyword Search (Any other method) -->
+              <div class="filter-field">
+                <label>Keyword Search (Any other method):</label>
+                <div class="input-with-icon">
+                  <i class="ri-search-line"></i>
+                  <input type="text" name="search" id="clientSearchInput" class="filter-input"
+                         placeholder="Search directorate, AO name, remarks..."
+                         value="{{ search_kw }}" onkeyup="handleClientSearch(this.value)">
+                </div>
+              </div>
+
+              <!-- Directorate Filter -->
+              <div class="filter-field">
+                <label>Directorate Scope:</label>
+                {% if is_global_viewer %}
+                  <select name="directorate" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                    <option value="ALL" {% if not selected_directorate or selected_directorate == 'ALL' %}selected{% endif %}>
+                      All Directorates (Global HQ)
+                    </option>
+                    {% for d in directorates %}
+                      <option value="{{ d.code }}" {% if selected_directorate == d.code %}selected{% endif %}>
+                        {{ d.code }} - {{ d.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                {% else %}
+                  <div style="padding: 9px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; font-weight: 700; color: #1e293b;">
+                    🔒 {{ user_dir }} (Locked Scope)
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- Specific Date Picker -->
+              <div class="filter-field">
+                <label>Filter By Date:</label>
+                <input type="date" name="date" class="filter-select" value="{{ target_date }}" onchange="document.getElementById('filterForm').submit()">
+              </div>
+
+              <!-- AO Type (Civilian / Military) -->
+              <div class="filter-field">
+                <label>AO Ledger Type:</label>
+                <select name="ao_type" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                  <option value="" {% if not selected_ao_type %}selected{% endif %}>All Sheet Types</option>
+                  <option value="civilian" {% if selected_ao_type == 'civilian' %}selected{% endif %}>Civilian AO Sheet</option>
+                  <option value="military" {% if selected_ao_type == 'military' %}selected{% endif %}>Military AO Sheet</option>
+                </select>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="filter-field">
+                <label>&nbsp;</label>
+                <div class="filter-btn-group">
+                  <button type="submit" class="btn-filter-submit">
+                    <i class="ri-search-2-line"></i> Filter
+                  </button>
+                  <a href="/parade-state{% if is_ao %}?view=cards{% endif %}" class="btn-filter-reset" title="Clear all filters">
+                    <i class="ri-refresh-line"></i> Reset
+                  </a>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <!-- Quick Directorate Tags Row for Global Viewers -->
+          {% if is_global_viewer %}
+            <div class="dir-quick-pills">
+              <span class="dir-pill-label"><i class="ri-building-line"></i> Jump to Directorate:</span>
+              <a href="/parade-state?directorate=ALL" class="dir-tag {% if not selected_directorate or selected_directorate == 'ALL' %}active{% endif %}">
+                All (10)
+              </a>
+              {% for d in directorates %}
+                <a href="/parade-state?directorate={{ d.code }}" class="dir-tag {% if selected_directorate == d.code %}active{% endif %}">
+                  {{ d.code }}
+                </a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- 4. Queue Context & FILO Info Bar -->
+        <div class="queue-context-bar">
+          <div class="queue-context-left">
+            <span class="filo-indicator">
+              <i class="ri-arrow-up-down-line"></i> First In Last Out (FILO) Queue: Most Recent Dispatches First
+            </span>
+            <span class="results-count-text">
+              Showing <strong id="visibleCardCount">{{ dispatched_states | length }}</strong> returned state{{ 's' if dispatched_states | length != 1 else '' }}
+            </span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 12px; font-weight: 600; color: #64748b;">Sort Order:</label>
+            <select class="filter-select" style="width: auto; padding: 6px 10px; font-size: 12px;"
+                    onchange="window.location.href=updateQueryString('sort', this.value)">
+              <option value="filo" {% if sort_param == 'filo' %}selected{% endif %}>FILO: Newest Dispatched First</option>
+              <option value="oldest" {% if sort_param == 'oldest' %}selected{% endif %}>FIFO: Oldest Dispatched First</option>
+              <option value="highest_rate" {% if sort_param == 'highest_rate' %}selected{% endif %}>Highest Attendance %</option>
+              <option value="lowest_rate" {% if sort_param == 'lowest_rate' %}selected{% endif %}>Lowest Attendance %</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 5. Cards Grid (FILO Queue) -->
+        {% if dispatched_states %}
+          <div class="ps-cards-grid" id="paradeCardsContainer">
+            {% for s in dispatched_states %}
+              {% set ao_label = 'Military' if s.ao_type == 'military' else 'Civilian' %}
+              {% set rate = ((s.on_parade / s.strength * 100) | round(1)) if s.strength and s.strength > 0 else 0 %}
+              {% set rate_class = 'rate-danger' if rate < 50 else ('rate-warning' if rate < 75 else '') %}
+              {% set rate_color = '#dc2626' if rate < 50 else ('#d97706' if rate < 75 else '#16a34a') %}
+
+              <div class="ps-card {% if loop.first and sort_param == 'filo' %}latest-card{% endif %}"
+                   data-search-corpus="{{ s.directorate }} {{ ao_label }} {{ s.date_str }} {{ s.dispatched_by_name }} {{ s.remarks }} {{ s.batch }}">
+
+                <!-- Ribbon Header -->
+                <div class="ps-card-ribbon">
+                  <div class="ps-card-left-badge">
+                    <div class="dir-badge-icon {{ 'badge-military' if s.ao_type == 'military' else 'badge-civilian' }}">
+                      <i class="{{ 'ri-shield-star-line' if s.ao_type == 'military' else 'ri-user-star-line' }}"></i>
+                    </div>
+                    <div class="dir-title-box">
+                      <h3>{{ s.directorate }}</h3>
+                      <p>{{ ao_label }} AO Return &bull; Batch {{ s.batch or 'ALL' }}</p>
+                    </div>
+                  </div>
+
+                  <div class="card-meta-tags">
+                    <span class="filo-rank-tag {% if loop.first and sort_param == 'filo' %}rank-first{% else %}rank-standard{% endif %}">
+                      {% if loop.first and sort_param == 'filo' %}
+                        ★ #1 LATEST RETURN
+                      {% else %}
+                        #{{ loop.index }} IN QUEUE
+                      {% endif %}
+                    </span>
+                    <span class="certified-badge">
+                      <span class="pulse-dot"></span> Dispatched
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Body -->
+                <div class="ps-card-body">
+                  <div class="card-meta-row">
+                    <span>
+                      <i class="ri-calendar-line" style="color: #2563eb;"></i>
+                      <strong>{{ s.date_str or s.date }}</strong>
+                    </span>
+                    <span class="shift-tag">
+                      <i class="ri-time-line"></i> Shift {{ s.active_shift or 'ALL' }}
+                    </span>
+                  </div>
+
+                  <!-- 4-Stat Quad Grid -->
+                  <div class="stats-quad-grid">
+                    <div class="stat-quad-box quad-present">
+                      <div class="quad-val">{{ s.on_parade or 0 }}</div>
+                      <div class="quad-label">Present</div>
+                    </div>
+                    <div class="stat-quad-box quad-absent">
+                      <div class="quad-val">{{ s.absent or 0 }}</div>
+                      <div class="quad-label">Absent</div>
+                    </div>
+                    <div class="stat-quad-box quad-leave">
+                      <div class="quad-val">{{ (s.leave or 0) + (s.sick or 0) + (s.pass or 0) }}</div>
+                      <div class="quad-label">Leave/Sick</div>
+                    </div>
+                    <div class="stat-quad-box quad-strength">
+                      <div class="quad-val">{{ s.strength or 0 }}</div>
+                      <div class="quad-label">Strength</div>
+                    </div>
+                  </div>
+
+                  <!-- Attendance Rate Gauge -->
+                  <div class="rate-indicator-block">
+                    <div class="rate-indicator-header">
+                      <span>Verified Attendance Rate</span>
+                      <span class="rate-indicator-val" style="color: {{ rate_color }};">{{ rate }}%</span>
+                    </div>
+                    <div class="rate-track">
+                      <div class="rate-fill-bar {{ rate_class }}" style="width: {{ [rate, 100] | min }}%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Remarks callout if available -->
+                  {% if s.remarks or s.remark %}
+                    <div class="remarks-callout">
+                      &ldquo;{{ s.remarks or s.remark }}&rdquo;
+                    </div>
+                  {% endif %}
+                </div>
+
+                <!-- Card Footer -->
+                <div class="ps-card-footer">
+                  <div class="dispatch-signature">
+                    By <strong>{{ s.dispatched_by_name or s.dispatched_by or 'AO' }}</strong><br>
+                    <span>
+                      {% if s.dispatched_at %}
+                        {{ s.dispatched_at[:16] | replace('T', ' ') }}
+                      {% else %}
+                        {{ s.date_str or s.date }}
+                      {% endif %}
+                    </span>
+                  </div>
+
+                  <div class="card-actions-group">
+                    <button type="button" class="btn-card-action btn-inspect"
+                            onclick="openCardDetailModal('{{ s._id }}', '{{ s.directorate }}', '{{ ao_label }}', '{{ s.date_str or s.date }}')">
+                      <i class="ri-eye-line"></i> Nominal Roll
+                    </button>
+                    <a href="/parade-state/print?date={{ s.date_str or s.date }}&directorate={{ s.directorate }}&ao_type={{ s.ao_type }}"
+                       target="_blank" class="btn-card-action btn-print-card" title="Print Official Proforma Sheet">
+                      <i class="ri-printer-line"></i> Print
+                    </a>
+                  </div>
+                </div>
+
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <!-- Empty State -->
+          <div class="ps-empty-box">
+            <div class="ps-empty-icon">📋</div>
+            <h2 class="ps-empty-title">No Dispatched Parade States Found</h2>
+            <p class="ps-empty-text">
+              {% if search_kw or target_date or selected_directorate %}
+                No returns matched your current search filters. Try clearing your search keyword, resetting dates, or switching directorates.
+              {% else %}
+                {% if is_global_viewer %}
+                  No Administrative Officers have dispatched parade states to HQ yet. When an AO clicks <strong>"Dispatch Parade State"</strong>, returns will appear here in First In Last Out (FILO) order.
+                {% else %}
+                  No parade state returns have been dispatched to <strong>{{ user_dir }}</strong> yet. As soon as your directorate's AO submits the return, it will be delivered here for the Director, Civilian Head, and Registry.
+                {% endif %}
+              {% endif %}
+            </p>
+            <a href="/parade-state{% if is_ao %}?view=cards{% endif %}" class="btn-filter-submit" style="display: inline-flex;">
+              <i class="ri-refresh-line"></i> View All Returns (Reset Filters)
+            </a>
+          </div>
+        {% endif %}
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: FULL NOMINAL ROLL BREAKDOWN & PHOTO VERIFICATION
+       ========================================================================== -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal-container">
+      <div class="modal-head">
+        <div class="modal-head-title">
+          <h3>
+            <i class="ri-medal-line" style="color: #2563eb;"></i>
+            <span id="modalDirTitle">Nominal Roll Breakdown</span>
+          </h3>
+          <p id="modalSubTitle">Loading verified daily audit records...</p>
+        </div>
+        <button type="button" class="btn-modal-close" onclick="closeCardDetailModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Modal KPI Pills Bar -->
+        <div class="modal-stats-bar">
+          <div class="modal-stat-pill" style="border-color: #86efac;">
+            <strong style="color: #16a34a;" id="mStatPresent">0</strong>
+            <span>Present</span>
+          </div>
+          <div class="modal-stat-pill" style="border-color: #fca5a5;">
+            <strong style="color: #dc2626;" id="mStatAbsent">0</strong>
+            <span>Absent</span>
+          </div>
+          <div class="modal-stat-pill" style="border-color: #93c5fd;">
+            <strong style="color: #0284c7;" id="mStatLeave">0</strong>
+            <span>On Leave</span>
+          </div>
+          <div class="modal-stat-pill" style="border-color: #d8b4fe;">
+            <strong style="color: #7e22ce;" id="mStatSick">0</strong>
+            <span>Sick</span>
+          </div>
+          <div class="modal-stat-pill" style="border-color: #cbd5e1;">
+            <strong style="color: #0f172a;" id="mStatStrength">0</strong>
+            <span>Total Strength</span>
+          </div>
+        </div>
+
+        <!-- Filter tabs & search within modal -->
+        <div class="modal-roster-toolbar">
+          <div class="modal-filter-tabs">
+            <button type="button" class="modal-tab-btn active" onclick="filterModalRoster('all', this)">All</button>
+            <button type="button" class="modal-tab-btn" onclick="filterModalRoster('present', this)">Present</button>
+            <button type="button" class="modal-tab-btn" onclick="filterModalRoster('absent', this)">Absent</button>
+            <button type="button" class="modal-tab-btn" onclick="filterModalRoster('leave', this)">Leave / Pass</button>
+            <button type="button" class="modal-tab-btn" onclick="filterModalRoster('sick', this)">Sick</button>
+          </div>
+
+          <div class="modal-search-box">
+            <i class="ri-search-line"></i>
+            <input type="text" id="modalSearchInput" placeholder="Filter staff in roster..." onkeyup="searchModalRoster(this.value)">
+          </div>
+        </div>
+
+        <!-- Roster Table Container -->
+        <div style="overflow-x: auto;">
+          <table class="modal-roster-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;">S/N</th>
+                <th>Photo</th>
+                <th>Personnel Name</th>
+                <th>Service No.</th>
+                <th>Rank / Grade</th>
+                <th>Shift</th>
+                <th>Status</th>
+                <th>Clock-In Time</th>
+              </tr>
+            </thead>
+            <tbody id="modalRosterTbody">
+              <tr>
+                <td colspan="8" style="text-align: center; padding: 30px; color: #94a3b8;">
+                  <i class="ri-loader-4-line" style="animation: spin 1s infinite; font-size: 24px;"></i><br>
+                  Fetching verified nominal roll data...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <span style="font-size: 12px; color: #64748b;" id="modalRosterCountText">Showing roster</span>
+        <div style="display: flex; gap: 8px;">
+          <a href="#" id="modalPrintLink" target="_blank" class="btn-card-action btn-print-card">
+            <i class="ri-printer-line"></i> Print Proforma
+          </a>
+          <button type="button" class="btn-card-action btn-inspect" onclick="closeCardDetailModal()">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: FULLSCREEN PHOTO LIGHTBOX
+       ========================================================================== -->
+  <div class="img-lightbox" id="imgLightbox" onclick="closeImageLightbox()">
+    <div class="img-lightbox-inner" onclick="event.stopPropagation()">
+      <img id="lightboxImg" src="" alt="Clock-In Photo" />
+      <div class="img-lightbox-caption" id="lightboxCaption"></div>
+      <div style="margin-top: 14px;">
+        <button type="button" class="btn-card-action btn-inspect" onclick="closeImageLightbox()">Close Photo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Interaction Logic -->
+  <script>
+    // 1. Client-Side Instant Real-Time Search Filter
+    function handleClientSearch(query) {
+      const q = (query || "").toLowerCase().trim();
+      const cards = document.querySelectorAll(".ps-card");
+      let visible = 0;
+
+      cards.forEach(card => {
+        const corpus = (card.getAttribute("data-search-corpus") || "").toLowerCase();
+        if (!q || corpus.includes(q)) {
+          card.style.display = "";
+          visible++;
+        } else {
+          card.style.display = "none";
+        }
+      });
+
+      const countEl = document.getElementById("visibleCardCount");
+      if (countEl) countEl.innerText = visible;
+    }
+
+    // 2. Query String Helper
+    function updateQueryString(key, value) {
+      const url = new URL(window.location.href);
+      url.searchParams.set(key, value);
+      return url.toString();
+    }
+
+    // 3. Modal Nominal Roll Detail Viewer
+    let currentModalRoster = [];
+    let currentModalFilter = "all";
+
+    async function openCardDetailModal(stateId, directorate, aoLabel, dateStr) {
+      const modal = document.getElementById("detailModal");
+      const titleEl = document.getElementById("modalDirTitle");
+      const subEl = document.getElementById("modalSubTitle");
+      const tbody = document.getElementById("modalRosterTbody");
+      const printLink = document.getElementById("modalPrintLink");
+
+      titleEl.innerText = `${directorate} — ${aoLabel} Nominal Roll`;
+      subEl.innerText = `Dispatched return for ${dateStr} • Reconciled attendance and duty ledger`;
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+            <i class="ri-loader-4-line" style="animation: spin 1s infinite; font-size: 28px; color: #2563eb;"></i><br>
+            <span style="font-weight: 600; margin-top: 8px; display: inline-block;">Loading official nominal roster...</span>
+          </td>
+        </tr>`;
+
+      modal.style.display = "flex";
+
+      try {
+        const resp = await fetch(`/api/parade/card-details/${stateId}`);
+        const data = await resp.json();
+
+        if (data.status === "success") {
+          currentModalRoster = data.roster || [];
+          const s = data.summary || {};
+
+          document.getElementById("mStatPresent").innerText = s.total_present || 0;
+          document.getElementById("mStatAbsent").innerText = s.total_absent || 0;
+          document.getElementById("mStatLeave").innerText = s.total_leave || 0;
+          document.getElementById("mStatSick").innerText = s.total_sick || 0;
+          document.getElementById("mStatStrength").innerText = s.total_expected || 0;
+
+          printLink.href = `/parade-state/print?date=${s.date_str || dateStr}&directorate=${directorate}&ao_type=${s.ao_type || 'civilian'}`;
+
+          renderModalRosterTable();
+        } else {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 30px; color: #dc2626;">
+                <i class="ri-error-warning-line" style="font-size: 24px;"></i><br>
+                ${data.message || 'Could not load nominal roll details.'}
+              </td>
+            </tr>`;
+        }
+      } catch (err) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 30px; color: #dc2626;">
+              <i class="ri-error-warning-line" style="font-size: 24px;"></i><br>
+              Network error fetching card details. Please refresh.
+            </td>
+          </tr>`;
+      }
+    }
+
+    function closeCardDetailModal() {
+      document.getElementById("detailModal").style.display = "none";
+    }
+
+    function filterModalRoster(tab, btn) {
+      currentModalFilter = tab;
+      document.querySelectorAll(".modal-tab-btn").forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+      renderModalRosterTable();
+    }
+
+    function searchModalRoster(val) {
+      renderModalRosterTable((val || "").toLowerCase().trim());
+    }
+
+    function renderModalRosterTable(query = "") {
+      const tbody = document.getElementById("modalRosterTbody");
+      const countText = document.getElementById("modalRosterCountText");
+
+      let filtered = currentModalRoster.filter(p => {
+        // Tab filtering
+        if (currentModalFilter === "present" && p.status !== "present") return false;
+        if (currentModalFilter === "absent" && p.status !== "absent") return false;
+        if (currentModalFilter === "leave" && !["on_leave", "leave", "on_pass", "pass"].includes(p.status)) return false;
+        if (currentModalFilter === "sick" && p.status !== "sick") return false;
+
+        // Search filtering
+        if (query) {
+          const rowText = `${p.name} ${p.service_number} ${p.rank} ${p.appt}`.toLowerCase();
+          if (!rowText.includes(query)) return false;
+        }
+
+        return true;
+      });
+
+      countText.innerText = `Showing ${filtered.length} of ${currentModalRoster.length} personnel`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 30px; color: #94a3b8;">
+              No personnel match the selected status or query.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      let html = "";
+      filtered.forEach((p, idx) => {
+        let badgeClass = "st-present";
+        let statusLabel = p.status_label || p.status || "Present";
+
+        if (p.status === "absent") badgeClass = "st-absent";
+        else if (p.status === "sick") badgeClass = "st-sick";
+        else if (["on_leave", "leave"].includes(p.status)) badgeClass = "st-leave";
+        else if (["on_pass", "pass"].includes(p.status)) badgeClass = "st-pass";
+        else if (p.status === "off_shift") badgeClass = "st-off";
+
+        let photoCell = `<div style="width:36px;height:36px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;">N/A</div>`;
+        if (p.snapshot_id) {
+          photoCell = `<img class="photo-preview-thumb" src="/parade-state/snapshot/${p.snapshot_id}" alt="Photo"
+                       onclick="openImageLightbox('/parade-state/snapshot/${p.snapshot_id}', '${p.name} — Clock-in at ${p.clock_in_time || ''}')" />`;
+        } else if (p.passport_photo) {
+          photoCell = `<img class="photo-preview-thumb" src="${p.passport_photo}" alt="Passport" />`;
+        }
+
+        html += `
+          <tr>
+            <td style="color:#64748b; font-family:'JetBrains Mono',monospace;">${idx + 1}</td>
+            <td>${photoCell}</td>
+            <td>
+              <strong>${p.name || 'Staff Member'}</strong>
+              ${p.appt ? `<div style="font-size:11px;color:#64748b;">${p.appt}</div>` : ''}
+            </td>
+            <td style="font-family:'JetBrains Mono',monospace; font-size:12px;">${p.service_number || 'N/A'}</td>
+            <td>${p.rank || 'N/A'}</td>
+            <td><span style="font-size:11px; font-weight:700; padding:2px 6px; background:#f1f5f9; border-radius:4px;">Group ${p.shift_group || 'A'}</span></td>
+            <td><span class="badge-status ${badgeClass}">${statusLabel}</span></td>
+            <td style="font-family:'JetBrains Mono',monospace; font-size:12px;">${p.clock_in_time || '—'}</td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    // 4. Image Lightbox
+    function openImageLightbox(src, caption) {
+      document.getElementById("lightboxImg").src = src;
+      document.getElementById("lightboxCaption").innerText = caption || "";
+      document.getElementById("imgLightbox").style.display = "flex";
+    }
+    function closeImageLightbox() {
+      document.getElementById("imgLightbox").style.display = "none";
+    }
+
+    // Close modals on Escape key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeCardDetailModal();
+        closeImageLightbox();
+      }
+    });
+
+    // 5. Rate fill animation
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.rate-fill-bar').forEach(bar => {
+        const w = bar.style.width;
+        bar.style.width = '0%';
+        requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = w; }));
+      });
+    });
+  </script>
+</body>
+</html>

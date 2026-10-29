@@ -95,12 +95,18 @@ from modules.documents.document_routes.subject_matters import subject_matter_rou
 from modules.documents.document_routes.view_stream_correspondence import (
     view_stream_correspondence_routes,
 )
+from modules.parade_state.parade_state_routes.parade_state import (
+    parade_state_routes,
+)
 
 # FLASK APP INITIALIZATION
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv(
     "SECRET_KEY", "default-unsafe-key-change-this-in-env-file"
 )
+# Keep sessions alive for a full 8-hour workday (prevents "Network error" mid-operation)
+app.config["PERMANENT_SESSION_LIFETIME"] = datetime.timedelta(hours=8)
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 csrf = CSRFProtect(app)
 
 from flask.json.provider import DefaultJSONProvider
@@ -179,6 +185,8 @@ app.register_blueprint(seen_stamp_routes)
 app.register_blueprint(send_document_routes)
 app.register_blueprint(subject_matter_routes)
 app.register_blueprint(view_stream_correspondence_routes)
+app.register_blueprint(parade_state_routes)
+csrf.exempt(parade_state_routes)
 
 
 app.users_collection = users_collection
@@ -424,6 +432,14 @@ def pwa_manifest():
     return response
 
 
+@app.route("/manifest-kiosk.json")
+def pwa_manifest_kiosk():
+    response = make_response(send_from_directory(app.static_folder, "manifest-kiosk.json"))
+    response.headers["Content-Type"] = "application/manifest+json"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.route("/sw.js")
 @app.route("/service-worker.js")
 def pwa_service_worker():
@@ -491,6 +507,7 @@ def login():
             session["email"] = user["email"]
             session["user_role"] = user.get("role", "civilian")
             session["user_id"] = str(user["_id"])
+            session.permanent = True  # Use PERMANENT_SESSION_LIFETIME (8 hours)
 
             session["is_onboarded"] = bool(user.get("is_onboarded", False))
             session["status"] = user.get("status", "In Progress")
@@ -1073,4 +1090,17 @@ def undeveloped_views():
 # START THE FLASK-SOCKETIO SERVER INSTANCE
 # ✅ Start the app
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=10000, debug=True)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=5000,
+        debug=True,
+        allow_unsafe_werkzeug=True,
+    )
+
+
+
+#  ssl_context=(
+#             r"C:\Users\store\ssl\dsa-server.pem",
+#             r"C:\Users\store\ssl\dsa-server-key.pem",
+#         ),

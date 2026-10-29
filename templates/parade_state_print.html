@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DEFENCE SPACE ADMINISTRATION - DAILY PARADE STATE RETURN</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 15mm;
+    }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      color: #000;
+      background: #fff;
+      margin: 0;
+      padding: 10px;
+      font-size: 11pt;
+    }
+    .header-box {
+      text-align: center;
+      border-bottom: 2px solid #000;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    .dsa-title {
+      font-size: 16pt;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .dsa-sub {
+      font-size: 11pt;
+      margin: 4px 0;
+    }
+    .report-title {
+      font-size: 13pt;
+      font-weight: bold;
+      text-decoration: underline;
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+    .meta-grid {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      font-size: 10.5pt;
+    }
+    .summary-table, .roster-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    .summary-table th, .summary-table td,
+    .roster-table th, .roster-table td {
+      border: 1px solid #000;
+      padding: 6px 8px;
+      font-size: 9.5pt;
+    }
+    .summary-table th, .roster-table th {
+      background-color: #f2f2f2;
+      text-transform: uppercase;
+    }
+    .section-head {
+      font-size: 11pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 14px 0 6px 0;
+    }
+    .sig-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 30px;
+      margin-top: 35px;
+      page-break-inside: avoid;
+    }
+    .sig-box {
+      border-top: 1px dashed #000;
+      padding-top: 6px;
+      font-size: 10pt;
+      line-height: 1.4;
+    }
+    @media print {
+      .no-print { display: none; }
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print" style="margin-bottom: 15px; text-align: right;">
+    <button onclick="window.print()" style="padding: 8px 16px; background: #0b2d6b; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+      🖨️ Print Official Document
+    </button>
+  </div>
+
+  <div class="header-box">
+    <div class="dsa-title">Defence Space Administration</div>
+    <div class="dsa-sub">HQ DSA, Obasanjo Space Centre, Airport Road, Abuja</div>
+    <div class="report-title">
+      DAILY PARADE STATE RETURN • {{ directorate }} ({{ ao_type | upper }} LEDGER)
+    </div>
+  </div>
+
+  <div class="meta-grid">
+    <div><strong>Directorate:</strong> {{ directorate }}</div>
+    <div><strong>Date of Return:</strong> {{ target_date }} ({{ summary.day_of_week }})</div>
+    <div><strong>Active Duty Shift:</strong> Group {{ summary.active_shift }}</div>
+    <div><strong>Generated At:</strong> {{ print_date }}</div>
+  </div>
+
+  <div class="section-head">I. Executive Strength Summary</div>
+  <table class="summary-table">
+    <thead>
+      <tr>
+        <th>Nominal Roll</th>
+        <th>Expected on Shift</th>
+        <th>Present on Parade</th>
+        <th>Absent</th>
+        <th>On Leave / Pass</th>
+        <th>Sick Report</th>
+        <th>Total NYSC</th>
+        <th>Total IT Students</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="text-align: center; font-weight: bold;">
+        <td>{{ summary.total_nominal }}</td>
+        <td>{{ summary.total_expected }}</td>
+        <td style="color: #065f46;">{{ summary.total_present }}</td>
+        <td style="color: #991b1b;">{{ summary.total_absent }}</td>
+        <td>{{ summary.total_leave }}</td>
+        <td>{{ summary.total_sick }}</td>
+        <td>{{ summary.total_nysc }} ({{ summary.nysc_present }} Pres / {{ summary.nysc_absent }} Abs)</td>
+        <td>{{ summary.total_it }} ({{ summary.it_present }} Pres / {{ summary.it_absent }} Abs)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-head">II. Personnel Nominal Roll & Verification Ledger</div>
+  <table class="roster-table">
+    <thead>
+      <tr>
+        <th style="width: 30px;">S/N</th>
+        <th>Service Number</th>
+        <th>Rank & Full Name</th>
+        <th>Category</th>
+        {% if ao_type == 'civilian' %}
+        <th>Shift</th>
+        {% endif %}
+        <th>Parade State</th>
+        <th>Time Scanned</th>
+        <th>Remarks</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in roster %}
+      <tr>
+        <td style="text-align: center;">{{ p.sn }}</td>
+        <td><strong>{{ p.service_number }}</strong></td>
+        <td>{{ p.rank }} {{ p.name }}</td>
+        <td style="text-transform: uppercase;">{{ p.category }}</td>
+        {% if ao_type == 'civilian' %}
+        <td style="text-align: center;">Group {{ p.shift_group }}</td>
+        {% endif %}
+        <td style="font-weight: bold;">{{ p.status_label }}</td>
+        <td style="text-align: center;">{{ p.clock_in_time or '-' }}</td>
+        <td>{{ p.leave_info.reason if p.leave_info else ('On duty' if p.status == 'present' else '') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="section-head">III. Statutory Verification & Dispatch Acknowledgments</div>
+  <div class="sig-grid">
+    <div class="sig-box">
+      <strong>1. COMPILED & DISPATCHED BY:</strong><br>
+      Name: _____________________________________<br>
+      Appointment: Directorate Administrative Officer (AO)<br>
+      Date & Time: _______________________________
+    </div>
+    <div class="sig-box">
+      <strong>2. VERIFIED & RECORDED BY:</strong><br>
+      Name: _____________________________________<br>
+      Appointment: Registry Desk Officer ({{ directorate }})<br>
+      Date & Time: _______________________________
+    </div>
+    <div class="sig-box">
+      <strong>3. ENDORSED BY:</strong><br>
+      Name: _____________________________________<br>
+      Appointment: Directorate Civilian Head / Director<br>
+      Date & Time: _______________________________
+    </div>
+    <div class="sig-box">
+      <strong>4. RECEIVED AT HEADQUARTERS:</strong><br>
+      Name: _____________________________________<br>
+      Appointment: Civilian Head CAO / RSM DSA<br>
+      Date & Time: _______________________________
+    </div>
+  </div>
+
+</body>
+</html>

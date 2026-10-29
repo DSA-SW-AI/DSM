@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/2.5.0/remixicon.css">
-
+  <script src="{{ url_for('static', filename='js/jsqr.js') }}"></script>
   <style>
     .kitchen-container {
       padding: 25px;
@@ -80,8 +80,15 @@
     }
 
     @keyframes pulseTarget {
-      0%, 100% { border-color: #38bdf8; }
-      50% { border-color: #4ade80; }
+
+      0%,
+      100% {
+        border-color: #38bdf8;
+      }
+
+      50% {
+        border-color: #4ade80;
+      }
     }
 
     .scanner-input-group {
@@ -273,10 +280,12 @@
         <div class="kitchen-header">
           <div>
             <h1 class="kitchen-title">🍱 Kitchen Meal Scanner & Live Feed</h1>
-            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.88rem;">Scan staff barcode/QR code to verify daily meal eligibility.</p>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.88rem;">Scan staff barcode/QR code to verify daily
+              meal eligibility.</p>
           </div>
           <div style="display: flex; gap: 12px; align-items: center;">
-            <span style="background: #eff6ff; color: #1d4ed8; font-weight: 700; padding: 6px 14px; border-radius: 99px; font-size: 0.85rem;">
+            <span
+              style="background: #eff6ff; color: #1d4ed8; font-weight: 700; padding: 6px 14px; border-radius: 99px; font-size: 0.85rem;">
               Today's Served Total: <span id="todayCountBadge">{{ today_count }}</span>
             </span>
           </div>
@@ -288,7 +297,9 @@
             <div class="scanner-card">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                 <h3 style="font-size: 1rem; font-weight: 700; margin: 0; color: #f8fafc;">📷 Live Scanner</h3>
-                <span id="camStatusIndicator" style="font-size: 0.75rem; background: #334155; color: #94a3b8; padding: 3px 8px; border-radius: 99px;">Camera Idle</span>
+                <span id="camStatusIndicator"
+                  style="font-size: 0.75rem; background: #334155; color: #94a3b8; padding: 3px 8px; border-radius: 99px;">Camera
+                  Idle</span>
               </div>
 
               <!-- Camera Viewport Box -->
@@ -297,15 +308,18 @@
                 <div class="scan-target-overlay" id="targetOverlay" style="display:none;"></div>
                 <div id="camPlaceholder" style="text-align: center; color: #94a3b8; padding: 20px;">
                   <i class="ri-camera-lens-line" style="font-size: 48px; color: #64748b;"></i>
-                  <p style="margin-top: 10px; font-size: 0.85rem;">Click "Start Camera" or scan barcode using USB reader</p>
+                  <p style="margin-top: 10px; font-size: 0.85rem;">Click "Start Camera" or scan barcode using USB reader
+                  </p>
                 </div>
               </div>
 
               <div style="display: flex; gap: 10px; margin-top: 14px;">
-                <button type="button" id="btnStartCam" class="btn btn-primary btn-sm" onclick="startCamera()" style="flex: 1; font-weight: 600;">
+                <button type="button" id="btnStartCam" class="btn btn-primary btn-sm" onclick="startCamera()"
+                  style="flex: 1; font-weight: 600;">
                   <i class="ri-camera-fill"></i> Start Camera
                 </button>
-                <button type="button" id="btnStopCam" class="btn btn-secondary btn-sm" onclick="stopCamera()" style="flex: 1; font-weight: 600; display:none;">
+                <button type="button" id="btnStopCam" class="btn btn-secondary btn-sm" onclick="stopCamera()"
+                  style="flex: 1; font-weight: 600; display:none;">
                   <i class="ri-camera-off-fill"></i> Stop Camera
                 </button>
               </div>
@@ -316,8 +330,10 @@
                   Barcode / QR Code Scanner Input
                 </label>
                 <form id="scanForm" onsubmit="handleScanSubmit(event)">
-                  <input type="text" id="barcodeInput" class="manual-input" placeholder="Scan or enter secureCode / Service No..." autofocus autocomplete="off">
-                  <button type="submit" class="btn btn-info w-100 mt-2" style="font-weight: 700; background: #38bdf8; border: none; color: #0f172a;">
+                  <input type="text" id="barcodeInput" class="manual-input"
+                    placeholder="Scan or enter secureCode / Service No..." autofocus autocomplete="off">
+                  <button type="submit" class="btn btn-info w-100 mt-2"
+                    style="font-weight: 700; background: #38bdf8; border: none; color: #0f172a;">
                     <i class="ri-qr-scan-line"></i> Verify & Process Meal Ticket
                   </button>
                 </form>
@@ -329,7 +345,8 @@
           <div>
             <div class="feed-card">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0;">📋 Daily Served Meal Log</h3>
+                <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0;">📋 Daily Served Meal Log
+                </h3>
                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fetchTodayFeed()">
                   <i class="ri-refresh-line"></i> Refresh Log
                 </button>
@@ -349,27 +366,27 @@
                   </thead>
                   <tbody id="feedTableBody">
                     {% if today_scans %}
-                      {% for scan in today_scans %}
-                      <tr>
-                        <td><strong>{{ scan.time_str }}</strong></td>
-                        <td style="font-weight: 600;">{{ scan.name }}</td>
-                        <td><code style="color: #0284c7;">{{ scan.service_number }}</code></td>
-                        <td><span style="text-transform: uppercase;">{{ scan.directorate }}</span></td>
-                        <td><span style="text-transform: capitalize;">{{ scan.category }}</span></td>
-                        <td>
-                          <span class="served-badge">
-                            ✔ Served
-                            {% if scan.is_temp_override %} (24h Pass){% endif %}
-                          </span>
-                        </td>
-                      </tr>
-                      {% endfor %}
+                    {% for scan in today_scans %}
+                    <tr>
+                      <td><strong>{{ scan.time_str }}</strong></td>
+                      <td style="font-weight: 600;">{{ scan.name }}</td>
+                      <td><code style="color: #0284c7;">{{ scan.service_number }}</code></td>
+                      <td><span style="text-transform: uppercase;">{{ scan.directorate }}</span></td>
+                      <td><span style="text-transform: capitalize;">{{ scan.category }}</span></td>
+                      <td>
+                        <span class="served-badge">
+                          ✔ Served
+                          {% if scan.is_temp_override %} (24h Pass){% endif %}
+                        </span>
+                      </td>
+                    </tr>
+                    {% endfor %}
                     {% else %}
-                      <tr id="emptyFeedRow">
-                        <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px 0;">
-                          No meal tickets scanned yet today.
-                        </td>
-                      </tr>
+                    <tr id="emptyFeedRow">
+                      <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px 0;">
+                        No meal tickets scanned yet today.
+                      </td>
+                    </tr>
                     {% endif %}
                   </tbody>
                 </table>
@@ -396,11 +413,13 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
-            <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; display: block;">Service Number</span>
+            <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; display: block;">Service
+              Number</span>
             <strong id="greenServiceNo" style="color: #0284c7; font-family: monospace; font-size: 0.95rem;">-</strong>
           </div>
           <div>
-            <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; display: block;">Directorate</span>
+            <span
+              style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; display: block;">Directorate</span>
             <strong id="greenDirectorate" style="text-transform: uppercase; color: #334155;">-</strong>
           </div>
         </div>
@@ -419,7 +438,8 @@
         ✖
       </div>
       <h2 class="modal-title-red">MEAL CLAIM DENIED</h2>
-      <p id="redMessage" style="color: #b91c1c; font-size: 0.98rem; font-weight: 700; margin-bottom: 0;">User has already been served.</p>
+      <p id="redMessage" style="color: #b91c1c; font-size: 0.98rem; font-weight: 700; margin-bottom: 0;">User has
+        already been served.</p>
 
       <div class="user-info-box" style="background: #fef2f2; border-color: #fecaca;">
         <div style="font-size: 0.75rem; color: #991b1b; text-transform: uppercase; font-weight: 700;">Target User</div>
@@ -582,9 +602,9 @@
         return navigator.mediaDevices.getUserMedia(constraints);
       }
       const legacyGetUserMedia = navigator.getUserMedia ||
-                                 navigator.webkitGetUserMedia ||
-                                 navigator.mozGetUserMedia ||
-                                 navigator.msGetUserMedia;
+        navigator.webkitGetUserMedia ||
+        navigator.mozGetUserMedia ||
+        navigator.msGetUserMedia;
       if (legacyGetUserMedia) {
         return new Promise((resolve, reject) => {
           legacyGetUserMedia.call(navigator, constraints, resolve, reject);
@@ -613,6 +633,10 @@
         indicator.textContent = "Camera Live";
         indicator.style.background = "#065f46";
         indicator.style.color = "#a7f3d0";
+
+        await video.play();
+        clearTimeout(scanTimer);
+        scanFrame();
       } catch (err) {
         const errorMsg = err.message || "Unable to access webcam.";
         alert("Webcam Video Stream Notice:\n\n" + errorMsg);
@@ -623,6 +647,7 @@
     }
 
     function stopCamera() {
+      clearTimeout(scanTimer);
       const video = document.getElementById("webcamVideo");
       const overlay = document.getElementById("targetOverlay");
       const placeholder = document.getElementById("camPlaceholder");
@@ -642,6 +667,85 @@
       indicator.textContent = "Camera Idle";
       indicator.style.background = "#334155";
       indicator.style.color = "#94a3b8";
+    }
+
+    let scanTimer = null;
+    let lastCode = "";
+    let lastCodeTime = 0;
+    const scanCanvas = document.createElement("canvas");
+    const scanCtx = scanCanvas.getContext("2d", { willReadFrequently: true });
+
+    let qrDetector = null;
+    try {
+      if ("BarcodeDetector" in window) {
+        qrDetector = new BarcodeDetector({ formats: ["qr_code"] });
+      }
+    } catch (e) {
+      qrDetector = null;
+    }
+
+    function isModalOpen() {
+      return ["greenModal", "redModal"].some(
+        id => document.getElementById(id).style.display === "flex"
+      );
+    }
+
+    async function decodeFrame(video) {
+      // 1. Native detector (may be unreliable on desktop, so errors are swallowed)
+      if (qrDetector) {
+        try {
+          const codes = await qrDetector.detect(video);
+          if (codes.length) return codes[0].rawValue;
+        } catch (e) {
+          console.warn("BarcodeDetector failed, using jsQR only:", e);
+          qrDetector = null;
+        }
+      }
+
+      // 2. jsQR fallback, always tried if the native one found nothing
+      if (window.jsQR) {
+        const scale = Math.min(1, 1024 / video.videoWidth);
+        const w = Math.round(video.videoWidth * scale);
+        const h = Math.round(video.videoHeight * scale);
+        scanCanvas.width = w;
+        scanCanvas.height = h;
+        scanCtx.drawImage(video, 0, 0, w, h);
+        const img = scanCtx.getImageData(0, 0, w, h);
+        const qr = jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" });
+        if (qr && qr.data) return qr.data;
+      }
+      return null;
+    }
+
+    async function scanFrame() {
+      if (!mediaStream) return;
+      const video = document.getElementById("webcamVideo");
+      const indicator = document.getElementById("camStatusIndicator");
+
+      if (!window.jsQR && !qrDetector) {
+        indicator.textContent = "No QR decoder loaded";
+      } else if (!scanProcessing && !isModalOpen() && video.readyState >= 2 && video.videoWidth > 0) {
+        try {
+          const text = await decodeFrame(video);
+          indicator.textContent = "Camera Live - scanning...";
+
+          if (text) {
+            const now = Date.now();
+            if (text !== lastCode || now - lastCodeTime > 4000) {
+              lastCode = text;
+              lastCodeTime = now;
+              console.log("QR detected:", text);
+              indicator.textContent = "QR detected";
+              document.getElementById("barcodeInput").value = text.trim();
+              handleScanSubmit();
+            }
+          }
+        } catch (e) {
+          console.error("Scan error:", e);
+          indicator.textContent = "Scan error (see console)";
+        }
+      }
+      scanTimer = setTimeout(scanFrame, 200);
     }
   </script>
 </body>

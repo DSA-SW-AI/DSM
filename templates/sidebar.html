@@ -206,6 +206,12 @@
     </a>
     {% endif %}
 
+    {% if permissions and "parade_states" in permissions.sidebar %}
+    <a href="/parade-state" class="menu-item {% if active_page in ['parade_states', 'parade_state'] %}active{% endif %}" style="display: flex; justify-content: space-between; align-items: center;">
+      <span>🎖️ Parade State</span>
+    </a>
+    {% endif %}
+
     {% if permissions and "meal_statistics" in permissions.sidebar %}
     <div class="menu-section-label">CATERING & MEALS</div>
     <a href="/meal_statistics" class="menu-item {% if active_page == 'meal_statistics' %}active{% endif %}">

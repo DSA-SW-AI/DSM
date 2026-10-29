@@ -1,16 +1,27 @@
 /* ===================================================================
    Defence Space Administration (DSA) - DSM Progressive Web App Service Worker
-   Cache Version: dsm-pwa-v1.0.0
+   Cache Version: dsm-kiosk-v2.0.0
+   Features:
+     - Full offline support with Background Sync for clock-in/clock-out
+     - IndexedDB-backed offline scan queue
+     - Smart cache strategies per asset type
    =================================================================== */
 
-const CACHE_NAME = 'dsm-pwa-v1.0.0';
+const CACHE_NAME = 'dsm-kiosk-v2.1.0';
 const OFFLINE_URL = '/offline';
+const SYNC_TAG = 'parade-clock-sync';
+const IDB_NAME = 'dsm-offline-queue';
+const IDB_STORE = 'scan_queue';
 
 // Core assets to pre-cache immediately during installation
 const PRECACHE_ASSETS = [
   '/',
+  '/clock-in',
+  '/kiosk',
+  '/attendance',
   '/offline',
   '/static/manifest.json',
+  '/static/manifest-kiosk.json',
   '/static/favicon.ico',
   '/static/images/dsa_logo.png',
   '/static/images/dsa2.png',
@@ -18,13 +29,54 @@ const PRECACHE_ASSETS = [
   '/static/images/icons/icon-512x512.png',
   '/static/images/icons/icon-maskable-192x192.png',
   '/static/css/dashboard.css',
-  '/static/css/personnel.css',
-  '/static/css/leave_pass.css',
   '/static/js/pwa.js',
-  'https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap'
+  '/static/js/jsqr.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.css',
+  'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap'
 ];
+
+// =============================================================================
+// IndexedDB helpers (used inside the Service Worker)
+// =============================================================================
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 2);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        const store = db.createObjectStore(IDB_STORE, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('status', 'status', { unique: false });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function idbGetAll(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const store = tx.objectStore(IDB_STORE);
+    const req = store.index('status').getAll('pending');
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbUpdate(db, id, patch) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const record = getReq.result;
+      if (record) { Object.assign(record, patch); store.put(record); }
+      resolve();
+    };
+    getReq.onerror = () => reject(getReq.error);
+  });
+}
 
 // 1. Install Event: Pre-cache static shell & offline fallback
 self.addEventListener('install', (event) => {
@@ -64,13 +116,20 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // Ignore non-GET requests (POST/PUT/DELETE should always go directly to server)
-  if (request.method !== 'GET') {
+  // Ignore socket.io, websocket, and real-time polling streams
+  if (url.pathname.startsWith('/socket.io/') || url.pathname.includes('socket')) {
     return;
   }
 
-  // Ignore socket.io, websocket, and real-time polling streams
-  if (url.pathname.startsWith('/socket.io/') || url.pathname.includes('socket')) {
+  // ── Intercept offline clock-in / clock-out POST requests ─────────────────────
+  if (request.method === 'POST' &&
+    (url.pathname === '/api/parade/clock-in' || url.pathname === '/api/parade/clock-out')) {
+    event.respondWith(handleOfflineClockPost(request, url.pathname));
+    return;
+  }
+
+  // Ignore other non-GET requests
+  if (request.method !== 'GET') {
     return;
   }
 
@@ -89,8 +148,12 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           // If network is down, try matching previously cached page
           const cachedResponse = await caches.match(request);
-          if (cachedResponse) {
-            return cachedResponse;
+          if (cachedResponse) return cachedResponse;
+          // For kiosk URLs, serve the cached kiosk page
+          const kioskUrls = ['/clock-in', '/kiosk', '/attendance', '/clockin', '/parade-kiosk'];
+          if (kioskUrls.some(k => url.pathname.startsWith(k))) {
+            const kioskCache = await caches.match('/clock-in');
+            if (kioskCache) return kioskCache;
           }
           // Otherwise, serve the dedicated offline page
           const offlineFallback = await caches.match(OFFLINE_URL);
@@ -106,6 +169,7 @@ self.addEventListener('fetch', (event) => {
   const isStaticAsset =
     url.pathname.startsWith('/static/') ||
     url.hostname.includes('cdn.jsdelivr.net') ||
+    url.hostname.includes('cdnjs.cloudflare.com') ||
     url.hostname.includes('fonts.googleapis.com') ||
     url.hostname.includes('fonts.gstatic.com');
 
@@ -131,42 +195,171 @@ self.addEventListener('fetch', (event) => {
   // Strategy C: Default -> Network with Cache Fallback
   event.respondWith(
     fetch(request)
-      .then((networkResponse) => {
-        return networkResponse;
-      })
+      .then((networkResponse) => networkResponse)
       .catch(() => caches.match(request))
   );
 });
 
-// 4. Push Notification Event Support
+// =============================================================================
+// Offline POST Handler: queues scan to IndexedDB when network unavailable
+// =============================================================================
+async function handleOfflineClockPost(request, endpoint) {
+  let body = {};
+  try { body = await request.clone().json(); } catch (e) { /* ignore */ }
+
+  try {
+    // Try the network first
+    const networkResponse = await fetch(request);
+    return networkResponse;
+  } catch (networkError) {
+    // Network is offline – store in IndexedDB queue
+    console.log('[SW] Offline. Queuing scan:', endpoint);
+    try {
+      const db = await openIDB();
+      const bodyForQueue = { ...body };
+      const snapshotData = bodyForQueue.snapshot || null;
+      delete bodyForQueue.snapshot; // keep IDB lean
+
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        const store = tx.objectStore(IDB_STORE);
+        const req = store.add({
+          endpoint,
+          body: bodyForQueue,
+          snapshot: snapshotData,
+          timestamp: Date.now(),
+          status: 'pending',
+          retries: 0
+        });
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+
+      // Register a Background Sync if the browser supports it
+      if (self.registration && 'sync' in self.registration) {
+        await self.registration.sync.register(SYNC_TAG);
+      }
+
+      // Notify all open kiosk pages so they can show the offline queued banner
+      const allClients = await self.clients.matchAll({ type: 'window' });
+      allClients.forEach(client => {
+        client.postMessage({
+          type: 'SCAN_QUEUED_OFFLINE',
+          endpoint,
+          barcode: body.barcode || body.code || '',
+          timestamp: Date.now()
+        });
+      });
+
+      // Return synthetic success so the UI can render the "queued" state
+      return new Response(JSON.stringify({
+        status: 'queued_offline',
+        message: 'No network. Scan saved locally — will sync automatically when back online.',
+        offline: true,
+        barcode: body.barcode || body.code || ''
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (idbError) {
+      console.error('[SW] Failed to queue offline scan:', idbError);
+      return new Response(JSON.stringify({
+        status: 'error',
+        message: 'Offline and local queue unavailable. Please try again when connected.'
+      }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+}
+
+// =============================================================================
+// 4. Background Sync: replay offline queue when connection restored
+// =============================================================================
+self.addEventListener('sync', (event) => {
+  if (event.tag === SYNC_TAG) {
+    console.log('[SW] Background Sync fired: replaying offline scan queue');
+    event.waitUntil(replayOfflineQueue());
+  }
+});
+
+async function replayOfflineQueue() {
+  let db;
+  try { db = await openIDB(); } catch (e) {
+    console.error('[SW] Cannot open IDB for sync:', e); return;
+  }
+
+  const pending = await idbGetAll(db);
+  console.log(`[SW] ${pending.length} pending scan(s) to sync`);
+
+  for (const record of pending) {
+    if ((record.retries || 0) >= 10) {
+      await idbUpdate(db, record.id, { status: 'failed', last_error: 'Max retries exceeded' });
+      continue;
+    }
+    try {
+      const response = await fetch(record.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record.body)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await idbUpdate(db, record.id, { status: 'synced', synced_at: Date.now() });
+        console.log(`[SW] Synced offline scan ${record.id}:`, data.status);
+
+        const allClients = await self.clients.matchAll({ type: 'window' });
+        allClients.forEach(client => {
+          client.postMessage({
+            type: 'SCAN_SYNCED',
+            id: record.id,
+            endpoint: record.endpoint,
+            barcode: record.body.barcode || '',
+            serverResponse: data
+          });
+        });
+      } else {
+        const data = await response.json().catch(() => ({}));
+        const isFinal = response.status === 404;
+        await idbUpdate(db, record.id, {
+          status: isFinal ? 'failed' : 'pending',
+          last_error: `Server ${response.status}: ${data.message}`,
+          retries: (record.retries || 0) + 1
+        });
+      }
+    } catch (err) {
+      await idbUpdate(db, record.id, {
+        last_error: err.message,
+        retries: (record.retries || 0) + 1
+      });
+      console.warn(`[SW] Sync failed for record ${record.id}:`, err);
+    }
+  }
+}
+
+// =============================================================================
+// 5. Push Notification Support
+// =============================================================================
 self.addEventListener('push', (event) => {
   let data = { title: 'DSA System Notification', body: 'You have a new update in DSM.', icon: '/static/images/icons/icon-192x192.png' };
   if (event.data) {
-    try {
-      data = event.data.json();
-    } catch (e) {
-      data.body = event.data.text();
-    }
+    try { data = event.data.json(); } catch (e) { data.body = event.data.text(); }
   }
-
   const options = {
     body: data.body || 'New notification received.',
     icon: data.icon || '/static/images/icons/icon-192x192.png',
     badge: '/static/images/icons/icon-96x96.png',
     vibrate: [100, 50, 100],
-    data: {
-      url: data.url || '/dashboard'
-    }
+    data: { url: data.url || '/clock-in' }
   };
-
   event.waitUntil(self.registration.showNotification(data.title || 'Defence Space Administration', options));
 });
 
-// 5. Notification Click Action
+// =============================================================================
+// 6. Notification Click Action
+// =============================================================================
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) ? event.notification.data.url : '/dashboard';
-
+  const targetUrl = (event.notification.data && event.notification.data.url) ? event.notification.data.url : '/clock-in';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
@@ -174,9 +367,23 @@ self.addEventListener('notificationclick', (event) => {
           return client.navigate(targetUrl).then((c) => c.focus());
         }
       }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
 });
+
+// =============================================================================
+// 7. Message Handler: manual sync trigger from the page
+// =============================================================================
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+  if (event.data.type === 'FORCE_SYNC') {
+    replayOfflineQueue().then(() => {
+      if (event.source) event.source.postMessage({ type: 'SYNC_COMPLETE' });
+    });
+  }
+  if (event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+

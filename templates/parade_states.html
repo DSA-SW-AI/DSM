@@ -1,0 +1,1295 @@
+<!-- templates/parade_states.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  {% include 'pwa_head.html' %}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSM - Directorate Parade State & Daily Attendance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.css">
+
+  <style>
+    /* Executive Parade State Control Bar */
+    .parade-header-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .parade-title-wrap h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+    }
+
+    .parade-title-wrap p {
+      font-size: 13.5px;
+      color: #64748b;
+      margin: 4px 0 0 0;
+    }
+
+    .parade-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 10px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .btn-kiosk {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #38bdf8;
+      border-color: #334155;
+    }
+    .btn-kiosk:hover {
+      background: #020617;
+      color: #7dd3fc;
+      transform: translateY(-1px);
+    }
+
+    .btn-group-manage {
+      background: #f8fafc;
+      color: #334155;
+      border-color: #cbd5e1;
+    }
+    .btn-group-manage:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .btn-dispatch {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+    }
+    .btn-dispatch:hover {
+      background: #15803d;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(22, 163, 74, 0.35);
+    }
+    .btn-dispatch:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-print {
+      background: #ffffff;
+      color: #475569;
+      border-color: #cbd5e1;
+    }
+    .btn-print:hover {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    /* Filters Bar */
+    .filters-bar {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .filter-item-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-select, .filter-date {
+      padding: 9px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13.5px;
+      background: #ffffff;
+      color: #1e293b;
+      font-weight: 500;
+      outline: none;
+    }
+    .filter-select:focus, .filter-date:focus {
+      border-color: #2563eb;
+    }
+
+    .tab-pills {
+      display: flex;
+      background: #e2e8f0;
+      padding: 4px;
+      border-radius: 10px;
+      gap: 4px;
+    }
+
+    .tab-pill-btn {
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      text-decoration: none;
+      color: #64748b;
+      transition: all 0.2s;
+    }
+    .tab-pill-btn.active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    /* Shift Selector Widget */
+    .shift-selector-panel {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .shift-label-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .shift-icon-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: rgba(37, 99, 235, 0.1);
+      color: #2563eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .shift-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    .shift-sub {
+      font-size: 12px;
+      color: #64748b;
+      margin: 2px 0 0 0;
+    }
+
+    .shift-options-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .shift-option-btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .shift-option-btn:hover {
+      border-color: #94a3b8;
+      background: #f8fafc;
+    }
+    .shift-option-btn.active {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+    }
+
+    /* KPI Summary Cards Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+    .kpi-present::before { background: #16a34a; }
+    .kpi-absent::before { background: #dc2626; }
+    .kpi-leave::before { background: #0284c7; }
+    .kpi-sick::before { background: #9333ea; }
+    .kpi-nysc::before { background: #ea580c; }
+    .kpi-it::before { background: #2563eb; }
+
+    .kpi-title {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.1;
+    }
+
+    .kpi-sub {
+      font-size: 11.5px;
+      color: #94a3b8;
+    }
+
+    /* Dispatched Banner Status */
+    .dispatch-banner {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #065f46;
+    }
+    .dispatch-banner-pending {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.3);
+      color: #92400e;
+    }
+
+    /* Roster Table Card */
+    .roster-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    }
+
+    .roster-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .search-box {
+      position: relative;
+      width: 280px;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 9px 14px 9px 36px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    .search-box i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+    }
+
+    .roster-filter-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .roster-tab-btn {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .roster-tab-btn.active {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+
+    .data-table th {
+      background: #f8fafc;
+      padding: 12px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: #475569;
+      border-bottom: 2px solid #e2e8f0;
+      text-transform: uppercase;
+      font-size: 11.5px;
+      letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+      padding: 14px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #1e293b;
+      vertical-align: middle;
+    }
+
+    .data-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    /* Badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-present { background: #dcfce7; color: #15803d; }
+    .badge-absent { background: #fee2e2; color: #b91c1c; }
+    .badge-leave { background: #e0f2fe; color: #0369a1; }
+    .badge-pass { background: #fef3c7; color: #b45309; }
+    .badge-sick { background: #f3e8ff; color: #7e22ce; }
+    .badge-off { background: #f1f5f9; color: #64748b; }
+
+    .group-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .pill-a { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .pill-b { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+
+    .photo-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #e2e8f0;
+      object-fit: cover;
+      display: block;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .photo-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-container {
+      background: #ffffff;
+      border-radius: 16px;
+      max-width: 650px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+      border: 1px solid #e2e8f0;
+      animation: modalFade 0.2s ease-out;
+    }
+
+    .modal-header {
+      padding: 20px 26px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    .modal-body {
+      padding: 24px 26px;
+    }
+
+    .modal-footer {
+      padding: 16px 26px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .recipient-list-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+
+    /* Dispatch Success Modal Styling */
+    .success-modal-icon-box {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #dcfce7;
+      color: #16a34a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      margin: 0 auto 16px;
+      animation: popSuccess 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 0 0 10px rgba(22, 163, 74, 0.12);
+    }
+    @keyframes popSuccess {
+      0% { transform: scale(0.4); opacity: 0; }
+      70% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-wrapper">
+    <!-- ================= SIDEBAR COMPONENT ================= -->
+    {% include "sidebar.html" %}
+
+    <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
+    <main class="main-content">
+      <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Top Navbar Section -->
+      <header class="top-navbar">
+        <div class="breadcrumb">
+          📋 ODOGWU &gt;
+          <span class="active-crumb"> Directorate Parade State</span>
+        </div>
+        <div class="user-profile-badge">
+          <div class="user-avatar-circle" style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: #1e3a8a; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;">
+            {{ user.name[:2] | upper if user and user.name else 'DS' }}
+          </div>
+          <div class="user-meta-stack">
+            <h4 class="user-fullname-text">{{ user.name }}</h4>
+            <div class="user-role-row">
+              <span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:11px; padding:2px 8px; border-radius:10px;">
+                {{ user.role | replace('_', ' ') | title }} • {{ directorate }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div style="padding: 24px 30px;">
+
+        <!-- 1. Executive Parade State Control Bar -->
+        <div class="parade-header-card">
+          <div class="parade-title-wrap">
+            <h1>
+              <i class="ri-medal-fill" style="color: #2563eb;"></i>
+              <span>Directorate Parade State Returns</span>
+            </h1>
+            <p>
+              {{ summary.day_of_week }}, {{ summary.date_str }} • {{ directorate }} ({{ ao_type | title }} Administrative Ledger)
+            </p>
+          </div>
+
+          <div class="parade-actions-group">
+            <a href="/parade-state?view=cards" class="btn-action btn-group-manage" title="View historical dispatched returns queue">
+              <i class="ri-history-line"></i> View Dispatched Cards Feed
+            </a>
+
+            {% if ao_type == 'civilian' %}
+            <button type="button" class="btn-action btn-group-manage" onclick="openShiftGroupModal()">
+              <i class="ri-group-line"></i> Divide Group A / B
+            </button>
+            {% endif %}
+
+            <a href="/parade-state/print?date={{ target_date }}&directorate={{ directorate }}&ao_type={{ ao_type }}" target="_blank" class="btn-action btn-print">
+              <i class="ri-printer-line"></i> Print Sheet
+            </a>
+
+            <button type="button" class="btn-action btn-dispatch" onclick="openDispatchModal()">
+              <i class="ri-send-plane-fill"></i> Dispatch Parade State
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Filters & Navigation Bar -->
+        <div class="filters-bar">
+          <div class="filter-item-group">
+            <!-- Directorate Switcher (For Super Admin, CAO, RSM, etc.) -->
+            {% if is_global_officer %}
+            <label style="font-size: 13px; font-weight: 600; color: #475569;">Directorate:</label>
+            <select class="filter-select" id="directorateSelect" onchange="applyFilters()">
+              {% for d in directorates %}
+                <option value="{{ d.code }}" {% if d.code == directorate %}selected{% endif %}>
+                  {{ d.code }} - {{ d.name }}
+                </option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <span style="font-size: 14px; font-weight: 700; color: #0f172a;">Directorate: {{ directorate }}</span>
+            {% endif %}
+
+            <!-- Date Picker -->
+            <label style="font-size: 13px; font-weight: 600; color: #475569; margin-left: 10px;">Date:</label>
+            <input type="date" class="filter-date" id="datePicker" value="{{ target_date }}" onchange="applyFilters()">
+          </div>
+
+          <!-- Civilian vs Military AO Ledger Tab Switcher -->
+          <div class="tab-pills">
+            <a href="?date={{ target_date }}&directorate={{ directorate }}&ao_type=civilian" class="tab-pill-btn {% if ao_type == 'civilian' %}active{% endif %}">
+              <i class="ri-user-line"></i> Civilian AO Sheet
+            </a>
+            <a href="?date={{ target_date }}&directorate={{ directorate }}&ao_type=military" class="tab-pill-btn {% if ao_type == 'military' %}active{% endif %}">
+              <i class="ri-shield-user-line"></i> Military AO Sheet
+            </a>
+          </div>
+        </div>
+
+        <!-- 3. Dispatch Audit Banner -->
+        {% if daily_state.is_dispatched %}
+        <div class="dispatch-banner">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <i class="ri-checkbox-circle-fill" style="font-size: 24px; color: #10b981;"></i>
+            <div>
+              <strong style="font-size: 14px;">Official Parade State Dispatched to HQ</strong>
+              <p style="margin: 2px 0 0 0; font-size: 12px; opacity: 0.85;">
+                Submitted by <b>{{ daily_state.dispatched_by_name or daily_state.dispatched_by }}</b> on {{ daily_state.dispatched_at | string | truncate(19, True, '') }}.
+                Delivered to: Civilian Head CAO, Directorate Registry, Civilian Head, and RSM.
+              </p>
+            </div>
+          </div>
+          <span class="status-badge badge-present">Dispatched & Locked</span>
+        </div>
+        {% else %}
+        <div class="dispatch-banner dispatch-banner-pending">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <i class="ri-time-line" style="font-size: 24px; color: #f59e0b;"></i>
+            <div>
+              <strong style="font-size: 14px;">Parade State Ready for Submission</strong>
+              <p style="margin: 2px 0 0 0; font-size: 12px; opacity: 0.85;">
+                Personnel are currently clocking in. Click <b>"Dispatch Parade State"</b> above to send today's official figures to HQ at once.
+              </p>
+            </div>
+          </div>
+          <span class="status-badge badge-pass">Pending Dispatch</span>
+        </div>
+        {% endif %}
+
+        <!-- 4. Civilian AO Shift Selector (Group A, B, Both, None) -->
+        {% if ao_type == 'civilian' %}
+        <div class="shift-selector-panel">
+          <div class="shift-label-wrap">
+            <div class="shift-icon-box">
+              <i class="ri-calendar-check-fill"></i>
+            </div>
+            <div>
+              <h3 class="shift-title">Today's Active Shift Configuration (Mon – Fri)</h3>
+              <p class="shift-sub">
+                Select which roster group is scheduled on duty today. System compares this selection against barcode clock-ins.
+              </p>
+            </div>
+          </div>
+
+          <div class="shift-options-group">
+            <button type="button" class="shift-option-btn {% if summary.active_shift == 'A' %}active{% endif %}" onclick="setDailyShift('A')">
+              <span class="group-pill pill-a">Group A</span> Only
+            </button>
+            <button type="button" class="shift-option-btn {% if summary.active_shift == 'B' %}active{% endif %}" onclick="setDailyShift('B')">
+              <span class="group-pill pill-b">Group B</span> Only
+            </button>
+            <button type="button" class="shift-option-btn {% if summary.active_shift == 'Both' %}active{% endif %}" onclick="setDailyShift('Both')">
+              <i class="ri-team-line"></i> Both Groups (A & B)
+            </button>
+            <button type="button" class="shift-option-btn {% if summary.active_shift == 'None' %}active{% endif %}" onclick="setDailyShift('None')">
+              <i class="ri-pause-circle-line"></i> Stand Down (None)
+            </button>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- 5. Executive Tally KPI Cards (Includes Total NYSC & Total IT) -->
+        <div class="kpi-grid">
+          <!-- Present -->
+          <div class="kpi-card kpi-present">
+            <span class="kpi-title">Present on Parade</span>
+            <span class="kpi-value" style="color: #16a34a;">{{ summary.total_present }}</span>
+            <span class="kpi-sub">{{ summary.attendance_rate }}% of scheduled shift</span>
+          </div>
+
+          <!-- Absent -->
+          <div class="kpi-card kpi-absent">
+            <span class="kpi-title">Absent</span>
+            <span class="kpi-value" style="color: #dc2626;">{{ summary.total_absent }}</span>
+            <span class="kpi-sub">Unexplained absentees</span>
+          </div>
+
+          <!-- On Leave / Pass -->
+          <div class="kpi-card kpi-leave">
+            <span class="kpi-title">On Leave / Pass</span>
+            <span class="kpi-value" style="color: #0284c7;">{{ summary.total_leave }}</span>
+            <span class="kpi-sub">Authorized leave & pass</span>
+          </div>
+
+          <!-- Sick -->
+          <div class="kpi-card kpi-sick">
+            <span class="kpi-title">Sick Report</span>
+            <span class="kpi-value" style="color: #9333ea;">{{ summary.total_sick }}</span>
+            <span class="kpi-sub">Medical excuse / hospital</span>
+          </div>
+
+          <!-- NYSC Corps Members (Required by Prompt) -->
+          <div class="kpi-card kpi-nysc">
+            <span class="kpi-title">Total NYSC</span>
+            <span class="kpi-value" style="color: #ea580c;">{{ summary.total_nysc }}</span>
+            <span class="kpi-sub"><b>{{ summary.nysc_present }}</b> Present • <b>{{ summary.nysc_absent }}</b> Absent</span>
+          </div>
+
+          <!-- IT Students / Interns (Required by Prompt) -->
+          <div class="kpi-card kpi-it">
+            <span class="kpi-title">Total IT</span>
+            <span class="kpi-value" style="color: #2563eb;">{{ summary.total_it }}</span>
+            <span class="kpi-sub"><b>{{ summary.it_present }}</b> Present • <b>{{ summary.it_absent }}</b> Absent</span>
+          </div>
+
+          <!-- Total Strength -->
+          <div class="kpi-card" style="border-left: 4px solid #64748b;">
+            <span class="kpi-title">Nominal Roll Strength</span>
+            <span class="kpi-value" style="color: #0f172a;">{{ summary.total_nominal }}</span>
+            <span class="kpi-sub">{{ summary.total_expected }} Expected on Shift</span>
+          </div>
+        </div>
+
+        <!-- 6. Detailed Personnel Roster Table -->
+        <div class="roster-card">
+          <div class="roster-toolbar">
+            <div class="search-box">
+              <i class="ri-search-line"></i>
+              <input type="text" id="rosterSearch" placeholder="Search name or service no..." onkeyup="filterRosterTable()">
+            </div>
+
+            <div class="roster-filter-tabs">
+              <button type="button" class="roster-tab-btn active" onclick="setRosterTab('all')">All ({{ roster|length }})</button>
+              <button type="button" class="roster-tab-btn" onclick="setRosterTab('present')">Present ({{ summary.total_present }})</button>
+              <button type="button" class="roster-tab-btn" onclick="setRosterTab('absent')">Absent ({{ summary.total_absent }})</button>
+              <button type="button" class="roster-tab-btn" onclick="setRosterTab('leave')">Leave / Pass ({{ summary.total_leave }})</button>
+              <button type="button" class="roster-tab-btn" onclick="setRosterTab('sick')">Sick ({{ summary.total_sick }})</button>
+              <button type="button" class="roster-tab-btn" onclick="setRosterTab('nysc')">NYSC ({{ summary.total_nysc }})</button>
+              <button type="button" class="roster-tab-btn" onclick="setRosterTab('it')">IT ({{ summary.total_it }})</button>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="data-table" id="rosterTable">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">S/N</th>
+                  <th style="width: 60px;">Photo</th>
+                  <th>Service Number</th>
+                  <th>Full Name & Rank</th>
+                  <th>Category</th>
+                  {% if ao_type == 'civilian' %}
+                  <th>Shift Group</th>
+                  {% endif %}
+                  <th>Attendance Status</th>
+                  <th>Clock-In Time</th>
+                  <th>Covert Snapshot</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if roster %}
+                  {% for p in roster %}
+                  <tr data-status="{{ p.status }}" data-category="{{ p.category }}" data-group="{{ p.shift_group }}" data-name="{{ p.name | lower }}" data-sn="{{ p.service_number | lower }}">
+                    <td style="color: #94a3b8; font-weight: 600;">{{ p.sn }}</td>
+                    <td>
+                      {% if p.passport_photo %}
+                        <img src="{{ p.passport_photo }}" class="photo-thumb" alt="Staff" onclick="showSnapshotModal('{{ p.passport_photo }}', '{{ p.name }} - Profile Photo')" />
+                      {% else %}
+                        <div class="photo-thumb" style="display: flex; align-items: center; justify-content: center; color: #64748b; font-weight: bold;">
+                          {{ p.name[:2] | upper }}
+                        </div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <code style="font-size: 13px; color: #0284c7; font-weight: 700;">{{ p.service_number }}</code>
+                    </td>
+                    <td>
+                      <div style="font-weight: 600; color: #0f172a;">{{ p.name }}</div>
+                      <div style="font-size: 12px; color: #64748b;">{{ p.rank or p.appt or 'Personnel' }}</div>
+                    </td>
+                    <td>
+                      <span class="badge" style="background: #f1f5f9; color: #334155; font-size: 11px; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; font-weight: 700;">
+                        {{ p.category }}
+                      </span>
+                    </td>
+                    {% if ao_type == 'civilian' %}
+                    <td>
+                      {% if p.shift_group == 'A' %}
+                        <span class="group-pill pill-a">Group A</span>
+                      {% else %}
+                        <span class="group-pill pill-b">Group B</span>
+                      {% endif %}
+                    </td>
+                    {% endif %}
+                    <td>
+                      {% if p.status == 'present' %}
+                        <span class="status-badge badge-present"><i class="ri-check-line"></i> Present</span>
+                      {% elif p.status == 'absent' %}
+                        <span class="status-badge badge-absent"><i class="ri-close-line"></i> Absent</span>
+                      {% elif p.status == 'on_leave' %}
+                        <span class="status-badge badge-leave"><i class="ri-flight-takeoff-line"></i> On Leave</span>
+                      {% elif p.status == 'on_pass' %}
+                        <span class="status-badge badge-pass"><i class="ri-time-line"></i> On Pass</span>
+                      {% elif p.status == 'sick' %}
+                        <span class="status-badge badge-sick"><i class="ri-heart-pulse-line"></i> Sick Report</span>
+                      {% else %}
+                        <span class="status-badge badge-off"><i class="ri-pause-line"></i> Off Shift</span>
+                      {% endif %}
+                    </td>
+                    <td style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: #0f172a;">
+                      {{ p.clock_in_time or '-' }}
+                    </td>
+                    <td>
+                      {% if p.snapshot_id %}
+                        <button type="button" class="btn-action" style="padding: 4px 10px; font-size: 11.5px; background: #e0f2fe; color: #0369a1; border: none; border-radius: 6px;" onclick="showSnapshotModal('/parade-state/snapshot/{{ p.snapshot_id }}', '{{ p.name }} - Covert Clock-In Snapshot at {{ p.clock_in_time }}')">
+                          <i class="ri-camera-lens-fill"></i> View Photo
+                        </button>
+                      {% else %}
+                        <span style="color: #94a3b8; font-size: 12px;">No Snapshot</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="9" style="text-align: center; color: #94a3b8; padding: 40px 0;">
+                      No personnel records found for {{ directorate }} in this category.
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ================= MODAL: DIVIDE INTO GROUP A AND GROUP B ================= -->
+  <div class="modal-overlay" id="groupManageModal">
+    <div class="modal-container" style="max-width: 750px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Civilian Shift Partitioning (Group A & Group B)</h3>
+          <p style="font-size: 12.5px; color: #64748b; margin: 3px 0 0 0;">
+            Divide {{ directorate }} civilian staff, NYSC, and IT personnel into two rotating groups.
+          </p>
+        </div>
+        <button type="button" onclick="closeShiftGroupModal()" style="border: none; background: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; background: #f8fafc; padding: 12px 18px; border-radius: 10px;">
+          <div>
+            <strong>Current Balance:</strong>
+            <span style="margin-left: 10px; color: #0369a1; font-weight: 700;">Group A: {{ summary.group_a_count }}</span>
+            <span style="margin-left: 14px; color: #b45309; font-weight: 700;">Group B: {{ summary.group_b_count }}</span>
+          </div>
+          <div style="font-size: 12px; color: #64748b;">Click badge to toggle group</div>
+        </div>
+
+        <div style="max-height: 420px; overflow-y: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Service No</th>
+                <th>Full Name</th>
+                <th>Category</th>
+                <th>Current Group</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in roster %}
+              <tr>
+                <td><code>{{ p.service_number }}</code></td>
+                <td><strong>{{ p.name }}</strong></td>
+                <td><span style="text-transform: uppercase; font-size: 11px;">{{ p.category }}</span></td>
+                <td>
+                  <span class="group-pill {% if p.shift_group == 'A' %}pill-a{% else %}pill-b{% endif %}" id="groupBadge_{{ p.user_id }}">
+                    Group {{ p.shift_group }}
+                  </span>
+                </td>
+                <td style="text-align: right;">
+                  <button type="button" class="btn-action" style="padding: 4px 10px; font-size: 11.5px; background: #0f172a; color: #fff; border: none; border-radius: 6px;" onclick="toggleUserGroup('{{ p.user_id }}', '{{ p.shift_group }}')">
+                    Switch to Group {{ 'B' if p.shift_group == 'A' else 'A' }}
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-action btn-print" onclick="closeShiftGroupModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: DISPATCH PARADE STATE CONFIRMATION ================= -->
+  <div class="modal-overlay" id="dispatchModal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Dispatch Directorate Parade State</h3>
+          <p style="font-size: 12.5px; color: #64748b; margin: 3px 0 0 0;">
+            Broadcast official daily return to HQ and designated executives.
+          </p>
+        </div>
+        <button type="button" onclick="closeDispatchModal()" style="border: none; background: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #0f172a;">Executive Return Summary:</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+            <div><strong>Directorate:</strong> {{ directorate }}</div>
+            <div><strong>Date:</strong> {{ summary.date_str }}</div>
+            <div><strong>Total on Parade:</strong> <span style="color: #16a34a; font-weight: 700;">{{ summary.total_present }}</span></div>
+            <div><strong>Total Absent:</strong> <span style="color: #dc2626; font-weight: 700;">{{ summary.total_absent }}</span></div>
+            <div><strong>Total NYSC:</strong> {{ summary.total_nysc }} ({{ summary.nysc_present }} Present)</div>
+            <div><strong>Total IT:</strong> {{ summary.total_it }} ({{ summary.it_present }} Present)</div>
+          </div>
+        </div>
+
+        <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+          Recipients Receiving This Return at Once:
+        </h4>
+        <div class="recipient-list-item">
+          <i class="ri-user-star-fill" style="color: #2563eb; font-size: 20px;"></i>
+          <div>
+            <strong style="font-size: 13.5px;">Civilian Head CAO</strong>
+            <p style="margin: 0; font-size: 11.5px; color: #64748b;">Central Administrative Officer • Civilian Command</p>
+          </div>
+        </div>
+        <div class="recipient-list-item">
+          <i class="ri-medal-fill" style="color: #4f46e5; font-size: 20px;"></i>
+          <div>
+            <strong style="font-size: 13.5px;">Director of {{ directorate }}</strong>
+            <p style="margin: 0; font-size: 11.5px; color: #64748b;">Directorate Executive Command</p>
+          </div>
+        </div>
+        <div class="recipient-list-item">
+          <i class="ri-archive-drawer-fill" style="color: #0284c7; font-size: 20px;"></i>
+          <div>
+            <strong style="font-size: 13.5px;">Registry of {{ directorate }}</strong>
+            <p style="margin: 0; font-size: 11.5px; color: #64748b;">Directorate Registry Desk & Archives</p>
+          </div>
+        </div>
+        <div class="recipient-list-item">
+          <i class="ri-government-fill" style="color: #16a34a; font-size: 20px;"></i>
+          <div>
+            <strong style="font-size: 13.5px;">Civilian Head of {{ directorate }}</strong>
+            <p style="margin: 0; font-size: 11.5px; color: #64748b;">Directorate Civilian Unit Head</p>
+          </div>
+        </div>
+        <div class="recipient-list-item">
+          <i class="ri-shield-star-fill" style="color: #dc2626; font-size: 20px;"></i>
+          <div>
+            <strong style="font-size: 13.5px;">RSM (Regimental Sergeant Major)</strong>
+            <p style="margin: 0; font-size: 11.5px; color: #64748b;">Armed Forces Parade State & Discipline Command</p>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px;">
+          <label style="font-size: 13px; font-weight: 600; color: #1e293b; display: block; margin-bottom: 6px;">
+            AO Remarks / Notes (Optional):
+          </label>
+          <textarea id="dispatchRemarks" rows="2" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 13px; font-family: inherit;" placeholder="e.g. All personnel accounted for. 2 staff on approved compassionate leave."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-action btn-print" onclick="closeDispatchModal()">Cancel</button>
+        <button type="button" class="btn-action btn-dispatch" id="confirmDispatchBtn" onclick="submitDispatch()">
+          <i class="ri-send-plane-fill"></i> Send Out at Once
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: DISPATCH SUCCESS CONFIRMATION ================= -->
+  <div class="modal-overlay" id="dispatchSuccessModal" style="display: none;">
+    <div class="modal-container" style="max-width: 580px; text-align: center;">
+      <div class="modal-header" style="justify-content: flex-end; padding: 14px 20px; border-bottom: none;">
+        <button type="button" onclick="closeDispatchSuccessModal()" style="border: none; background: none; font-size: 24px; cursor: pointer; color: #94a3b8;">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 0 28px 24px;">
+        <div class="success-modal-icon-box">
+          <i class="ri-checkbox-circle-fill"></i>
+        </div>
+
+        <h3 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 8px;">
+          Parade State Dispatched Successfully!
+        </h3>
+        <p style="font-size: 13.5px; color: #64748b; margin: 0 0 20px; line-height: 1.5;" id="dispatchSuccessMessageText">
+          The official daily parade state return has been certified, permanently archived, and delivered to all authorized executives.
+        </p>
+
+        <!-- Executive Return Breakdown Card -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-bottom: 20px; text-align: left;">
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 13px;">
+            <div><span style="color: #64748b;">Directorate:</span> <strong style="color: #0f172a;">{{ directorate }}</strong></div>
+            <div><span style="color: #64748b;">Active Shift:</span> <strong style="color: #0f172a;">Group {{ summary.active_shift }}</strong></div>
+            <div><span style="color: #64748b;">Return Date:</span> <strong style="color: #0f172a;">{{ summary.date_str }}</strong></div>
+            <div><span style="color: #64748b;">On Duty Strength:</span> <strong style="color: #0f172a;">{{ summary.total_expected }}</strong></div>
+            <div><span style="color: #64748b;">Total Present:</span> <strong style="color: #16a34a;">{{ summary.total_present }}</strong></div>
+            <div><span style="color: #64748b;">Total Absent:</span> <strong style="color: #dc2626;">{{ summary.total_absent }}</strong></div>
+          </div>
+        </div>
+
+        <!-- Delivered Recipients Summary -->
+        <div style="text-align: left; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 12px 16px; font-size: 12.5px; color: #1e40af; margin-bottom: 8px;">
+          <i class="ri-shield-check-fill" style="color: #2563eb; font-size: 16px; vertical-align: middle;"></i>
+          <strong>Delivered To:</strong> Director, Civilian Head, Directorate Registry, Civilian Head CAO, RSM, and HQ Command.
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: center; gap: 10px; padding: 18px 24px; background: #f8fafc;">
+        <a href="/parade-state?view=cards" class="btn-action btn-group-manage" style="border: 1px solid #cbd5e1;">
+          <i class="ri-stack-line"></i> View Dispatched Cards
+        </a>
+        <a href="/parade-state/print?date={{ target_date }}&directorate={{ directorate }}&ao_type={{ ao_type }}" target="_blank" class="btn-action btn-print">
+          <i class="ri-printer-line"></i> Print Proforma
+        </a>
+        <button type="button" class="btn-action btn-dispatch" onclick="closeDispatchSuccessModal()">
+          ✓ Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: PHOTO / SNAPSHOT PREVIEW ================= -->
+  <div class="modal-overlay" id="snapshotModal">
+    <div class="modal-container" style="max-width: 480px; text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="snapshotTitle" style="font-size: 15px;">Personnel Photo</h3>
+        <button type="button" onclick="closeSnapshotModal()" style="border: none; background: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <img id="snapshotImg" src="" style="width: 100%; max-height: 400px; object-fit: contain; border-radius: 12px; border: 1px solid #e2e8f0;" alt="Snapshot" />
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const csrfToken = document.getElementById("csrf_token")?.value || "";
+
+    // Safely parse JSON — detects session expiry (HTML redirect) and server errors
+    async function safeJson(resp) {
+      const contentType = resp.headers.get("Content-Type") || "";
+      if (resp.redirected || resp.url.includes("/login") || resp.url.includes("index")) {
+        alert("Your session has expired. Please log in again.");
+        window.location.href = "/";
+        throw new Error("session_expired");
+      }
+      if (!contentType.includes("application/json")) {
+        const text = await resp.text();
+        console.error("Non-JSON response:", resp.status, text.substring(0, 300));
+        if (resp.status === 401) {
+          alert("Session expired. Please log in again.");
+          window.location.href = "/";
+          throw new Error("session_expired");
+        }
+        throw new Error(`Server returned ${resp.status} (not JSON)`);
+      }
+      return resp.json();
+    }
+
+    // Directorate and Date Filter
+    function applyFilters() {
+      const dir = document.getElementById("directorateSelect")?.value || "{{ directorate }}";
+      const date = document.getElementById("datePicker").value || "{{ target_date }}";
+      window.location.href = `?date=${encodeURIComponent(date)}&directorate=${encodeURIComponent(dir)}&ao_type={{ ao_type }}`;
+    }
+
+    // Set Daily Shift (A, B, Both, None)
+    async function setDailyShift(shift) {
+      try {
+        const resp = await fetch("/api/parade/set-shift", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken
+          },
+          body: JSON.stringify({
+            directorate: "{{ directorate }}",
+            ao_type: "{{ ao_type }}",
+            date_str: "{{ target_date }}",
+            shift: shift
+          })
+        });
+        const res = await safeJson(resp);
+        if (res.status === "success") {
+          window.location.reload();
+        } else {
+          alert("Error: " + res.message);
+        }
+      } catch (e) {
+        if (e.message === "session_expired") return;
+        console.error("Shift update failed:", e);
+        alert("Failed to update shift. Please refresh the page and try again.");
+      }
+    }
+
+    // Modal Handlers
+    function openShiftGroupModal() {
+      document.getElementById("groupManageModal").style.display = "flex";
+    }
+    function closeShiftGroupModal() {
+      document.getElementById("groupManageModal").style.display = "none";
+      window.location.reload();
+    }
+
+    function openDispatchModal() {
+      document.getElementById("dispatchModal").style.display = "flex";
+    }
+    function closeDispatchModal() {
+      document.getElementById("dispatchModal").style.display = "none";
+    }
+
+    function showSnapshotModal(src, title) {
+      document.getElementById("snapshotImg").src = src;
+      document.getElementById("snapshotTitle").textContent = title || "Snapshot Inspection";
+      document.getElementById("snapshotModal").style.display = "flex";
+    }
+    function closeSnapshotModal() {
+      document.getElementById("snapshotModal").style.display = "none";
+    }
+
+    // Toggle Personnel Group A/B
+    async function toggleUserGroup(userId, currentGroup) {
+      const nextGroup = currentGroup === "A" ? "B" : "A";
+      try {
+        const resp = await fetch("/api/parade/assign-group", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            group: nextGroup
+          })
+        });
+        const res = await safeJson(resp);
+        if (res.status === "success") {
+          const badge = document.getElementById("groupBadge_" + userId);
+          if (badge) {
+            badge.textContent = "Group " + nextGroup;
+            badge.className = "group-pill " + (nextGroup === "A" ? "pill-a" : "pill-b");
+          }
+        } else {
+          alert("Group assignment error: " + res.message);
+        }
+      } catch (e) {
+        if (e.message === "session_expired") return;
+        console.error(e);
+        alert("Failed to update group. Please refresh and try again.");
+      }
+    }
+
+    // Submit Dispatch to CAO, Registry, Civilian Head, RSM
+    async function submitDispatch() {
+      const btn = document.getElementById("confirmDispatchBtn");
+      btn.disabled = true;
+      btn.innerHTML = `<i class="ri-loader-4-line" style="animation: spin 1s infinite;"></i> Dispatching...`;
+
+      const remarks = document.getElementById("dispatchRemarks")?.value || "";
+
+      try {
+        const resp = await fetch("/api/parade/dispatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken
+          },
+          body: JSON.stringify({
+            directorate: "{{ directorate }}",
+            ao_type: "{{ ao_type }}",
+            date_str: "{{ target_date }}",
+            remarks: remarks
+          })
+        });
+        const data = await safeJson(resp);
+        if (data.status === "success") {
+          closeDispatchModal();
+          showDispatchSuccessModal(data.message);
+        } else {
+          alert("Dispatch error: " + (data.message || "Unknown server error."));
+          btn.disabled = false;
+          btn.innerHTML = `<i class="ri-send-plane-fill"></i> Send Out at Once`;
+        }
+      } catch (e) {
+        if (e.message === "session_expired") return;
+        console.error("Dispatch error:", e);
+        alert("Dispatch failed: " + e.message + "\n\nPlease refresh the page and try again.");
+        btn.disabled = false;
+        btn.innerHTML = `<i class="ri-send-plane-fill"></i> Send Out at Once`;
+      }
+    }
+
+    function showDispatchSuccessModal(msg) {
+      if (msg) {
+        const msgEl = document.getElementById("dispatchSuccessMessageText");
+        if (msgEl) msgEl.innerText = msg;
+      }
+      const modal = document.getElementById("dispatchSuccessModal");
+      if (modal) modal.style.display = "flex";
+    }
+
+    function closeDispatchSuccessModal() {
+      const modal = document.getElementById("dispatchSuccessModal");
+      if (modal) modal.style.display = "none";
+      window.location.reload();
+    }
+
+    // Table Filter Tabs
+    let currentTab = "all";
+    function setRosterTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll(".roster-tab-btn").forEach(b => b.classList.remove("active"));
+      event.target.classList.add("active");
+      filterRosterTable();
+    }
+
+    function filterRosterTable() {
+      const q = (document.getElementById("rosterSearch").value || "").toLowerCase().trim();
+      const rows = document.querySelectorAll("#rosterTable tbody tr");
+
+      rows.forEach(row => {
+        const name = row.getAttribute("data-name") || "";
+        const sn = row.getAttribute("data-sn") || "";
+        const status = row.getAttribute("data-status") || "";
+        const cat = row.getAttribute("data-category") || "";
+
+        let matchSearch = (name.includes(q) || sn.includes(q));
+        let matchTab = true;
+
+        if (currentTab === "present") {
+          matchTab = (status === "present");
+        } else if (currentTab === "absent") {
+          matchTab = (status === "absent");
+        } else if (currentTab === "leave") {
+          matchTab = (status === "on_leave" || status === "on_pass");
+        } else if (currentTab === "sick") {
+          matchTab = (status === "sick");
+        } else if (currentTab === "nysc") {
+          matchTab = (cat === "nysc");
+        } else if (currentTab === "it") {
+          matchTab = (cat === "it");
+        }
+
+        row.style.display = (matchSearch && matchTab) ? "" : "none";
+      });
+    }
+  </script>
+</body>
+</html>

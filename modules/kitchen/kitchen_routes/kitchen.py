@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from bson import ObjectId
 from datetime import datetime, timedelta
 from pymongo import MongoClient
+from permissions import ROLE_PERMISSIONS
 import uuid
 
 kitchen_routes = Blueprint('kitchen_routes', __name__)
@@ -71,12 +72,14 @@ def kitchen_dashboard_view():
             except Exception:
                 scan['time_str'] = scan.get('scanned_at', '')
 
+    user_allowed_features = ROLE_PERMISSIONS.get(role, {})
     return render_template(
         'kitchen_dashboard.html',
         user=sanitize_doc(user),
         today_scans=sanitize_doc(today_scans),
         today_count=len(today_scans),
-        active_page='dashboard'
+        active_page='dashboard',
+        permissions=user_allowed_features
     )
 
 
@@ -364,6 +367,7 @@ def meal_statistics_view():
         if isinstance(item.get('scanned_at'), datetime):
             item['date_str'] = item['scanned_at'].strftime("%Y-%m-%d %I:%M %p")
 
+    user_allowed_features = ROLE_PERMISSIONS.get(role, {})
     return render_template(
         'meal_statistics.html',
         user=sanitize_doc(user),
@@ -378,7 +382,8 @@ def meal_statistics_view():
         filter_week_label=f"Week of {week_start.strftime('%b %d, %Y')} to {(week_end - timedelta(days=1)).strftime('%b %d, %Y')}",
         filter_month_str=month_start.strftime("%Y-%m"),
         filter_month_label=month_start.strftime("%B %Y"),
-        active_page='meal_statistics'
+        active_page='meal_statistics',
+        permissions=user_allowed_features
     )
 
 
@@ -471,11 +476,13 @@ def generate_24h_qr_view():
         "name": 1, "service_number": 1, "directorate": 1, "category": 1, "role": 1, "email": 1, "rank": 1, "appt": 1, "secure_code": 1, "secureCode": 1
     }).sort("name", 1))
 
+    user_allowed_features = ROLE_PERMISSIONS.get(role, {})
     return render_template(
         'meal_qr_generator.html',
         user=sanitize_doc(user),
         system_users=sanitize_doc(all_users),
-        active_page='meal_qr_generator'
+        active_page='meal_qr_generator',
+        permissions=user_allowed_features
     )
 
 

@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% include 'pwa_head.html' %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSA - Automated Clock-In & Attendance Kiosk</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.css">
+  <!-- Dedicated Kiosk PWA Manifest (standalone, landscape, opens to /clock-in) -->
+  <link rel="manifest" href="/static/manifest-kiosk.json">
+  <meta name="theme-color" content="#1A365D">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DSA Kiosk">
+
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 10%, #1e293b 0%, #090d16 100%);
+      color: #f8fafc;
+      font-family: 'Poppins', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Top Kiosk Header */
+    .kiosk-navbar {
+      background: #1A365D;
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .emblem-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .brand-title {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: #94a3b8;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulseDot 1.8s infinite;
+    }
+
+    @keyframes pulseDot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.85);
+      }
+    }
+
+    .exit-btn {
+      color: #94a3b8;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      transition: all 0.2s;
+    }
+
+    .exit-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    /* Main Kiosk Layout */
+    .kiosk-content {
+      flex: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .kiosk-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Scanner Viewport Section */
+    .scanner-station {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .station-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .video-viewport-wrapper {
+      position: relative;
+      width: 100%;
+      height: 310px;
+      background: #020617;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px dashed rgba(56, 189, 248, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #webcamVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      /* mirror selfie view naturally */
+    }
+
+    /* Target Reticle Overlay */
+    .target-reticle {
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      border: 2px solid #38bdf8;
+      border-radius: 16px;
+      box-shadow: 0 0 0 9999px rgba(2, 6, 23, 0.55);
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px;
+    }
+
+    .reticle-corner-tl,
+    .reticle-corner-tr,
+    .reticle-corner-bl,
+    .reticle-corner-br {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-color: #38bdf8;
+      border-style: solid;
+    }
+
+    .reticle-corner-tl {
+      top: -2px;
+      left: -2px;
+      border-width: 4px 0 0 4px;
+      border-top-left-radius: 16px;
+    }
+
+    .reticle-corner-tr {
+      top: -2px;
+      right: -2px;
+      border-width: 4px 4px 0 0;
+      border-top-right-radius: 16px;
+    }
+
+    .reticle-corner-bl {
+      bottom: -2px;
+      left: -2px;
+      border-width: 0 0 4px 4px;
+      border-bottom-left-radius: 16px;
+    }
+
+    .reticle-corner-br {
+      bottom: -2px;
+      right: -2px;
+      border-width: 0 4px 4px 0;
+      border-bottom-right-radius: 16px;
+    }
+
+    .laser-line {
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #38bdf8, #60a5fa, transparent);
+      box-shadow: 0 0 12px #38bdf8;
+      animation: scanSweep 2.2s infinite ease-in-out;
+    }
+
+    @keyframes scanSweep {
+      0% {
+        transform: translateY(0);
+        opacity: 0.2;
+      }
+
+      50% {
+        transform: translateY(180px);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(0);
+        opacity: 0.2;
+      }
+    }
+
+    .camera-placeholder {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      color: #64748b;
+      font-size: 14px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* Auto-Focused Scanner Field */
+    .barcode-listener-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid #f9fdff40;
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .listener-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #38bdf8;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .barcode-input {
+      width: 100%;
+      padding: 14px 18px;
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 10px;
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 600;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .barcode-input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.35);
+    }
+
+    .input-hint {
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .camera-controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-cam {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-cam-start {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+    }
+
+    .btn-cam-stop {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+
+    /* Right Column: Dynamic Feedback & Real-Time Feed */
+    .display-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Welcome / Success Scan Flash Card */
+    .scan-feedback-card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 2px solid rgba(16, 185, 129, 0.4);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scan-feedback-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 6px;
+      height: 100%;
+      background: #10b981;
+    }
+
+    .scan-avatar-frame {
+      width: 100px;
+      height: 100px;
+      border-radius: 18px;
+      background: #1e293b;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid #10b981;
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+      flex-shrink: 0;
+    }
+
+    .scan-avatar-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scan-meta {
+      flex: 1;
+    }
+
+    .scan-badge-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .badge-pill {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-green {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .badge-blue {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .badge-amber {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .staff-name {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+
+    .staff-sub {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .scan-time-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Live Scans Feed Table */
+    .feed-card {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .feed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .feed-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .feed-count-badge {
+      background: #2563eb;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    .kiosk-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 8px;
+    }
+
+    .kiosk-table th {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #94a3b8;
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    .kiosk-table td {
+      background: rgba(15, 23, 42, 0.6);
+      padding: 14px;
+      font-size: 13.5px;
+      color: #e2e8f0;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .kiosk-table tr td:first-child {
+      border-top-left-radius: 10px;
+      border-bottom-left-radius: 10px;
+      border-left: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .kiosk-table tr td:last-child {
+      border-top-right-radius: 10px;
+      border-bottom-right-radius: 10px;
+      border-right: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Modal / Popup for Notifications */
+    .kiosk-alert-toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 16px 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: none;
+      align-items: center;
+      gap: 14px;
+      z-index: 100;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .mode-switch {
+      display: flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 4px;
+      border-radius: 10px;
+    }
+
+    .mode-btn {
+      border: none;
+      cursor: pointer;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .mode-btn:hover {
+      color: #fff;
+    }
+
+    .mode-btn.active-in {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #fff;
+    }
+
+    .mode-btn.active-out {
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: #fff;
+    }
+
+    /* Offline Status Banner */
+    .offline-banner {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 200;
+      background: linear-gradient(135deg, #92400e, #b45309);
+      color: #fef3c7;
+      padding: 10px 24px;
+      font-size: 13px;
+      font-weight: 600;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      animation: slideDown 0.3s ease;
+    }
+
+    .offline-banner.show {
+      display: flex;
+    }
+
+    @keyframes slideDown {
+      from {
+        transform: translateY(-100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .offline-banner .sync-count {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 12px;
+    }
+
+    .sync-btn {
+      border: none;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Poppins', sans-serif;
+      transition: background 0.2s;
+    }
+
+    .sync-btn:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Queued offline card style */
+    .scan-feedback-card.state-queued {
+      border-color: rgba(245, 158, 11, 0.8) !important;
+    }
+
+    .scan-feedback-card.state-queued::before {
+      background: #f59e0b;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ░░ Offline Status Banner (shown when no network) ░░ -->
+  <div class="offline-banner" id="offlineBanner">
+    <i class="ri-wifi-off-line" style="font-size:18px;"></i>
+    <span>⚠ Offline Mode — Scans are saved locally</span>
+    <span class="sync-count" id="offlineQueueCount" style="display:none;">0 queued</span>
+    <button class="sync-btn" onclick="manualSync()" title="Retry sync now">
+      <i class="ri-refresh-line"></i> Sync Now
+    </button>
+  </div>
+
+  <!-- Top Navigation Header -->
+
+  <header class="kiosk-navbar">
+    <div class="brand-group">
+      <div class="emblem-badge">
+        <img src="{{ url_for('static', filename='images/dsa_logo.png') }}" alt="" width="40px">
+      </div>
+      <div>
+        <h1 class="brand-title">DEFENCE SPACE ADMINISTRATION</h1>
+        <p class="brand-sub">Daily Parade State • Automated Barcode Attendance Kiosk</p>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <!-- <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="kioskStatusText">Kiosk Live & Listening</span>
+      </div> -->
+      <div class="mode-switch">
+        <button type="button" class="mode-btn active-in" id="modeInBtn" onclick="setScanMode('in')">
+          <i class="ri-login-circle-line"></i> Clock In
+        </button>
+        <button type="button" class="mode-btn" id="modeOutBtn" onclick="setScanMode('out')">
+          <i class="ri-logout-circle-r-line"></i> Clock Out
+        </button>
+      </div>
+      <!-- <button type="button" class="exit-btn" onclick="toggleFullScreen()" title="Toggle Fullscreen"
+        style="cursor: pointer; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);">
+        <i class="ri-fullscreen-line" id="fsIcon"></i> Fullscreen
+      </button> -->
+      <!-- {% if user and role in ['super_admin', 'civilian_ao', 'military_ao', 'ao', 'admin_officer', 'cdsa', 'dcdsa',
+      'director', 'registry', 'rsm'] %}
+      <a href="/parade-state" class="exit-btn">
+        <i class="ri-dashboard-line"></i> Exit to Dashboard
+      </a>
+      {% else %}
+      <a href="/" class="exit-btn">
+        <i class="ri-login-box-line"></i> Staff Portal
+      </a>
+      {% endif %} -->
+    </div>
+  </header>
+
+  <!-- Main Kiosk Body -->
+  <main class="kiosk-content">
+
+
+    <!-- Dynamic Verification Card (Updates silently on scan) -->
+    <div class="scan-feedback-card" id="feedbackCard">
+      <div class="scan-avatar-frame" id="feedbackAvatar">
+        <i class="ri-user-received-2-line" style="font-size: 48px; color: #475569;"></i>
+      </div>
+      <div class="scan-meta">
+        <div class="scan-badge-row">
+          <span class="badge-pill badge-green" id="feedbackStatus">Ready for Scan</span>
+          <span class="badge-pill badge-blue" id="feedbackCategory">Civilian / Military</span>
+          <span class="badge-pill badge-amber" id="feedbackDirectorate">DSA HQ</span>
+        </div>
+        <h2 class="staff-name" id="feedbackName">Stand by for Barcode Scan</h2>
+        <p class="staff-sub" id="feedbackSub">Present your ID card barcode to the scanner or camera aperture.</p>
+        <div class="scan-time-tag">
+          <i class="ri-time-line"></i>
+          <span id="feedbackTime">--:--:--</span>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Left Column: Scanner Station -->
+    <section class="scanner-station">
+      <span id="stationTitleText">Clock In</span>
+
+      <!-- Live Video Viewport (Handles Covert Snapshot & Camera QR Scanner) -->
+      <div class="video-viewport-wrapper">
+        <video id="webcamVideo" autoplay playsinline muted></video>
+
+        <div class="target-reticle" id="targetReticle">
+          <span class="reticle-corner-tl"></span>
+          <span class="reticle-corner-tr"></span>
+          <span class="reticle-corner-bl"></span>
+          <span class="reticle-corner-br"></span>
+          <div class="laser-line"></div>
+        </div>
+
+        <div class="camera-placeholder" id="camPlaceholder">
+          <i class="ri-camera-lens-line" style="font-size: 42px; color: #475569;"></i>
+          <p>Camera standby.<br>Click below to activate live scanner stream.</p>
+        </div>
+      </div>
+
+      <!-- Auto-focused Keyboard Wedge Barcode Listener (for USB/Bluetooth Barcode Scanners) -->
+      <div class="barcode-listener-card">
+        <div class="listener-label">
+          <span><i class="ri-barcode-line"></i> Hardware Scanner Channel</span>
+          <span style="color: #10b981; font-size: 11px;">● Auto-Focus Active</span>
+        </div>
+        <form id="barcodeScanForm" onsubmit="handleManualBarcodeSubmit(event)">
+          <input type="text" id="barcodeInputField" class="barcode-input"
+            placeholder="Scan barcode or type Service No..." autocomplete="off" autofocus />
+        </form>
+        <div class="input-hint">
+          <i class="ri-information-line"></i>
+          <span>External scanner automatically triggers clock-in on scan.</span>
+        </div>
+      </div>
+
+      <!-- Camera Feed Controls -->
+      <div class="camera-controls">
+        <button type="button" class="btn-cam btn-cam-start" id="btnStartCam" onclick="startCamera()">
+          <i class="ri-camera-fill"></i> Start Camera Stream
+        </button>
+        <button type="button" class="btn-cam btn-cam-stop" id="btnStopCam" onclick="stopCamera()"
+          style="display: none;">
+          <i class="ri-camera-off-fill"></i> Stop Camera
+        </button>
+      </div>
+    </section>
+
+    <!-- Right Column: Instant Scan Verification Card & Real-Time Feed -->
+    <section class="display-panel">
+
+      <!-- Dynamic Verification Card (Updates silently on scan)
+      <div class="scan-feedback-card" id="feedbackCard">
+        <div class="scan-avatar-frame" id="feedbackAvatar">
+          <i class="ri-user-received-2-line" style="font-size: 48px; color: #475569;"></i>
+        </div>
+        <div class="scan-meta">
+          <div class="scan-badge-row">
+            <span class="badge-pill badge-green" id="feedbackStatus">Ready for Scan</span>
+            <span class="badge-pill badge-blue" id="feedbackCategory">Civilian / Military</span>
+            <span class="badge-pill badge-amber" id="feedbackDirectorate">DSA HQ</span>
+          </div>
+          <h2 class="staff-name" id="feedbackName">Stand by for Barcode Scan</h2>
+          <p class="staff-sub" id="feedbackSub">Present your ID card barcode to the scanner or camera aperture.</p>
+          <div class="scan-time-tag">
+            <i class="ri-time-line"></i>
+            <span id="feedbackTime">--:--:--</span>
+          </div>
+        </div>
+      </div> -->
+
+      <!-- Today's Live Attendance Clock-In & Clock-Out Ledger
+      <div class="feed-card">
+        <div class="feed-header">
+          <div class="feed-title">
+            <i class="ri-history-line" style="color: #60a5fa;"></i>
+            <span>Today's Directorate Attendance Ledger</span>
+          </div>
+          <span class="feed-count-badge" id="feedCounter">{{ total_today_clockins if total_today_clockins is defined
+            else (recent_clockins|length) }} Scanned Today</span>
+        </div> -->
+
+      <!-- <div style="overflow-x: auto; max-height: 440px; overflow-y: auto;">
+          <table class="kiosk-table">
+            <thead>
+              <tr>
+                <th>Clock-In Time</th>
+                <th>Full Name</th>
+                <th>Service Number</th>
+                <th>Directorate</th>
+                <th>Punctuality</th>
+                <th>Clock-Out</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="feedTableBody">
+              {% if recent_clockins %}
+              {% for att in recent_clockins %}
+              <tr data-scan-id="{{ att._id or att.user_id }}" data-user-id="{{ att.user_id }}">
+                <td style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #38bdf8;">
+                  {{ att.time_str or att.clock_in_time }}
+                </td>
+                <td style="font-weight: 600; color: #ffffff;">{{ att.name }}</td>
+                <td><code style="color: #60a5fa;">{{ att.service_number }}</code></td>
+                <td><span style="text-transform: uppercase;">{{ att.directorate }}</span></td>
+                <td>
+                  {% if att.is_late %}
+                  <span style="color: #f59e0b; font-weight: 600; font-size: 12px;">⚠ Late</span>
+                  {% else %}
+                  <span style="color: #34d399; font-weight: 600; font-size: 12px;">✓ On Time</span>
+                  {% endif %}
+                </td>
+                <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #94a3b8;"
+                  id="clockout_{{ att.user_id }}">
+                  {{ att.clock_out_time_str if att.clock_out_time_str else '—' }}
+                </td>
+                <td><span style="color: #34d399; font-weight: 600;">✔ Present</span></td>
+              </tr>
+              {% endfor %}
+              {% else %}
+              <tr id="emptyFeedRow">
+                <td colspan="7" style="text-align: center; color: #64748b; padding: 40px 0;">
+                  No personnel have clocked in today yet.
+                </td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table> -->
+      </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Kiosk Toast -->
+  <div class="kiosk-alert-toast" id="kioskToast">
+    <i class="ri-checkbox-circle-fill" id="toastIcon" style="font-size: 24px; color: #10b981;"></i>
+    <div>
+      <h4 id="toastTitle" style="font-size: 14px; color: #fff; margin: 0;">Notice</h4>
+      <p id="toastMessage" style="font-size: 12.5px; color: #94a3b8; margin: 2px 0 0 0;"></p>
+    </div>
+  </div>
+
+  <!-- Audio Chimes for Scan Feedback -->
+  <audio id="scanSuccessAudio" preload="auto">
+    <source
+      src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbqWE2M1yW4vegYTM1XJbi96BhNjVgluL3oGE0NFyW4vegYTM0XJbi96BhNDRgluL3oGE0NFyW4vegYTM0XJbi96BhNDRgluL3oGE0NFyW4vegYTM0XJbi96BhNDRgluL3oGE0NFyW4vegYTM="
+      type="audio/wav">
+  </audio>
+
+  <!-- Real-time Socket.IO Connection -->
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+  <!-- High-Performance Local QR Code Decoding Engine -->
+  <script src="{{ url_for('static', filename='js/jsqr.js') }}"></script>
+
+  <script>
+    let mediaStream = null;
+    let isProcessing = false;
+    let cameraCheckInterval = null;
+
+    // Maintain focus on barcode input field even if user clicks elsewhere
+    const barcodeInput = document.getElementById("barcodeInputField");
+    document.addEventListener("click", (e) => {
+      if (e.target.tagName !== "BUTTON" && e.target.tagName !== "A") {
+        barcodeInput.focus();
+      }
+    });
+
+    // Handle manual or hardware barcode submit
+    async function handleManualBarcodeSubmit(e) {
+      if (e) e.preventDefault();
+      const code = (barcodeInput.value || "").trim();
+      if (!code || isProcessing) return;
+      await processBarcodeScan(code);
+    }
+
+    // Capture invisible / silent snapshot from webcam
+    function captureSilentSnapshot() {
+      const video = document.getElementById("webcamVideo");
+      if (!mediaStream || !video || video.videoWidth === 0) {
+        return null; // Camera not active or supported
+      }
+
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext("2d");
+        // Flip canvas back to true mirror for correct storage
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.78);
+      } catch (err) {
+        console.warn("Silent snapshot capture bypassed:", err);
+        return null;
+      }
+    }
+
+    let lastScannedCode = "";
+    let lastScanTime = 0;
+
+    // Visual flash when QR or barcode is acquired
+    function flashReticleSuccess() {
+      const reticle = document.getElementById("targetReticle");
+      if (reticle) {
+        reticle.style.borderColor = "#10b981";
+        reticle.style.boxShadow = "0 0 30px rgba(16, 185, 129, 0.9)";
+        setTimeout(() => {
+          reticle.style.borderColor = "#38bdf8";
+          reticle.style.boxShadow = "0 0 0 9999px rgba(2, 6, 23, 0.55)";
+        }, 600);
+      }
+    }
+
+    let scanMode = "in"; // "in" or "out"
+
+    function setScanMode(mode) {
+      scanMode = mode;
+      lastScannedCode = "";
+      lastScanTime = 0;
+
+      const inBtn = document.getElementById("modeInBtn");
+      const outBtn = document.getElementById("modeOutBtn");
+      const title = document.getElementById("stationTitleText");
+      const status = document.getElementById("kioskStatusText");
+      const hint = document.querySelector(".input-hint span");
+      const feedName = document.getElementById("feedbackName");
+      const feedSub = document.getElementById("feedbackSub");
+      const feedStatus = document.getElementById("feedbackStatus");
+
+      if (mode === "out") {
+        inBtn.className = "mode-btn";
+        outBtn.className = "mode-btn active-out";
+        title.textContent = "Clock Out";
+        status.textContent = "Clock-Out Mode Active";
+        barcodeInput.placeholder = "Scan barcode to CLOCK OUT...";
+        if (hint) hint.textContent = "External scanner automatically triggers clock-out on scan.";
+        feedStatus.textContent = "Ready for Clock-Out";
+        feedName.textContent = "Stand by for Clock-Out Scan";
+        feedSub.textContent = "Present your ID card barcode to clock out.";
+      } else {
+        outBtn.className = "mode-btn";
+        inBtn.className = "mode-btn active-in";
+        title.textContent = "Clock In";
+        status.textContent = "Kiosk Live & Listening";
+        barcodeInput.placeholder = "Scan barcode or type Service No...";
+        if (hint) hint.textContent = "External scanner automatically triggers clock-in on scan.";
+        feedStatus.textContent = "Ready for Scan";
+        feedName.textContent = "Stand by for Barcode Scan";
+        feedSub.textContent = "Present your ID card barcode to the scanner or camera aperture.";
+      }
+      barcodeInput.focus();
+    }
+
+    async function processBarcodeScan(code) {
+      const cleanCode = (code || "").trim();
+      if (!cleanCode) return;
+
+      const now = Date.now();
+      if (cleanCode === lastScannedCode && now - lastScanTime < 2500) return;
+
+      isProcessing = true;
+      lastScannedCode = cleanCode;
+      lastScanTime = now;
+      if (barcodeInput) barcodeInput.value = cleanCode;
+
+      flashReticleSuccess();
+      const snapshotBase64 = captureSilentSnapshot();
+
+      try {
+        const endpoint = scanMode === "in" ? "/api/parade/clock-in" : "/api/parade/clock-out";
+        const payload = { barcode: cleanCode, snapshot: snapshotBase64 };
+
+        // ── 1. If currently offline, skip network delay and queue immediately ──
+        if (!navigator.onLine) {
+          console.warn("[Kiosk] Offline detected. Queuing scan directly to tablet storage.");
+          await queueScanDirectly({
+            endpoint: endpoint,
+            barcode: cleanCode,
+            snapshot: snapshotBase64,
+            scanMode: scanMode
+          });
+          displayOfflineQueuedCard(cleanCode, scanMode === "out");
+          playFeedbackChime(false);
+          showToast(
+            "Saved to Tablet Memory",
+            "Offline Mode — Scan saved locally. It will automatically sync when connected.",
+            "#f59e0b",
+            "ri-save-line"
+          );
+          refreshOfflineQueueCount();
+          return;
+        }
+
+        // ── 2. Online: attempt server POST ──
+        const resp = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+
+        if (data.status === "success") {
+          displaySuccessCard(data.user, false, scanMode === "out");
+          playFeedbackChime(true);
+          if (scanMode === "in") {
+            appendFeedRow(data.user);
+            const lateNote = data.user.is_late ? " (Late Arrival ⚠)" : " (On Time ✓)";
+            showToast("Clock-in Confirmed", data.message + lateNote,
+              data.user.is_late ? "#f59e0b" : "#10b981",
+              data.user.is_late ? "ri-time-line" : "ri-checkbox-circle-fill");
+          } else {
+            updateFeedRowClockOut(data.user);
+            showToast("Clock-out Recorded", data.message, "#60a5fa", "ri-logout-box-r-line");
+          }
+        } else if (data.status === "queued_offline") {
+          // Service Worker intercepted and queued
+          displayOfflineQueuedCard(cleanCode, scanMode === "out");
+          playFeedbackChime(false);
+          showToast("Saved to Tablet Memory", data.message, "#f59e0b", "ri-save-line");
+          refreshOfflineQueueCount();
+        } else if (data.status === "already_clocked_in" || data.status === "already_clocked_out") {
+          displaySuccessCard(data.user, true, scanMode === "out");
+          playFeedbackChime(false);
+          showToast(
+            scanMode === "in" ? "Already Clocked In" : "Already Clocked Out",
+            data.message,
+            "#f59e0b",
+            "ri-time-line"
+          );
+        } else {
+          showToast("Scan Unrecognized", data.message || "Invalid QR code or unregistered staff.", "#ef4444", "ri-error-warning-fill");
+        }
+      } catch (err) {
+        // ── 3. Network or server failure: seamlessly save locally to IndexedDB ──
+        console.warn("[Kiosk] Network or server error during scan, saving to offline queue:", err);
+        try {
+          const endpoint = scanMode === "in" ? "/api/parade/clock-in" : "/api/parade/clock-out";
+          await queueScanDirectly({
+            endpoint: endpoint,
+            barcode: cleanCode,
+            snapshot: snapshotBase64,
+            scanMode: scanMode
+          });
+          displayOfflineQueuedCard(cleanCode, scanMode === "out");
+          playFeedbackChime(false);
+          showToast(
+            "Saved to Tablet Memory",
+            "Server unreachable. Scan saved locally & will sync automatically when server is available.",
+            "#f59e0b",
+            "ri-save-line"
+          );
+          refreshOfflineQueueCount();
+        } catch (queueErr) {
+          console.error("[Kiosk] Critical: Failed to save scan to offline queue:", queueErr);
+          showToast("Storage Error", "Could not save scan to tablet memory.", "#ef4444", "ri-alert-fill");
+        }
+      } finally {
+        setTimeout(() => { isProcessing = false; }, 600);
+        setTimeout(() => {
+          if (barcodeInput) { barcodeInput.value = ""; barcodeInput.focus(); }
+        }, 200);
+      }
+    }
+
+    // Show an "offline queued" card in the feedback area
+    function displayOfflineQueuedCard(barcode, isClockOut = false) {
+      const card = document.getElementById("feedbackCard");
+      const nameEl = document.getElementById("feedbackName");
+      const subEl = document.getElementById("feedbackSub");
+      const timeEl = document.getElementById("feedbackTime");
+      const statusEl = document.getElementById("feedbackStatus");
+      const catEl = document.getElementById("feedbackCategory");
+      const dirEl = document.getElementById("feedbackDirectorate");
+      const avatarEl = document.getElementById("feedbackAvatar");
+
+      nameEl.textContent = `Scan Queued (Offline)`;
+      subEl.textContent = `Barcode: ${barcode} — Will sync to server automatically.`;
+      timeEl.textContent = new Date().toLocaleTimeString();
+      statusEl.textContent = isClockOut ? "Clock-Out Queued" : "Clock-In Queued";
+      statusEl.className = "badge-pill badge-amber";
+      catEl.textContent = "OFFLINE MODE";
+      dirEl.textContent = "Pending Sync";
+      avatarEl.innerHTML = `<i class="ri-cloud-off-line" style="font-size: 48px; color: #f59e0b;"></i>`;
+
+      card.classList.add("state-queued");
+      card.style.borderColor = "rgba(245, 158, 11, 0.8)";
+      card.style.transform = "scale(1.02)";
+      setTimeout(() => {
+        card.style.transform = "scale(1)";
+        card.classList.remove("state-queued");
+        card.style.borderColor = "";
+      }, 3000);
+    }
+
+
+    function displaySuccessCard(user, isAlready = false, isClockOut = false) {
+      const card = document.getElementById("feedbackCard");
+      const nameEl = document.getElementById("feedbackName");
+      const subEl = document.getElementById("feedbackSub");
+      const timeEl = document.getElementById("feedbackTime");
+      const statusEl = document.getElementById("feedbackStatus");
+      const catEl = document.getElementById("feedbackCategory");
+      const dirEl = document.getElementById("feedbackDirectorate");
+      const avatarEl = document.getElementById("feedbackAvatar");
+
+      nameEl.textContent = user.name || "Staff Member";
+      subEl.textContent = `${user.rank || 'Personnel'} • Service No: ${user.service_number || '-'}`;
+
+      if (isClockOut) {
+        timeEl.textContent = `IN: ${user.time_str || '--:--'} → OUT: ${user.clock_out_time_str || '--:--'}`;
+        statusEl.textContent = isAlready ? "Already Clocked Out" : "Clock-out Recorded";
+        statusEl.className = isAlready ? "badge-pill badge-amber" : "badge-pill badge-blue";
+        card.style.borderColor = isAlready ? "rgba(245, 158, 11, 0.8)" : "rgba(96, 165, 250, 0.8)";
+      } else if (isAlready) {
+        timeEl.textContent = `Clocked in at ${user.time_str || '--:--'}`;
+        statusEl.textContent = "Already Clocked In";
+        statusEl.className = "badge-pill badge-amber";
+        card.style.borderColor = "rgba(245, 158, 11, 0.8)";
+      } else {
+        timeEl.textContent = user.time_str || "Just now";
+        const isLate = user.is_late;
+        statusEl.textContent = isLate ? "Late Arrival" : "Clock-in Verified";
+        statusEl.className = isLate ? "badge-pill badge-amber" : "badge-pill badge-green";
+        card.style.borderColor = isLate ? "rgba(245, 158, 11, 0.8)" : "rgba(16, 185, 129, 0.8)";
+      }
+
+      catEl.textContent = (user.category || "Civilian").toUpperCase();
+      dirEl.textContent = user.directorate || "DOA";
+
+      if (user.snapshot_id) {
+        avatarEl.innerHTML = `<img src="/parade-state/snapshot/${user.snapshot_id}" alt="Photo" />`;
+      } else {
+        avatarEl.innerHTML = `<i class="ri-user-star-fill" style="font-size: 48px; color: #10b981;"></i>`;
+      }
+
+      card.style.transform = "scale(1.02)";
+      setTimeout(() => { card.style.transform = "scale(1)"; }, 300);
+    }
+
+    function appendFeedRow(user) {
+      const tbody = document.getElementById("feedTableBody");
+      const emptyRow = document.getElementById("emptyFeedRow");
+      if (emptyRow) emptyRow.remove();
+
+      // Guard against duplicate rows if Socket.IO and local scan both fire
+      const scanId = user._id || user.user_id || `${user.service_number}_${user.time_str}`;
+      if (document.querySelector(`[data-scan-id="${scanId}"]`)) return;
+
+      const isLate = user.is_late;
+      const punctualityHtml = isLate
+        ? `<span style="color:#f59e0b;font-weight:600;font-size:12px;">⚠ Late</span>`
+        : `<span style="color:#34d399;font-weight:600;font-size:12px;">✓ On Time</span>`;
+
+      const tr = document.createElement("tr");
+      tr.setAttribute("data-scan-id", scanId);
+      tr.setAttribute("data-user-id", user.user_id || "");
+      tr.innerHTML = `
+        <td style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #38bdf8;">${user.time_str || 'Just now'}</td>
+        <td style="font-weight: 600; color: #ffffff;">${user.name || 'Staff Member'}</td>
+        <td><code style="color: #60a5fa;">${user.service_number || '-'}</code></td>
+        <td><span style="text-transform: uppercase;">${user.directorate || '-'}</span></td>
+        <td>${punctualityHtml}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#94a3b8;" id="clockout_${user.user_id || scanId}">—</td>
+        <td><span style="color: #34d399; font-weight: 600;">✔ Present</span></td>
+      `;
+      tbody.insertBefore(tr, tbody.firstChild);
+
+      const counter = document.getElementById("feedCounter");
+      if (counter) {
+        const current = parseInt(counter.textContent) || 0;
+        counter.textContent = `${current + 1} Scanned Today`;
+      }
+    }
+
+    // Update an existing feed row's clock-out time cell in place
+    function updateFeedRowClockOut(user) {
+      const uid = user.user_id || "";
+      const cell = document.getElementById(`clockout_${uid}`);
+      if (cell) {
+        cell.textContent = user.clock_out_time_str || "—";
+        cell.style.color = "#60a5fa";
+        cell.style.fontWeight = "700";
+      }
+    }
+
+    function playSyntheticChime(success = true) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        if (success) {
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.25);
+        } else {
+          osc.frequency.setValueAtTime(320, ctx.currentTime);
+          osc.frequency.setValueAtTime(240, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.35);
+        }
+      } catch (e) { }
+    }
+
+    function playFeedbackChime(success = true) {
+      try {
+        const audio = document.getElementById("scanSuccessAudio");
+        if (audio) {
+          audio.currentTime = 0;
+          audio.play().catch(() => playSyntheticChime(success));
+          return;
+        }
+      } catch (e) { }
+      playSyntheticChime(success);
+    }
+
+    function toggleFullScreen() {
+      const fsIcon = document.getElementById("fsIcon");
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => { });
+        if (fsIcon) fsIcon.className = "ri-fullscreen-exit-line";
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => { });
+          if (fsIcon) fsIcon.className = "ri-fullscreen-line";
+        }
+      }
+    }
+
+    function showToast(title, msg, color, iconClass) {
+      const toast = document.getElementById("kioskToast");
+      const toastTitle = document.getElementById("toastTitle");
+      const toastMsg = document.getElementById("toastMessage");
+      const toastIcon = document.getElementById("toastIcon");
+
+      toastTitle.textContent = title;
+      toastMsg.textContent = msg;
+      toastIcon.className = iconClass;
+      toastIcon.style.color = color;
+      toast.style.borderColor = color;
+
+      toast.style.display = "flex";
+      setTimeout(() => {
+        toast.style.display = "none";
+      }, 3800);
+    }
+
+    // Camera Lifecycle
+    const offscreenCanvas = document.createElement("canvas");
+    const offscreenCtx = offscreenCanvas.getContext("2d", { willReadFrequently: true });
+
+    async function startCamera() {
+      const video = document.getElementById("webcamVideo");
+      const placeholder = document.getElementById("camPlaceholder");
+      const reticle = document.getElementById("targetReticle");
+      const btnStart = document.getElementById("btnStartCam");
+      const btnStop = document.getElementById("btnStopCam");
+
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        video.srcObject = mediaStream;
+        video.style.display = "block";
+        placeholder.style.display = "none";
+        reticle.style.display = "flex";
+        btnStart.style.display = "none";
+        btnStop.style.display = "flex";
+
+        // Launch cross-browser frame-by-frame QR scanner loop
+        startCameraScanningLoop(video);
+      } catch (err) {
+        console.warn("Webcam stream standby or unavailable:", err);
+        showToast(
+          "Camera Standby",
+          "Webcam stream inactive or not permitted. Hardware barcode/QR scanner is live and ready.",
+          "#f59e0b",
+          "ri-camera-off-line"
+        );
+      }
+    }
+
+    function stopCamera() {
+      const video = document.getElementById("webcamVideo");
+      const placeholder = document.getElementById("camPlaceholder");
+      const reticle = document.getElementById("targetReticle");
+      const btnStart = document.getElementById("btnStartCam");
+      const btnStop = document.getElementById("btnStopCam");
+
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+      if (cameraCheckInterval) {
+        clearInterval(cameraCheckInterval);
+        cameraCheckInterval = null;
+      }
+
+      video.style.display = "none";
+      placeholder.style.display = "flex";
+      reticle.style.display = "none";
+      btnStart.style.display = "flex";
+      btnStop.style.display = "none";
+    }
+
+    // High-speed cross-browser QR and Barcode Detection
+    function startCameraScanningLoop(video) {
+      if (cameraCheckInterval) {
+        clearInterval(cameraCheckInterval);
+      }
+
+      // Fast, ultra-smooth frame scanning loop (~7-8 scans/sec)
+      cameraCheckInterval = setInterval(() => {
+        if (!mediaStream || isProcessing) return;
+        if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+        try {
+          const vw = video.videoWidth || 640;
+          const vh = video.videoHeight || 480;
+
+          if (offscreenCanvas.width !== vw || offscreenCanvas.height !== vh) {
+            offscreenCanvas.width = vw;
+            offscreenCanvas.height = vh;
+          }
+
+          offscreenCtx.drawImage(video, 0, 0, vw, vh);
+          const imgData = offscreenCtx.getImageData(0, 0, vw, vh);
+
+          // 1. Primary Engine: jsQR (detects standard and dark-mode inverted QR codes instantly)
+          if (typeof jsQR !== "undefined") {
+            const qrResult = jsQR(imgData.data, vw, vh, {
+              inversionAttempts: "attemptBoth"
+            });
+            if (qrResult && qrResult.data) {
+              const decoded = qrResult.data.trim();
+              if (decoded) {
+                console.log("[KIOSK QR] Detected QR Code:", decoded);
+                processBarcodeScan(decoded);
+                return;
+              }
+            }
+          }
+        } catch (e) {
+          // Frame skip
+        }
+      }, 140);
+
+      // 2. Secondary Engine: Native BarcodeDetector (if supported by browser for 1D barcodes)
+      if ('BarcodeDetector' in window) {
+        try {
+          const detector = new BarcodeDetector({ formats: ['code_128', 'qr_code', 'ean_13', 'code_39', 'data_matrix'] });
+          setInterval(async () => {
+            if (!mediaStream || isProcessing) return;
+            if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+            try {
+              const barcodes = await detector.detect(video);
+              if (barcodes && barcodes.length > 0) {
+                const codeVal = (barcodes[0].rawValue || "").trim();
+                if (codeVal) {
+                  processBarcodeScan(codeVal);
+                }
+              }
+            } catch (e) { }
+          }, 350);
+        } catch (e) { }
+      }
+    }
+
+    // Real-time Socket.IO Live Synchronization
+    try {
+      if (typeof io !== "undefined") {
+        const socket = io();
+        socket.on("parade_clockin_event", (payload) => {
+          if (payload && payload.attendance) {
+            appendFeedRow(payload.attendance);
+          }
+        });
+        socket.on("parade_clockout_event", (payload) => {
+          if (payload) {
+            updateFeedRowClockOut(payload);
+          }
+        });
+      }
+    } catch (sockErr) {
+      console.warn("Socket.io initialization notice:", sockErr);
+    }
+
+    // Hardware Keyboard Wedge Barcode/QR Scanner listener
+    let wedgeBuffer = "";
+    let lastKeystrokeTime = Date.now();
+
+    window.addEventListener("keydown", (e) => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      const now = Date.now();
+      if (now - lastKeystrokeTime > 200) {
+        wedgeBuffer = "";
+      }
+      lastKeystrokeTime = now;
+
+      if (e.key === "Enter") {
+        const val = wedgeBuffer.trim() || (barcodeInput ? barcodeInput.value.trim() : "");
+        if (val && !isProcessing) {
+          e.preventDefault();
+          wedgeBuffer = "";
+          if (barcodeInput) barcodeInput.value = "";
+          processBarcodeScan(val);
+        }
+      } else if (e.key.length === 1) {
+        wedgeBuffer += e.key;
+        if (barcodeInput && document.activeElement !== barcodeInput) {
+          barcodeInput.focus();
+        }
+      }
+    });
+
+    // Auto-launch camera and auto-focus barcode scanner upon loading kiosk
+    window.addEventListener("DOMContentLoaded", () => {
+      startCamera();
+      setInterval(() => {
+        if (
+          barcodeInput &&
+          document.activeElement !== barcodeInput &&
+          !['BUTTON', 'A', 'INPUT'].includes(document.activeElement.tagName)
+        ) {
+          barcodeInput.focus();
+        }
+      }, 1000);
+
+      // Check initial online state on load
+      updateOnlineStatus();
+      // Read any existing queued scans from IndexedDB on load and attempt sync if online
+      refreshOfflineQueueCount();
+
+      // Periodic background sync: every 10s whenever pending items exist
+      setInterval(() => {
+        if (_offlineCount > 0) {
+          syncPendingScansDirectly();
+        }
+      }, 10000);
+    });
+
+    // =========================================================================
+    // SERVICE WORKER REGISTRATION (Root Scope)
+    // =========================================================================
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then((registration) => {
+            console.log('[Kiosk PWA] Service Worker registered successfully with scope:', registration.scope);
+            // Check for update
+            registration.onupdatefound = () => {
+              const installing = registration.installing;
+              if (installing) {
+                installing.onstatechange = () => {
+                  if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[Kiosk PWA] Updated Service Worker ready.');
+                  }
+                };
+              }
+            };
+          })
+          .catch((err) => {
+            console.warn('[Kiosk PWA] Service Worker registration failed (normal on non-secure LAN):', err);
+          });
+      });
+    }
+
+    // =========================================================================
+    // DIRECT INDEXEDDB STORAGE ENGINE (Works in any browser/tablet offline)
+    // =========================================================================
+    const IDB_NAME = 'dsm-offline-queue';
+    const IDB_STORE = 'scan_queue';
+
+    function openKioskIDB() {
+      return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) {
+          return reject(new Error('IndexedDB not supported in this environment'));
+        }
+        const req = indexedDB.open(IDB_NAME, 2);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(IDB_STORE)) {
+            const store = db.createObjectStore(IDB_STORE, { keyPath: 'id', autoIncrement: true });
+            store.createIndex('status', 'status', { unique: false });
+            store.createIndex('timestamp', 'timestamp', { unique: false });
+          }
+        };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function queueScanDirectly({ endpoint, barcode, snapshot, scanMode }) {
+      const db = await openKioskIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        const store = tx.objectStore(IDB_STORE);
+        const record = {
+          endpoint: endpoint,
+          body: { barcode: barcode },
+          snapshot: snapshot || null,
+          timestamp: Date.now(),
+          status: 'pending',
+          scanMode: scanMode || 'in',
+          retries: 0
+        };
+        const req = store.add(record);
+        req.onsuccess = () => {
+          db.close();
+          resolve(req.result);
+        };
+        req.onerror = () => {
+          db.close();
+          reject(req.error);
+        };
+      });
+    }
+
+    // =========================================================================
+    // CLIENT-SIDE BACKGROUND SYNC ENGINE (Replays queued scans when online)
+    // =========================================================================
+    let _isSyncing = false;
+
+    async function syncPendingScansDirectly() {
+      if (_isSyncing) return;
+      _isSyncing = true;
+      try {
+        const db = await openKioskIDB();
+        const pending = await new Promise((resolve, reject) => {
+          const tx = db.transaction(IDB_STORE, 'readonly');
+          const store = tx.objectStore(IDB_STORE);
+          const idx = store.index('status');
+          const req = idx.getAll('pending');
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => reject(req.error);
+        });
+
+        if (!pending.length) {
+          db.close();
+          _isSyncing = false;
+          refreshOfflineQueueCount();
+          return;
+        }
+
+        console.log(`[Kiosk Sync] Syncing ${pending.length} pending scan(s) to server...`);
+
+        for (const record of pending) {
+          try {
+            const payload = Object.assign({}, record.body);
+            if (record.snapshot) payload.snapshot = record.snapshot;
+
+            const resp = await fetch(record.endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (resp.ok) {
+              const data = await resp.json();
+              // Update status in IDB
+              await new Promise((resolve) => {
+                const tx = db.transaction(IDB_STORE, 'readwrite');
+                const store = tx.objectStore(IDB_STORE);
+                record.status = 'synced';
+                record.synced_at = Date.now();
+                store.put(record);
+                tx.oncomplete = resolve;
+              });
+
+              if (data.status === 'success' || data.status === 'already_clocked_in' || data.status === 'already_clocked_out') {
+                const u = data.user || { name: record.body.barcode, service_number: record.body.barcode };
+                if (record.endpoint.includes('clock-out')) {
+                  updateFeedRowClockOut(u);
+                } else {
+                  appendFeedRow(u);
+                }
+                showToast(
+                  'Synced to Server ✓',
+                  `${u.name || record.body.barcode} attendance recorded.`,
+                  '#10b981',
+                  'ri-cloud-line'
+                );
+              }
+            } else if (resp.status === 404) {
+              // Unrecognized user: mark failed so we don't loop forever
+              await new Promise((resolve) => {
+                const tx = db.transaction(IDB_STORE, 'readwrite');
+                const store = tx.objectStore(IDB_STORE);
+                record.status = 'failed';
+                store.put(record);
+                tx.oncomplete = resolve;
+              });
+            }
+          } catch (postErr) {
+            console.warn('[Kiosk Sync] Network lost during sync, pausing:', postErr);
+            break; // Stop loop if connection drops midway
+          }
+        }
+        db.close();
+      } catch (err) {
+        console.error('[Kiosk Sync] Sync error:', err);
+      } finally {
+        _isSyncing = false;
+        refreshOfflineQueueCount();
+      }
+    }
+
+    // =========================================================================
+    // OFFLINE / ONLINE STATUS MANAGEMENT & UI
+    // =========================================================================
+    let _offlineCount = 0;
+
+    function updateOnlineStatus() {
+      const banner = document.getElementById("offlineBanner");
+      if (!banner) return;
+      if (!navigator.onLine) {
+        banner.classList.add("show");
+      } else {
+        banner.classList.remove("show");
+        // Immediately sync pending scans when back online
+        syncPendingScansDirectly();
+        triggerSWSync();
+      }
+    }
+
+    async function refreshOfflineQueueCount() {
+      try {
+        const db = await openKioskIDB();
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const store = tx.objectStore(IDB_STORE);
+        const idx = store.index('status');
+        const countReq = idx.count('pending');
+        countReq.onsuccess = () => {
+          _offlineCount = countReq.result || 0;
+          const badge = document.getElementById("offlineQueueCount");
+          if (badge) {
+            if (_offlineCount > 0) {
+              badge.textContent = `${_offlineCount} queued`;
+              badge.style.display = "inline";
+            } else {
+              badge.style.display = "none";
+            }
+          }
+          db.close();
+          // If we are online and there are items queued, trigger sync
+          if (navigator.onLine && _offlineCount > 0) {
+            syncPendingScansDirectly();
+          }
+        };
+        countReq.onerror = () => db.close();
+      } catch (e) {
+        console.warn('[Kiosk] Cannot read offline count:', e);
+      }
+    }
+
+    function triggerSWSync() {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'FORCE_SYNC' });
+      }
+    }
+
+    function manualSync() {
+      showToast("Syncing...", "Attempting to sync queued scans to server.", "#38bdf8", "ri-refresh-line");
+      syncPendingScansDirectly();
+      triggerSWSync();
+      setTimeout(refreshOfflineQueueCount, 2000);
+    }
+
+    // Window Online / Offline event listeners
+    window.addEventListener("online", () => {
+      updateOnlineStatus();
+      showToast("Back Online", "Network restored. Syncing queued scans...", "#10b981", "ri-wifi-line");
+    });
+    window.addEventListener("offline", () => {
+      updateOnlineStatus();
+      showToast("Offline Mode Active", "Scans will be saved locally to tablet memory and synced when connected.", "#f59e0b", "ri-wifi-off-line");
+    });
+
+    // =========================================================================
+    // SERVICE WORKER MESSAGE LISTENER (sync feedback from background)
+    // =========================================================================
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        const msg = event.data;
+        if (!msg) return;
+
+        if (msg.type === 'SCAN_QUEUED_OFFLINE') {
+          console.log('[Kiosk] SW queued offline scan:', msg.barcode);
+          refreshOfflineQueueCount();
+        }
+
+        if (msg.type === 'SCAN_SYNCED') {
+          console.log('[Kiosk] SW synced offline scan:', msg.barcode, msg.serverResponse);
+          if (msg.serverResponse) {
+            const resp = msg.serverResponse;
+            if (resp.status === 'success' && resp.user) {
+              if (msg.endpoint && msg.endpoint.includes('clock-out')) {
+                updateFeedRowClockOut(resp.user);
+              } else {
+                appendFeedRow(resp.user);
+              }
+              showToast(
+                "Synced ✓",
+                `${resp.user.name || msg.barcode} synced to server.`,
+                "#10b981",
+                "ri-cloud-line"
+              );
+            }
+          }
+          setTimeout(refreshOfflineQueueCount, 500);
+        }
+
+        if (msg.type === 'SYNC_COMPLETE') {
+          console.log('[Kiosk] Background sync complete');
+          showToast("Sync Complete", "All queued scans have been processed.", "#10b981", "ri-checkbox-circle-fill");
+          setTimeout(refreshOfflineQueueCount, 300);
+        }
+      });
+    }
+  </script>
+
+</body>
+
+</html>

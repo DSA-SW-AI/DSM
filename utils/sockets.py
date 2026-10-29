@@ -7,8 +7,11 @@ import os
 
 
 @socketio.on('connect')
-def handle_connect():
-    print(f"🔌 Socket connect from SID: {request.sid}")
+def handle_connect(auth=None):
+    try:
+        print(f"[Socket] Connected from SID: {request.sid}")
+    except Exception:
+        pass
 
     user_email = flask_session.get("email") or flask_session.get("user_email")
     user_room = None
