@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename, send_file
 from gridfs import GridFS
 import os
 import re
-from .leave_logic import validate_leave_request, LeaveBalances, working_days_between, get_legacy_fields
+from .leave_logic import validate_leave_request, LeaveBalances, working_days_between, get_legacy_fields, get_terminal_entitlement
 from .leave_helper import (
     update_leave_balance,
     deduct_casual_with_annual,
@@ -815,7 +815,10 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
         end_date       = datetime.strptime(end_date_str, '%Y-%m-%d')
         effective_date = datetime.strptime(effective_date_str, '%Y-%m-%d')
     except ValueError:
-        flash("Invalid date format.", "error")
+        msg = "Invalid date format."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': msg}), 400
+        flash(msg, "error")
         return redirect(url_for(form_endpoint))
 
     expected_delivery_date = None
@@ -823,17 +826,26 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
         try:
             expected_delivery_date = datetime.strptime(expected_delivery_date_str, '%Y-%m-%d')
         except ValueError:
-            flash("Invalid expected delivery date format.", "error")
+            msg = "Invalid expected delivery date format."
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, "error")
             return redirect(url_for(form_endpoint))
 
     # ─── Date validation ──────────────────────────────────────────────
-    if not (start_date <= effective_date < end_date):
-        flash("Dates must follow: Application Date ≤ Effective Date < End Date", "error")
+    if not (start_date <= effective_date <= end_date):
+        msg = "Dates must follow: Application Date ≤ Effective Date ≤ End Date"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': msg}), 400
+        flash(msg, "error")
         return redirect(url_for(form_endpoint))
 
     if leave_type == 'maternity' and expected_delivery_date:
         if effective_date > expected_delivery_date:
-            flash("Effective date cannot be after expected delivery date", "error")
+            msg = "Effective date cannot be after expected delivery date"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, "error")
             return redirect(url_for(form_endpoint))
 
     # ─── Calculate working/calendar days ──────────────────────────────
@@ -854,19 +866,31 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
     ]
     missing = [name for name, val in required_fields if not val]
     if missing:
-        flash(f"Please fill in: {', '.join(missing)}", "error")
+        msg = f"Please fill in: {', '.join(missing)}"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': msg}), 400
+        flash(msg, "error")
         return redirect(url_for(form_endpoint))
 
     if leave_type == 'maternity' and not expected_delivery_date_str:
-        flash("Expected delivery date is required for maternity leave", "error")
+        msg = "Expected delivery date is required for maternity leave"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': msg}), 400
+        flash(msg, "error")
         return redirect(url_for(form_endpoint))
 
     if leave_type == 'disembarkation' and not attachment_months:
-        flash("Duration of course/attachment is required for disembarkation leave", "error")
+        msg = "Duration of course/attachment is required for disembarkation leave"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': msg}), 400
+        flash(msg, "error")
         return redirect(url_for(form_endpoint))
 
     if leave_type == 'sick' and not has_medical_certificate:
-        flash("Medical certificate is required for sick leave", "error")
+        msg = "Medical certificate is required for sick leave"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': msg}), 400
+        flash(msg, "error")
         return redirect(url_for(form_endpoint))
 
     # ─── File uploads ─────────────────────────────────────────────────
@@ -962,7 +986,42 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
                                     f"Need {required_days} days but only "
                                     f"{balances.annual_remaining} remaining.")
 
+    elif leave_type == "maternity":
+        if not balances.maternity_available:
+            balance_sufficient = False
+            insufficient_message = "Maternity leave has already been utilized for this year/cycle."
+        elif working_days_requested != 112:
+            balance_sufficient = False
+            insufficient_message = f"Maternity leave must be exactly 112 working days (16 weeks). Requested: {working_days_requested}."
+
+    elif leave_type == "paternity":
+        if not balances.paternity_available:
+            balance_sufficient = False
+            insufficient_message = "Paternity leave has already been utilized for this year/cycle."
+        elif working_days_requested != 14:
+            balance_sufficient = False
+            insufficient_message = f"Paternity leave must be exactly 14 working days. Requested: {working_days_requested}."
+
+    elif leave_type == "terminal":
+        expected_days = get_terminal_entitlement(staff.grade)
+        if balances.terminal_granted or not balances.terminal_available:
+            balance_sufficient = False
+            insufficient_message = "Terminal leave has already been granted or is not available."
+        elif working_days_requested != expected_days:
+            balance_sufficient = False
+            insufficient_message = f"Terminal leave for your grade is {expected_days} working days. Requested: {working_days_requested}."
+
+    elif leave_type == "sick":
+        if not hospitalized and working_days_requested > balances.sick_rolling_remaining:
+            balance_sufficient = False
+            insufficient_message = f"Sick leave request ({working_days_requested} days) exceeds your remaining rolling 12-month allowance ({balances.sick_rolling_remaining} days)."
+
     if not balance_sufficient:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                "success": False,
+                "error": insufficient_message
+            }), 400
         flash(f"❌ {insufficient_message}", "error")
         return redirect(url_for(form_endpoint))
 
@@ -991,6 +1050,11 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
     )
 
     if not is_valid:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                "success": False,
+                "error": f"Leave validation failed: {message}"
+            }), 400
         flash(f"Leave validation failed: {message}", "error")
         if metadata and metadata.get('notes'):
             for note in metadata['notes']:
@@ -1075,7 +1139,8 @@ def handle_application_post(applicant, request, leave_data, role_bucket):
         "applicantName": applicant['fullName'],
         "applicantId":   applicant['service_number'],
         "rankOrGrade":   applicant['rankOrGrade'],
-        "designation":     applicant['designation'],
+        "designation":   applicant['designation'],
+        "appt":          applicant['designation'],
         "role_bucket":   role_bucket,           # stored for reference
         "leave_type":    leave_type,
         "directorate":   directorate,
@@ -1739,7 +1804,7 @@ def calculate_working_days():
     public_holidays = get_public_holidays(year)
     
     # Calculate based on leave type
-    if leave_type == 'casual':
+    if leave_type in ('casual', 'pass'):
         # Casual leave uses calendar days
         days = calendar_days_between(start_date, end_date)
         return jsonify({

@@ -389,17 +389,19 @@ def super_admin_edit_user():
     if new_password:
         update_payload["password_hash"] = generate_password_hash(new_password)
         
-    if 'passport_image' in data or data.get('passport_modified'):
+    if data.get('passport_modified') and 'passport_image' in data:
         passport_val = data.get('passport_image') or ''
         update_payload["passport_image"] = passport_val
         update_payload["passport_photo"] = passport_val
         update_payload["profile_image"] = passport_val
-        update_payload["onboarding_data.step_1.uploadPassport"] = passport_val
+        if passport_val:
+            update_payload["onboarding_data.step_1.uploadPassport"] = passport_val
 
-    if 'signature_image' in data or data.get('signature_modified'):
+    if data.get('signature_modified') and 'signature_image' in data:
         sig_val = data.get('signature_image') or ''
         update_payload["signature_image"] = sig_val
-        update_payload["onboarding_data.step_1.uploadSignature"] = sig_val
+        if sig_val:
+            update_payload["onboarding_data.step_1.uploadSignature"] = sig_val
 
     db.users.update_one({"email": target_email}, {"$set": update_payload})
     return jsonify({"status": "success", "message": "User updated successfully"}), 200

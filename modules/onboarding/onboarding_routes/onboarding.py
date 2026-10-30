@@ -363,15 +363,27 @@ def onboarding_portal():
     else:
         valid_steps = [1, 2, 3, 4, 5]
 
-    # Evaluate completed milestones
+    # Evaluate completed milestones (strictly verify explicit completion flag or genuine submitted data)
     completed_steps = {}
     for s in [1, 2, 3, 4, 5]:
         s_data = onboarding_data.get(f"step_{s}", {})
         is_done = False
-        if isinstance(s_data, dict) and len(s_data) > 0:
-            if s == 3:
-                is_done = bool(s_data.get("id_card_status") or onboarding_data.get("step_3_completed"))
-            else:
+        if isinstance(s_data, dict):
+            # 1. Primary authority: explicit completion flag saved on form submission
+            if onboarding_data.get(f"step_{s}_completed") is True:
+                is_done = True
+            # 2. Step 3 ID card generation verification
+            elif s == 3 and (s_data.get("id_card_status") == "GENERATED_AND_VERIFIED" or onboarding_data.get("step_3_completed") is True):
+                is_done = True
+            # 3. Backward compatibility for legacy submitted records lacking explicit boolean flag
+            # (must contain actual required form entries, not just admin-updated passport/signature)
+            elif s == 1 and bool(s_data.get("phoneNo") and (s_data.get("appt") or s_data.get("rankOrGrade"))):
+                is_done = True
+            elif s == 2 and len(s_data) >= 3 and s_data.get("nextOfKinName"):
+                is_done = True
+            elif s == 4 and len(s_data) >= 3 and (s_data.get("salaryBank") or s_data.get("accountNumber")):
+                is_done = True
+            elif s == 5 and len(s_data) >= 3 and s_data.get("gender"):
                 is_done = True
         completed_steps[str(s)] = is_done
 
@@ -448,10 +460,18 @@ def get_my_onboarding_data():
     for s in [1, 2, 3, 4, 5]:
         s_data = onboarding_data.get(f"step_{s}", {})
         is_done = False
-        if isinstance(s_data, dict) and len(s_data) > 0:
-            if s == 3:
-                is_done = bool(s_data.get("id_card_status") or onboarding_data.get("step_3_completed"))
-            else:
+        if isinstance(s_data, dict):
+            if onboarding_data.get(f"step_{s}_completed") is True:
+                is_done = True
+            elif s == 3 and (s_data.get("id_card_status") == "GENERATED_AND_VERIFIED" or onboarding_data.get("step_3_completed") is True):
+                is_done = True
+            elif s == 1 and bool(s_data.get("phoneNo") and (s_data.get("appt") or s_data.get("rankOrGrade"))):
+                is_done = True
+            elif s == 2 and len(s_data) >= 3 and s_data.get("nextOfKinName"):
+                is_done = True
+            elif s == 4 and len(s_data) >= 3 and (s_data.get("salaryBank") or s_data.get("accountNumber")):
+                is_done = True
+            elif s == 5 and len(s_data) >= 3 and s_data.get("gender"):
                 is_done = True
         completed_steps[str(s)] = is_done
 
